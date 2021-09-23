@@ -3,7 +3,7 @@ import numpy as np
 import os.path
 from itertools import chain, repeat, islice
 import time
-import TFAtomDNN
+import atomdnn
 import random
 import shutil
 
@@ -38,7 +38,7 @@ class Data(object):
     
     def __init__(self,fp_filename=None, der_filename=None, image_num=None):
                 
-        self.data_type = TFAtomDNN.data_type
+        self.data_type = atomdnn.data_type
         
         if self.data_type == 'float32':
             self.str2float = np.float32
@@ -74,7 +74,7 @@ class Data(object):
             self.read_inputdata(fp_filename,image_num)
 
         
-    def read_inputdata(self,fp_filename=None, der_filename=None, image_num=None, read_der=TFAtomDNN.compute_force):
+    def read_inputdata(self,fp_filename=None, der_filename=None, image_num=None, read_der=atomdnn.compute_force):
 
         self.read_fingerprints_from_lmpdump(fp_filename,image_num)
 

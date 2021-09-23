@@ -3,18 +3,18 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 import time
 import os
-import TFAtomDNN
+import atomdnn
 
 
-if TFAtomDNN.compute_force:
-    input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=TFAtomDNN.data_type, name="fingerprints"),
+if atomdnn.compute_force:
+    input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
                     "atom_type": tf.TensorSpec(shape=[None,None], dtype=tf.int32, name="atom_type"),
-                    "dGdr": tf.TensorSpec(shape=[None,None,None,None], dtype=TFAtomDNN.data_type, name="dgdr"),
+                    "dGdr": tf.TensorSpec(shape=[None,None,None,None], dtype=atomdnn.data_type, name="dgdr"),
                     "center_atom_id": tf.TensorSpec(shape=[None,None], dtype=tf.int32, name="center_atom_id"),
                     "neighbor_atom_id": tf.TensorSpec(shape=[None,None], dtype=tf.int32, name="neighbor_atom_id"),
-                    "neighbor_atom_coord": tf.TensorSpec(shape=[None,None,None,None], dtype=TFAtomDNN.data_type, name="neighbor_atom_coord")}]
+                    "neighbor_atom_coord": tf.TensorSpec(shape=[None,None,None,None], dtype=atomdnn.data_type, name="neighbor_atom_coord")}]
 else:
-    input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=TFAtomDNN.data_type, name="fingerprints"),
+    input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
                          "atom_type": tf.TensorSpec(shape=[None,None], dtype=tf.int32, name="atom_type")}]
 
 
@@ -65,7 +65,7 @@ class Network(tf.Module):
                 self.norm = tf.Variable(norm)
 
             
-            self.data_type = TFAtomDNN.data_type
+            self.data_type = atomdnn.data_type
             self.weights_initializer = weights_initializer
             self.bias_initializer = bias_initializer
                     
@@ -276,7 +276,7 @@ class Network(tf.Module):
 
 
     
-    def predict(self, input_dict,compute_force=TFAtomDNN.compute_force,training=False):
+    def predict(self, input_dict,compute_force=atomdnn.compute_force,training=False):
         '''
         input_dict: dictionary that contains fingerprints, dGdr, center_atom_id, neighbor_atom_id, neighbor_atom_coord.
         '''        
@@ -323,7 +323,7 @@ class Network(tf.Module):
         
                      
     # only used for __call__ method
-    def _predict(self, input_dict,compute_force=TFAtomDNN.compute_force):
+    def _predict(self, input_dict,compute_force=atomdnn.compute_force):
         '''
         input_dict: dictionary that contains fingerprints, dGdr, center_atom_id, neighbor_atom_id, neighbor_atom_coord.
         '''         
@@ -340,7 +340,7 @@ class Network(tf.Module):
 
         
 
-    def evaluate(self,x,y_true,compute_force=TFAtomDNN.compute_force):
+    def evaluate(self,x,y_true,compute_force=atomdnn.compute_force):
         y_predict = self.predict(x, compute_force=compute_force)
         loss = self.loss(y_true,y_predict)
         for key in loss:
