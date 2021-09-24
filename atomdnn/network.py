@@ -242,8 +242,8 @@ class Network(tf.Module):
         
         # compute stress    
         stress_block = tf.reshape(tf.matmul(neighbor_atom_coord,force_block),[num_image,max_block,9])     
-        stress = tf.reduce_sum(stress_block,axis=1)  
-        
+        stress = tf.reduce_sum(stress_block,axis=1)
+        stress = tf.math.divide(stress,input_dict['volume']) * atomdnn.stress_unit_convert 
         return force, stress
 
 
@@ -377,9 +377,9 @@ class Network(tf.Module):
                 stress = tf.reshape(tf.boolean_mask(pred_dict['stress'], mask,axis=1),[-1,6]) # reduce to 6 components
                 stress_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
                 if training:
-                    self.epoch_loss['train']['stress'].append(force_loss)
+                    self.epoch_loss['train']['stress'].append(stress_loss)
                 elif validation:
-                    self.epoch_loss['validation']['stress'].append(force_loss)
+                    self.epoch_loss['validation']['stress'].append(stress_loss)
                 else:
                     eval_loss['stress_loss'] = stress_loss                
                

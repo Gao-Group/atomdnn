@@ -90,6 +90,7 @@ class Data(object):
         
         self.input_dict['fingerprints'] = []
         self.input_dict['atom_type'] = []
+        self.input_dict['volume'] = []
         self.num_atoms_in_fpfiles = []
        
         #file_name = '/dump_fingerprints.'
@@ -126,6 +127,12 @@ class Data(object):
                 count_atom = 0
                 self.input_dict['fingerprints'].append([])
                 self.input_dict['atom_type'].append([])
+                self.input_dict['volume'].append([])
+                lx = self.str2float(lines[5].split()[1]) - self.str2float(lines[5].split()[0])
+                ly = self.str2float(lines[6].split()[1]) - self.str2float(lines[6].split()[0])
+                lz = self.str2float(lines[7].split()[1]) - self.str2float(lines[7].split()[0])
+                volume = lx*ly*lz
+                self.input_dict['volume'][fd].append(volume)
                 for line in lines[9:]:
                     count_atom += 1
                     line = line.split()
@@ -311,7 +318,7 @@ class Data(object):
 
                 
 
-    def read_outputdata_from_lmp(self, pe_stress_filename=None, force_filename=None, image_num=None):
+    def read_outputdata_from_lmp(self, pe_stress_filename=None, force_filename=None, image_num=None, lmp_stress_unit_convert=None):
 
         # read potential energy and stress from lammps output file
         try:
@@ -328,7 +335,8 @@ class Data(object):
         pe_stress_file.close()
 
         self.output_dict['pe'] = [self.str2float(lines[i].split()[1]) for i in range(1,len(lines))]
-        self.output_dict['stress'] = [self.str2float(lines[i].split()[2:8]) for i in range(1,len(lines))]
+ 
+        self.output_dict['stress'] = [-self.str2float(lines[i].split()[2:8]) for i in range(1,len(lines))]
 
         print('  Finish reading pe and stress from %i images.\n'%len(self.output_dict['pe']))
 
