@@ -335,8 +335,13 @@ class Data(object):
         pe_stress_file.close()
 
         self.output_dict['pe'] = [self.str2float(lines[i].split()[1]) for i in range(1,len(lines))]
- 
-        self.output_dict['stress'] = [-self.str2float(lines[i].split()[2:8]) for i in range(1,len(lines))]
+
+        if lmp_stress_unit_convert:
+            unit_convert = lmp_stress_unit_convert
+        else:
+            unit_convert = 1.0
+
+        self.output_dict['stress'] = [-self.str2float(lines[i].split()[2:8]) * unit_convert for i in range(1,len(lines))]
 
         print('  Finish reading pe and stress from %i images.\n'%len(self.output_dict['pe']))
 
