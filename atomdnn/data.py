@@ -445,7 +445,7 @@ class Data(object):
         else:
             raise ValueError('No fingerprints in input data.')
 
-        print('The dimensions of tnput and output data are consistant.')
+        print('The dimensions of input and output data are consistant.')
 
 
 
