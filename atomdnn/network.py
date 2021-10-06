@@ -363,11 +363,13 @@ class Network(tf.Module):
             pe_loss = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
 
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
-            if (not training and not validation) or ((training or validation) and self.loss_weights['force']!=0): # when evaluation or train/validation using force
+            # when evaluation OR train/validation using force OR all losses are requested 
+            if (not training and not validation) or ((training or validation) and self.loss_weights['force']!=0) or self.compute_all_loss: 
                 force_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['force'],pred_dict['force']))
                 
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
-            if (not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0)): # when evaluation or train/validation using stress
+            # when evaluation OR train/validation using stress OR all losses are requested
+            if (not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0)) or self.compute_all_loss: 
                 mask = [True,True,True,False,True,True,False,False,True] # select upper triangle elements of the stress tensor
                 stress = tf.reshape(tf.boolean_mask(pred_dict['stress'], mask,axis=1),[-1,6]) # reduce to 6 components
                 stress_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
@@ -383,10 +385,13 @@ class Network(tf.Module):
             loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'total_loss':total_loss.numpy()}
         elif self.loss_weights['stress']!=0: # pe and stress used for training
             total_loss = pe_loss * self.loss_weights['pe'] + stress_loss * self.loss_weights['stress']
-            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'total_loss':total_loss.numpy()}
+            loss_dict = {'pe_loss':pe_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
         else:
             raise ValueError('loss_weights is not set correctly.')
 
+        if (not training and not validation) or self.compute_all_loss:
+            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
+            
         if training:
             return total_loss,loss_dict
         else:
@@ -440,7 +445,7 @@ class Network(tf.Module):
 
     
     def train(self, train_dataset, validation_dataset=None, scaling=None, batch_size=None, epochs=None, loss_fn=None, \
-              optimizer=None, lr=None, loss_weights=None, shuffle=True):
+              optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True):
 
         if not self.built:            
             self._build()
@@ -497,24 +502,35 @@ class Network(tf.Module):
             self.loss_weights = loss_weights
         for key in self.loss_weights:
             self.loss_weights[key] = tf.Variable(loss_weights[key],dtype=self.data_type)
+
+        if compute_all_loss:
+            self.compute_all_loss=True
+        else:
+            self.compute_all_loss=False
+
+        
             
-        if self.loss_weights['force']!=0: # when force is used for training/validation 
+        if self.loss_weights['force']!=0 or self.compute_all_loss: # when force is used for training/validation OR compute force_loss is requested     
             self.train_loss['force_loss']=[]
-            print ("Forces are used for training.")
             if validation_dataset:
                 self.val_loss['force_loss']=[]
+
+        if self.loss_weights['force']!=0:
+            print ("Forces are used for training.")
         else:
             print ("Forces are not used for training.")
             
-        if self.loss_weights['stress']!=0: # when stress is used for traning/validation
+        if self.loss_weights['stress']!=0 or self.compute_all_loss: # when stress is used for traning/validation OR compute stress_loss is requested
             self.train_loss['stress_loss']=[]
-            print ("Stresses are used for training.")
             if validation_dataset:
                 self.val_loss['stress_loss']=[]
+                
+        if self.loss_weights['stress']!=0:
+            print ("Stresses are used for training.")
         else:
             print ("Stresses are not used for training.")
 
-        if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0: 
+        if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0 or self.compute_all_loss: 
             self.train_loss['total_loss']=[]
             if validation_dataset:
                 self.val_loss['total_loss']=[]
