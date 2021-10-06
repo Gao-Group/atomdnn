@@ -8,8 +8,6 @@ import random
 import shutil
 
     
-    
-
 # slice dictionary
 def slice (data_dict, start, end):
     keys = list(data_dict.keys())
