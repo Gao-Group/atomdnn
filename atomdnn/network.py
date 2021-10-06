@@ -4,7 +4,7 @@ from tensorflow.keras import backend as K
 import time
 import os
 import atomdnn
-
+from atomdnn.data import *
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -21,7 +21,7 @@ else:
 
 class Network(tf.Module):
 
-    def __init__(self, elements=None, num_fingerprints=None, std=None, norm=None, arch=None, \
+    def __init__(self, elements=None, num_fingerprints=None, arch=None, \
                  activation_function=None, weights_initializer=tf.random.normal, bias_initializer=tf.zeros, import_dir=None):
         
         super(Network,self).__init__()
@@ -47,40 +47,26 @@ class Network(tf.Module):
                 self.num_fingerprints = num_fingerprints 
             else:
                 raise ValueError ('Network has no num_fingerprints input.')
-                
-            
+                            
             if elements is not None:
                 self.elements = elements 
             else:
                 raise ValueError ('Network has no elements input.')
 
-            if std is not None:
-                if norm is not None:
-                    raise ValueError ('Network does not take std and norm at the same time.')
-                else:
-                    self.std = tf.Variable(std)
-
-                
-            if norm is not None:
-                self.norm = tf.Variable(norm)
-
-            
             self.data_type = atomdnn.data_type
             self.weights_initializer = weights_initializer
             self.bias_initializer = bias_initializer
                     
             self.built = False
             self.params = [] # layer and node parameters
-
+        
             # training parameter
-            self.batch_size=None 
             self.loss_fn=None # string
             self.tf_loss_fn=None
             self.optimizer=None # string
             self.tf_optimizer=None
             self.lr=None
-            self.train_force=False
-            self.train_stress=False
+#            self.loss_weights=None
                 
         self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
         self.saved_arch = tf.Variable(self.arch)
@@ -88,11 +74,8 @@ class Network(tf.Module):
         self.saved_data_type = tf.Variable(self.data_type)
         self.saved_elements = tf.Variable(self.elements)
 
-
-        self.epoch_loss = {}
         
         
-    
     def inflate_from_file(self, imported):
         '''
         Inflate network object from SavedModel 
@@ -102,35 +85,22 @@ class Network(tf.Module):
         self.arch = imported.saved_arch.numpy()
         self.num_fingerprints = imported.saved_num_fingerprints.numpy()
 
-        if hasattr(imported, 'std'):
-            self.std = imported.std
-
-        if hasattr(imported, 'norm'):
-            self.norm = imported.norm
+        if hasattr(imported, 'saved_scaling'):
+            self.scaling = imported.saved_scaling.numpy().decode()
+            self.scaling_factor = imported.scaling_factor
             
         self.activation_function = imported.saved_activation_function.numpy().decode()
         self.tf_activation_function = tf.keras.activations.get(self.activation_function)
         self.data_type = imported.saved_data_type.numpy().decode()
         self.elements = [imported.saved_elements.numpy()[i].decode() for i in range(imported.saved_elements.shape[0])]
            
-        self.batch_size = imported.saved_batch_size.numpy()
         self.lr = imported.saved_lr.numpy()
         self.loss_fn = imported.saved_loss_fn.numpy().decode()
         self.tf_loss_fn = tf.keras.losses.get(self.loss_fn)
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
-        self.train_force = imported.saved_train_force.numpy()
-        self.train_stress = imported.saved_train_stress.numpy()
-
-        if self.train_force:
-            self.force_loss_weight = imported.saved_force_loss_weight
-
-        if self.train_stress:
-            self.stress_loss_weight = imported.saved_stress_loss_weight
-            
-        if self.train_force or self.train_stress:
-            self.pe_loss_weight = imported.saved_pe_loss_weight
+        
         
         try:
             self.params = []
@@ -214,20 +184,33 @@ class Network(tf.Module):
     
     def compute_force_stress (self, dEdG, input_dict):
                 
-        fingerprints = input_dict['fingerprints']
+        if hasattr(self, 'scaling'):
+            if self.scaling=='std':
+                dEdG = dEdG/self.scaling_factor[1]
+            elif self.scaling=='norm':
+                dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
+            else:
+                raise ValueError('Scaling should be either \'std\' or \'norm\'.')
+            
         dGdr = input_dict['dGdr']
-        if hasattr(self, 'std'):
-            dEdr = dEdG/self.std[1]
-        if hasattr(self, 'norm'): 
-            dEdG = dEdG/(self.norm[1] - self.norm[0])        
+        if not tf.is_tensor(dGdr):
+            tf.convert_to_tensor(dGdr,dtype=self.data_type)
             
         center_atom_id = input_dict['center_atom_id']
+        if not tf.is_tensor(center_atom_id):
+            tf.convert_to_tensor(center_atom_id,dtype='int32')
+       
         neighbor_atom_id = input_dict['neighbor_atom_id']
-        neighbor_atom_coord = input_dict['neighbor_atom_coord']  
+        if not tf.is_tensor(neighbor_atom_id):
+            tf.convert_to_tensor(neighbor_atom_id,dtype='int32')
+        
+        neighbor_atom_coord = input_dict['neighbor_atom_coord']
+        if not tf.is_tensor(neighbor_atom_coord):
+            tf.convert_to_tensor(neighbor_atom_coord,dtype=self.data_type)
     
         num_image = tf.shape(center_atom_id)[0]
         max_block = tf.shape(center_atom_id)[1]
-        num_atoms = tf.shape(fingerprints)[1]
+        num_atoms = len(input_dict['fingerprints'][0])
         
         # form dEdG matrix corresponding to the blocks in dGdr data file
         center_atom_id_reshape = tf.reshape(center_atom_id,shape=[num_image,-1,1])
@@ -250,7 +233,15 @@ class Network(tf.Module):
 
     # only used for __call__ method
     def _compute_force_stress (self, dEdG, input_dict):
-                
+
+        if hasattr(self, 'scaling'):
+            if self.scaling=='std':
+                dEdG = dEdG/self.scaling_factor[1]
+            elif self.scaling=='norm':
+                dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
+            else:
+                raise ValueError('Scaling should be either \'std\' or \'norm\'.')
+  
         fingerprints = input_dict['fingerprints']
         dGdr = input_dict['dGdr']
         center_atom_id = input_dict['center_atom_id']
@@ -265,56 +256,48 @@ class Network(tf.Module):
         dEdG_block = tf.gather_nd(dEdG,center_atom_id_reshape,batch_dims=1)     
         dEdG_block = tf.reshape(dEdG_block, [num_image,max_block,1,self.num_fingerprints])
         
-        # compute force       
-        force_block = -tf.matmul(dEdG_block, dGdr)     
+        # compute force block      
+        force_block = -tf.matmul(dEdG_block, dGdr)
         
-        # compute stress    
+        # compute stress block    
         stress_block = tf.reshape(tf.matmul(neighbor_atom_coord,force_block),[num_image,max_block,9])     
-#        stress = tf.reduce_sum(stress_block,axis=1)  
         
         return force_block, stress_block
 
 
     
     def predict(self, input_dict,compute_force=atomdnn.compute_force,training=False):
-        '''
-        input_dict: dictionary that contains fingerprints, dGdr, center_atom_id, neighbor_atom_id, neighbor_atom_coord.
-        '''        
 
-        if not training:
-            if self.num_fingerprints!=len(input_dict['fingerprints'][0][0]):
-                raise ValueError('Number of input fingerprints should equal to %i.' % self.num_fingerprints)                
-        
         if not self.built:
             self._build()
             self.built = True
 
         fingerprints = input_dict['fingerprints']
-
-        # standardlize the fingerprints with the mean (std[0]) and deviation (std[1])
-        if hasattr(self, 'std'):
-            fingerprints = (fingerprints - self.std[0])/self.std[1]
-
-        # normalize the fingerprints with the minimum (norm[0]) and maximum (norm[1])
-        if hasattr(self, 'norm'): 
-            fingerprints = (fingerprints - self.norm[0])/(self.norm[1] - self.norm[0])
         
+        if not tf.is_tensor(fingerprints):
+            fingerprints = tf.convert_to_tensor(fingerprints)
+
+        if not training:
+            if hasattr(self, 'scaling'):
+                if self.scaling == 'std':  # standardize with the mean and deviation
+                    fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
+                elif self.scaling == 'norm': # normalize with the minimum and maximum
+                    fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
+                else:
+                    raise ValueError('Scaling should be either \'std\' or \'norm\'.')
+                
         if not compute_force:
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
             if training:
                 return {'pe':total_pe} 
             else:
                 return {'pe':total_pe.numpy()} 
-                          
         else: 
             with tf.GradientTape() as dEdG_tape:
                 dEdG_tape.watch(fingerprints)
                 total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
-                
             dEdG = dEdG_tape.gradient(atom_pe, fingerprints)
-
             force, stress = self.compute_force_stress(dEdG, input_dict)
-                                                    
             if training:
                 return {'pe':total_pe, 'force':force, 'stress':stress}
             else:
@@ -324,114 +307,140 @@ class Network(tf.Module):
                      
     # only used for __call__ method
     def _predict(self, input_dict,compute_force=atomdnn.compute_force):
-        '''
-        input_dict: dictionary that contains fingerprints, dGdr, center_atom_id, neighbor_atom_id, neighbor_atom_coord.
-        '''         
+
+        fingerprints = input_dict['fingerprints']
+        if hasattr(self, 'scaling'):
+            if self.scaling == 'std':  # standardize with the mean and deviation
+                fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
+            elif self.scaling == 'norm': # normalize with the minimum and maximum
+                fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
+            else:
+                raise ValueError('Scaling should be either \'std\' or \'norm\'.')
+        
         if not compute_force:
-            total_pe, atom_pe = self.compute_pe(input_dict['fingerprints'],input_dict['atom_type'])
+            total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
             return {'pe':atom_pe}                       
         else: 
             with tf.GradientTape() as dEdG_tape:
-                dEdG_tape.watch(input_dict['fingerprints'])
-                total_pe, atom_pe = self.compute_pe(input_dict['fingerprints'],input_dict['atom_type'])          
-            dEdG = dEdG_tape.gradient(atom_pe, input_dict['fingerprints'])
+                dEdG_tape.watch(fingerprints)
+                total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])          
+            dEdG = dEdG_tape.gradient(atom_pe, fingerprints)
             force_block, stress_block = self._compute_force_stress(dEdG, input_dict)         
             return {'atom_pe':atom_pe, 'force':force_block, 'stress':stress_block}
 
         
 
-    def evaluate(self,x,y_true,compute_force=atomdnn.compute_force):
-        y_predict = self.predict(x, compute_force=compute_force)
-        loss = self.loss(y_true,y_predict)
-        for key in loss:
-            print('%15s:  %15.4e' % (key, loss[key]))
+    def evaluate(self,dataset,batch_size=None,compute_force=atomdnn.compute_force):
 
+        if batch_size is None:
+            batch_size = dataset.cardinality().numpy()
+            
+        for step, (input_dict, output_dict) in enumerate(dataset.batch(batch_size)):
+            y_predict = self.predict(input_dict, compute_force=compute_force)
+            batch_loss = self.loss(output_dict,y_predict)
+            if step==0:
+                eval_loss = batch_loss
+            else:
+                for key in batch_loss:
+                    eval_loss[key] = batch_loss[key] + eval_loss[key]
+        for key in batch_loss:
+            eval_loss[key] = eval_loss[key]/(step+1)
+
+        print('Evaluation loss is:')
+        for key in eval_loss:
+            print('%15s:  %15.4e' % (key, eval_loss[key]))
+
+        print ('\nThe prediction is:')
+        return y_predict
                                                 
         
         
     def loss(self, true_dict, pred_dict, training=False, validation=False):
 
-        pe_loss = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
-
-        if training:
-            self.epoch_loss['train']['pe'].append(pe_loss)
-        elif validation:
-            self.epoch_loss['validation']['pe'].append(pe_loss)
-        else: # loss for evaluation
-            eval_loss = {}
-            eval_loss['pe_loss'] = pe_loss
+        if self.tf_loss_fn is None:
+            raise ValueError('Need to set up loss function.')
+        else:
+            pe_loss = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
 
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
-            if (not training and not validation) or ((training or validation) and self.train_force):
+            if (not training and not validation) or ((training or validation) and self.loss_weights['force']!=0): # when evaluation or train/validation using force
                 force_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['force'],pred_dict['force']))
-                if training:
-                    self.epoch_loss['train']['force'].append(force_loss)
-                elif validation:
-                    self.epoch_loss['validation']['force'].append(force_loss)
-                else:
-                    eval_loss['force_loss'] = force_loss
                 
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
-            if (not training and not validation) or ((training or validation) and self.train_stress):
+            if (not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0)): # when evaluation or train/validation using stress
                 mask = [True,True,True,False,True,True,False,False,True] # select upper triangle elements of the stress tensor
                 stress = tf.reshape(tf.boolean_mask(pred_dict['stress'], mask,axis=1),[-1,6]) # reduce to 6 components
                 stress_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
-                if training:
-                    self.epoch_loss['train']['stress'].append(stress_loss)
-                elif validation:
-                    self.epoch_loss['validation']['stress'].append(stress_loss)
-                else:
-                    eval_loss['stress_loss'] = stress_loss                
-               
-        if not self.train_force and not self.train_stress: # only pe used for training
+
+        if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
             total_loss = pe_loss
-        elif self.train_force and self.train_stress: # pe, force and stress used for training
-            total_loss = pe_loss * self.pe_loss_weight + force_loss * self.force_loss_weight + stress_loss * self.stress_loss_weight
-        elif self.train_force: # pe and force used for training 
-            total_loss = pe_loss * self.pe_loss_weight + force_loss * self.force_loss_weight
-        elif self.train_stress: # pe and stress used for training
-            total_loss = pe_loss * self.pe_loss_weight + stress_loss * self.stress_loss_weight
-           
+            loss_dict = {'pe_loss':pe_loss.numpy()}
+        elif self.loss_weights['force']!=0 and self.loss_weights['stress']!=0: # pe, force and stress used for training
+            total_loss = pe_loss * self.loss_weights['pe'] + force_loss * self.loss_weights['force'] + stress_loss * self.loss_weights['stress']
+            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
+        elif self.loss_weights['force']!=0: # pe and force used for training 
+            total_loss = pe_loss * self.loss_weights['pe'] + force_loss * self.loss_weights['force']
+            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'total_loss':total_loss.numpy()}
+        elif self.loss_weights['stress']!=0: # pe and stress used for training
+            total_loss = pe_loss * self.loss_weights['pe'] + stress_loss * self.loss_weights['stress']
+            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'total_loss':total_loss.numpy()}
+        else:
+            raise ValueError('loss_weights is not set correctly.')
+
         if training:
-            if self.train_force or self.train_stress:
-                self.epoch_loss['train']['total'].append(total_loss)
-            return total_loss
-        elif validation:
-            if self.train_force or self.train_stress:
-                self.epoch_loss['validation']['total'].append(total_loss)
-            return total_loss
-        else: # for evaluation
-            eval_loss['total_loss'] = total_loss
-            return eval_loss
+            return total_loss,loss_dict
+        else:
+            return loss_dict
 
 
-           
+
      
     def train_step(self, input_dict, output_dict):    
         with tf.GradientTape() as tape: # automatically watch all tensorflow variables 
-            if not self.train_force and not self.train_stress:
+            if self.loss_weights['force']==0 and self.loss_weights['stress']==0:
                 pred_dict = self.predict(input_dict, training=True,compute_force=False)
             else:
                 pred_dict = self.predict(input_dict, training=True,compute_force=True)
-            train_loss = self.loss(output_dict, pred_dict,training=True)
-        grads = tape.gradient(train_loss, self.params)
+            total_loss,loss_dict = self.loss(output_dict, pred_dict,training=True)
+        grads = tape.gradient(total_loss, self.params)
         self.tf_optimizer.apply_gradients(zip(grads, self.params))
-        return train_loss
+        return loss_dict
 
 
     
     def validation_step(self, input_dict, output_dict):
-        if not self.train_force and not self.train_stress:
+        if self.loss_weights['force']==0 and self.loss_weights['stress']==0:
             pred_dict = self.predict(input_dict,training=True,compute_force=False)
         else:
             pred_dict = self.predict(input_dict,training=True,compute_force=True)
-        val_loss = self.loss(output_dict, pred_dict,validation=True)
-        return val_loss
+            loss_dict = self.loss(output_dict, pred_dict,validation=True)
+        return loss_dict
     
+
+    def compute_scaling_factors(self,train_dataset):
+        self.scaling_factor = []
+        fingerprints = get_input_dict(train_dataset)['fingerprints']
+        if self.scaling == 'std':
+            self.scaling_factor.append(tf.math.reduce_mean(fingerprints,axis=[0,1]))  
+            self.scaling_factor.append(tf.math.reduce_std(fingerprints,axis=[0,1]))
+        if self.scaling == 'norm':
+            self.scaling_factor.append(tf.math.reduce_max(fingerprints,axis=[0,1]))
+            self.scaling_factor.append(tf.math.reduce_min(fingerprints,axis=[0,1]))
+        self.scaling_factor = tf.Variable(self.scaling_factor) # convert to tf.Variable for saving
+
+        
+    def scaling_dataset(self,dataset):
+        def map_fun(input_dict,output_dict):
+            if self.scaling == 'std':
+                input_dict['fingerprints'] = (input_dict['fingerprints'] - self.scaling_factor[0])/self.scaling_factor[1]
+            if self.scaling == 'norm':
+                input_dict['fingerprints'] = (input_dict['fingerprints'] - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
+            return input_dict,output_dict
+        return dataset.map(map_fun)
+
     
-    def train(self, x_train,y_train,validation_data=None, batch_size=None, epochs=None, loss_fn=None, \
-              optimizer=None, lr=None, train_force=False, pe_loss_weight=None, force_loss_weight=None, \
-              train_stress=False, stress_loss_weight=None, shuffle=False):
+    def train(self, train_dataset, validation_dataset=None, scaling=None, batch_size=None, epochs=None, loss_fn=None, \
+              optimizer=None, lr=None, loss_weights=None, shuffle=True):
 
         if not self.built:            
             self._build()
@@ -442,6 +451,12 @@ class Network(tf.Module):
         elif not self.lr: 
             self.lr = 0.01
             print ("learning rate is set to 0.01 by default.")
+
+        if scaling:
+            if scaling != 'std' and scaling != 'norm':
+                raise ValueError('Scaling needs to be \'std\' (standardization) or \'norm\'(normalization).')
+            else:
+                self.scaling = scaling
             
         if optimizer:
             self.optimizer = optimizer
@@ -463,108 +478,110 @@ class Network(tf.Module):
         if not epochs:
             epochs = 1
             print ("epochs is set to 1 by default.")
-            
-        if batch_size:
-            self.batch_size = batch_size
-        elif not self.batch_size:
-            self.batch_size = 30
-            print ("batch_size is set to 30 by default.")
 
-    
-        self.epoch_loss['train']={}
-        self.epoch_loss['train']['pe']=[]
+        if batch_size is None:
+            batch_size = 30
+            print ("batch_size is set to 30 by default.")    
+
+        self.train_loss={}
+        self.train_loss['pe_loss']=[]
         
-        if validation_data:
-            self.epoch_loss['validation']={}
-            self.epoch_loss['validation']['pe']=[]
-            
-        if train_force:
-            self.train_force = True
-            self.epoch_loss['train']['force']=[]
-            print ("Forces are used for training.")
-            if force_loss_weight:
-                self.force_loss_weight = force_loss_weight
-            else:
-                self.force_loss_weight = 1
-                print('Loss weight for force is set to 1 by default.')
-            self.saved_force_loss_weight = tf.Variable(self.force_loss_weight)
-            if validation_data:
-                self.epoch_loss['validation']['force']=[]
+        if validation_dataset:
+            self.val_loss={}
+            self.val_loss['pe_loss']=[]
+
+        if loss_weights is None:
+            self.loss_weights = {'pe':1,'force':0,'stress':0}
+            print('loss_weights is set to default value:',self.loss_weights)
         else:
-            self.train_force = False
+            self.loss_weights = loss_weights
+        for key in self.loss_weights:
+            self.loss_weights[key] = tf.Variable(loss_weights[key],dtype=self.data_type)
+            
+        if self.loss_weights['force']!=0: # when force is used for training/validation 
+            self.train_loss['force_loss']=[]
+            print ("Forces are used for training.")
+            if validation_dataset:
+                self.val_loss['force_loss']=[]
+        else:
             print ("Forces are not used for training.")
             
-        if train_stress:
-            self.train_stress = True
-            self.epoch_loss['train']['stress']=[]
+        if self.loss_weights['stress']!=0: # when stress is used for traning/validation
+            self.train_loss['stress_loss']=[]
             print ("Stresses are used for training.")
-            if stress_loss_weight:
-                self.stress_loss_weight = stress_loss_weight
-            else:
-                self.stress_loss_weight = 1
-                print('Loss weight for stress is set to 1 by default.')
-            self.saved_stress_loss_weight = tf.Variable(self.stress_loss_weight)
-            if validation_data:
-                self.epoch_loss['validation']['stress']=[]
+            if validation_dataset:
+                self.val_loss['stress_loss']=[]
         else:
-            self.train_stress = False
             print ("Stresses are not used for training.")
 
-        if train_force or train_stress:
-            self.epoch_loss['train']['total']=[]
-            if pe_loss_weight:
-                self.pe_loss_weight = pe_loss_weight
-            else:
-                self.pe_loss_weight = 1
-                print('Loss weight for pe is set to 1 by default.')
-            self.saved_pe_loss_weight = tf.Variable(self.pe_loss_weight)
-            if validation_data:
-                self.epoch_loss['validation']['total']=[]
+        if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0: 
+            self.train_loss['total_loss']=[]
+            if validation_dataset:
+                self.val_loss['total_loss']=[]
+
 
         # convert to tf.variable so that they can be saved to network
         self.saved_optimizer = tf.Variable(self.optimizer)
         self.saved_lr = tf.Variable(self.lr)
         self.saved_loss_fn = tf.Variable(self.loss_fn)
-        self.saved_batch_size = tf.Variable(self.batch_size)
-        self.saved_train_force = tf.Variable(self.train_force)
-        self.saved_train_stress = tf.Variable(self.train_stress)
+        self.saved_scaling = tf.Variable(self.scaling)
                                                     
-        train_tf_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)).batch(self.batch_size)
-        if validation_data:
-            val_tf_dataset = tf.data.Dataset.from_tensor_slices((validation_data[0], validation_data[1])).batch(self.batch_size)
-            
-        if shuffle:
-            train_tf_dataset.shuffle(buffer_size=train_tf_dataset.cardinality().numpy())
+        if self.scaling:
+            self.compute_scaling_factors(train_dataset)
+            print('Scaling factors are computed using training dataset.')
+            train_dataset = self.scaling_dataset(train_dataset)
+            print('Training dataset are %s.' % 'standardized' if self.scaling =='std' else 'normalized')
+            if validation_dataset:
+                validation_dataset = self.scaling_dataset(validation_dataset)
+                print('Validation dataset are %s.' % 'standardized' if self.scaling =='std' else 'normalized')
 
+        if shuffle:
+            train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
+            print('Training dataset will be shuffled during training.')
+                                  
         train_start_time = time.time()
         for epoch in range(epochs):
             epoch_start_time = time.time()
 
-            #Iterate over the batches of the training dataset.
-            total_train_loss = 0
-            for step, (input_dict, output_dict) in enumerate(train_tf_dataset):  
-                train_loss = self.train_step(input_dict, output_dict)
-                total_train_loss = train_loss + total_train_loss
-            ave_train_loss = total_train_loss/(step+1)
+            # Iterate over the batches of the training dataset.
+            for step, (input_dict, output_dict) in enumerate(train_dataset.batch(batch_size)):
+                batch_loss = self.train_step(input_dict, output_dict)
+                if step==0:
+                    epoch_loss = batch_loss
+                else:
+                    for key in batch_loss:
+                        epoch_loss[key] = batch_loss[key] + epoch_loss[key]
+            for key in batch_loss:
+                self.train_loss[key].append(epoch_loss[key]/(step+1))
+                
 
-            if validation_data:  #Iterate over the batches of the validation dataset.
-                total_val_loss = 0
-                for step, (input_dict, output_dict) in enumerate(val_tf_dataset):
-                    val_loss = self.validation_step(input_dict, output_dict)
-                    total_val_loss = val_loss + total_val_loss
-                ave_val_loss = total_val_loss/(step+1)
+                
+            # Iterate over the batches of the validation dataset
+            if validation_dataset is not None:  
+                for step, (input_dict, output_dict) in enumerate(validation_dataset.batch(batch_size)):
+                    batch_loss = self.validation_step(input_dict, output_dict)
+                    if step==0:
+                        epoch_loss = batch_loss
+                    else:
+                        for key in batch_loss:
+                            epoch_loss[key] = batch_loss[key] + epoch_loss[key]
+                for key in batch_loss:
+                    self.val_loss[key].append(epoch_loss[key]/(step+1))
+                    
 
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
             print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
 
-            print('     training_loss   ',*["- %s: %5.3f" % (key,value[epoch]) for key,value in self.epoch_loss['train'].items()])
-            if validation_data:
-                print('     validation_loss ',*["- %s: %5.3f" % (key,value[epoch]) for key,value in self.epoch_loss['validation'].items()])
+            print('     training_loss   ',*["- %s: %5.3f" % (key,value[epoch]) for key,value in self.train_loss.items()])
+            if validation_dataset:
+                print('     validation_loss ',*["- %s: %5.3f" % (key,value[epoch]) for key,value in self.val_loss.items()])
 
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
+
+        
 def get_signature(model_dir):
     stream = os.popen('saved_model_cli show --dir '+ model_dir +' --tag_set serve --signature_def serving_default')
     output = stream.read()

@@ -6,10 +6,11 @@ import time
 import atomdnn
 import random
 import shutil
-
     
+    
+
 # slice dictionary
-def slice (data_dict, start, end):
+def slice_dict (data_dict, start, end):
     keys = list(data_dict.keys())
     return {keys[i]: list(islice(data_dict[keys[i]],start, end)) for i in range(len(keys))}
     
@@ -22,16 +23,7 @@ def pad_infinite(iterable, padding=None):
 def pad(iterable, size, padding=None):
     return islice(pad_infinite(iterable, padding), size)
 
-
-def get_input(tf_dataset):
-    return [item[0] for item in list(dataset.as_numpy_iterator())]
-
-def get_output(tf_dataset):
-    return [item[1] for item in list(dataset.as_numpy_iterator())]
-
-
-
-
+    
 class Data(object):
     
     def __init__(self,fp_filename=None, der_filename=None, image_num=None):
@@ -48,7 +40,7 @@ class Data(object):
         self.num_images = None # number of fingerprints files
         self.num_fingerprints = None # number of fingerprints
         self.num_atoms = None # max number of atoms among all fingerprints files
-        self.num_atoms_in_fpfiles = None # number of atoms per image in fingerprints files
+        self.natoms_in_fpfiles = None # number of atoms per image in fingerprints files
         self.num_atoms_in_forcefiles = None # number of atoms per image in force files
 
         self.num_types = None        
@@ -60,11 +52,6 @@ class Data(object):
         self.input_dict = {}
         self.output_dict = {}
 
-        self.mean_fp = None
-        self.dev_fp = None
-        self.max_fp = None
-        self.min_fp = None
-
         
         if fp_filename is not None and der_filename is not None:
             self.read_inputdata(fp_filename,der_filename,image_num)  
@@ -72,29 +59,30 @@ class Data(object):
             self.read_inputdata(fp_filename,image_num)
 
         
-    def read_inputdata(self,fp_filename=None, der_filename=None, image_num=None, read_der=atomdnn.compute_force):
+    def read_inputdata(self,fp_filename=None, der_filename=None, image_num=None, append=False, read_der=atomdnn.compute_force):
 
-        self.read_fingerprints_from_lmpdump(fp_filename,image_num)
+        self.read_fingerprints_from_lmpdump(fp_filename,image_num, append)
 
         if read_der:
-            self.read_der_from_lmpdump(der_filename,image_num)
+            self.read_der_from_lmpdump(der_filename,image_num, append)
+
+
+        
+    def read_fingerprints_from_lmpdump(self, fp_filename=None, image_num=None, append=False):
+
+        if not append:
+            self.input_dict['fingerprints'] = []
+            self.input_dict['atom_type'] = []
+            self.input_dict['volume'] = []
+            self.natoms_in_fpfiles = []
+            start_image = 0
+        else:
+            start_image = len(self.natoms_in_fpfiles)
             
-        self.check_consistance()
-
-
-
-        
-    def read_fingerprints_from_lmpdump(self, fp_filename=None, image_num=None):
-        
-        self.input_dict['fingerprints'] = []
-        self.input_dict['atom_type'] = []
-        self.input_dict['volume'] = []
-        self.num_atoms_in_fpfiles = []
-       
-        #file_name = '/dump_fingerprints.'
-        fd = 0 # count file
+            
+        fd = start_image # count file
         maxnum_atom = 0 # max number of atoms among all the images
-
+            
         if fp_filename.split('.')[-1] == '*':
             batch_mode = 1
             fp_filename = fp_filename[:-2]
@@ -109,10 +97,10 @@ class Data(object):
             
         while (1):
             if image_num:
-                if fd+1>image_num:
+                if fd-start_image+1>image_num:
                     break
             if batch_mode:
-                filename = fp_filename + '.' + str(fd+1)
+                filename = fp_filename + '.' + str(fd-start_image+1)
             else:
                 filename = fp_filename
             if os.path.isfile(filename):
@@ -136,20 +124,20 @@ class Data(object):
                     line = line.split()
                     self.input_dict['atom_type'][fd].append(int(line[1]))
                     self.input_dict['fingerprints'][fd].append([self.str2float(x) for x in line[2:]])
-                self.num_atoms_in_fpfiles.append(count_atom)
+                self.natoms_in_fpfiles.append(count_atom)
                 fd += 1
-                if fd > 0 and int(fd%50)==0:
-                    print ('  Progress: read %d images ...' % fd)
+                if fd-start_image > 0 and int((fd-start_image)%50)==0:
+                    print ('  so far read %d images ...' % fd)
             else:
                 break
 
-        print('  Finish reading fingerprints from %i images.\n' % fd)
-        maxnum_atom = max(self.num_atoms_in_fpfiles)
+        print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']))
+        maxnum_atom = max(self.natoms_in_fpfiles)
 
         # pad zeros if the atom number is less than maxnum_atom
-        for i in range(len(self.num_atoms_in_fpfiles)):
-            if self.num_atoms_in_fpfiles[i] < maxnum_atom:
-                print('  Pad image %i with zeros fingerprints.\n'%(i+1))
+        for i in range(len(self.input_dict['fingerprints'])):
+            if len(self.input_dict['fingerprints'][i]) < maxnum_atom:
+                print('  Pad image %i with zeros fingerprints.'%(i+1))
                 zeros = [0] * len(self.input_dict['fingerprints'][i][0])
                 self.input_dict['fingerprints'][i] = list(pad(self.input_dict['fingerprints'][i],maxnum_atom,zeros))
         
@@ -162,36 +150,11 @@ class Data(object):
         print('  max number of atom = %d' % self.num_atoms)
         print('  number of fingerprints = %d' % self.num_fingerprints)
         print('  type of atoms = %d' % self.num_types)            
-        
-        self.input_dict['fingerprints'] = tf.convert_to_tensor(self.input_dict['fingerprints'],dtype=self.data_type)
-        self.input_dict['atom_type'] = tf.convert_to_tensor(self.input_dict['atom_type'],dtype='int32')
-        
-        # compute the mean, standard deviation, max and min of each fingerprint
-        self.mean_fp = tf.math.reduce_mean(self.input_dict['fingerprints'],axis=[0,1])  
-        self.dev_fp = tf.math.reduce_std(self.input_dict['fingerprints'],axis=[0,1])
-        self.max_fp = tf.math.reduce_max(self.input_dict['fingerprints'],axis=[0,1])
-        self.min_fp = tf.math.reduce_min(self.input_dict['fingerprints'],axis=[0,1])
-
-        # check data consistance
-        if 'dGdr' in list(self.input_dict.keys()):
-            if self.num_images != len(self.input_dict['dGdr']):
-                print ("\nWarning: The image numbers of fingerprints files and derivative files are not consistant.\n")
-            if self.num_fingerprints != len(self.input_dict['dGdr'][0][0]):
-                print ("\nWarning: The fingerprints numbers of fingerprints files and derivative files are not consistant.\n")
-        if 'pe' in list(self.output_dict.keys()):
-            if self.num_images != len(self.output_dict['pe']):
-                print ("\nWarning: The image numbers of fingerprints files and pe files are not consistant.\n")
-        if 'force' in list(self.output_dict.keys()):
-            if self.num_images != len(self.output_dict['force']):
-                print ("\nWarning: The image numbers of fingerprints files and force files are not consistant.\n")
-            if self.num_atoms_in_fpfiles != self.num_atoms_in_forcefiles:
-                print ("\nWarning: The atom numbers in fingerprints files and force files are not consistant.\n")
-
 
 
 
                 
-    def read_der_from_lmpdump(self,der_filename=None,image_num=None):
+    def read_der_from_lmpdump(self,der_filename=None,image_num=None,append=False):
        
         # ==============================================================================
         #
@@ -217,12 +180,15 @@ class Data(object):
         #
         #===================================================================================
 
-        
-        self.input_dict['dGdr']=[]
-        self.input_dict['neighbor_atom_coord']=[]
-        self.input_dict['center_atom_id']=[]
-        self.input_dict['neighbor_atom_id']=[]
-        self.num_blocks_list=[]
+        if not append:
+            self.input_dict['dGdr']=[]
+            self.input_dict['neighbor_atom_coord']=[]
+            self.input_dict['center_atom_id']=[]
+            self.input_dict['neighbor_atom_id']=[]
+            self.num_blocks_list=[]
+            start_image = 0
+        else:
+            start_image = len(self.input_dict['dGdr'])
 
         if der_filename.split('.')[-1] == '*':
             batch_mode = 1
@@ -236,15 +202,15 @@ class Data(object):
         else:
             print("\nReading derivative data from a series of files %s ..." % (der_filename+'.i'))
             
-        fd = 0 # count file/image
+        fd = start_image # count file/image
         max_block = 0 # max number of atoms among all the images
             
         while(1):
             if image_num:
-                if fd+1>image_num:
+                if fd-start_image+1>image_num:
                     break
             if batch_mode:
-                filename = der_filename +'.'+ str(fd+1)
+                filename = der_filename +'.'+ str(fd-start_image+1)
             else:
                 filename = der_filename
             if os.path.isfile(filename):
@@ -264,18 +230,18 @@ class Data(object):
                     self.input_dict['dGdr'][fd].append([[self.str2float(x[i]) for x in block[0:]]for i in range(3,len(block[0]))])  
                 self.num_blocks_list.append(int(len(lines)/3))
                 fd += 1
-                if fd > 0 and int(fd%50)==0:
-                    print ('  Progress: read %d images ...' % fd)
+                if fd-start_image > 0 and int((fd-start_image)%50)==0:
+                    print ('  so far read %d images ...' % fd)
             else:
                 break
             
-        print('  Finish reading dGdr derivatives from %i images.\n'% fd)
+        print('  Finish reading dGdr derivatives from total %i images.\n'% len(self.input_dict['dGdr']))
         maxnum_blocks = max(self.num_blocks_list)
         
         # pad zeros if the blocks is less than maxnum_blocks
-        for i in range(len(self.num_blocks_list)):
-            if self.num_blocks_list[i] < maxnum_blocks:
-                print('  Pad image %i with zeros derivatives.\n'%(i+1))
+        for i in range(len(self.input_dict['dGdr'])):
+            if len(self.input_dict['dGdr'][i]) < maxnum_blocks:
+                print('  Pad image %i with zeros derivatives.'%(i+1))
                 self.input_dict['center_atom_id'][i] = list(pad(self.input_dict['center_atom_id'][i],maxnum_blocks,0))
                 self.input_dict['neighbor_atom_id'][i] = list(pad(self.input_dict['neighbor_atom_id'][i],maxnum_blocks,-1))
                 zeros = [[0]]*3
@@ -288,130 +254,100 @@ class Data(object):
         self.num_fingerprints_der = np.shape(self.input_dict['dGdr'])[2]
 
 
-        self.input_dict['dGdr'] = tf.convert_to_tensor(self.input_dict['dGdr'],dtype=self.data_type)
-        self.input_dict['center_atom_id'] = tf.convert_to_tensor(self.input_dict['center_atom_id'],dtype='int32')
-        self.input_dict['neighbor_atom_id'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_id'],dtype='int32')
-        self.input_dict['neighbor_atom_coord'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_coord'],dtype=self.data_type)
+        # self.input_dict['dGdr'] = tf.convert_to_tensor(self.input_dict['dGdr'],dtype=self.data_type)
+        # self.input_dict['center_atom_id'] = tf.convert_to_tensor(self.input_dict['center_atom_id'],dtype='int32')
+        # self.input_dict['neighbor_atom_id'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_id'],dtype='int32')
+        # self.input_dict['neighbor_atom_coord'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_coord'],dtype=self.data_type)
         
         print('  image number = %d' % self.num_images_der)
         print('  max number of blocks = %d' % self.maxnum_blocks)
         print('  number of fingerprints = %d' % self.num_fingerprints_der)
         
-        # check data consistance
-        if 'fingerprints' in list(self.input_dict.keys()):
-            if self.num_images != len(self.input_dict['dGdr']):
-                print ("\nWarning: The image numbers of fingerprints files and derivative files are not consistant.\n")
-            if self.num_fingerprints != len(self.input_dict['dGdr'][0][0]):
-                print ("\nWarning: The fingerprints numbers of fingerprints files and derivative files are not consistant.\n")
-        if 'pe' in list(self.output_dict.keys()):
-            if len(self.input_dict['dGdr'][0]) != len(self.output_dict['pe']):
-                print ("\nWarning: The image numbers of fingerprints files and pe files are not consistant.\n")
-        if 'force' in list(self.output_dict.keys()):
-            if len(self.input_dict['dGdr']) != len(self.output_dict['force']):
-                print ("\nWarning: The image numbers of fingerprints files and force files are not consistant.\n")
+
         
+            
+    def read_outputdata(self, filename=None, image_num=None, append=False, read_force=True, read_stress=True):
 
-
-
-
-                
-
-    def read_outputdata_from_lmp(self, pe_stress_filename=None, force_filename=None, image_num=None, lmp_stress_unit_convert=None):
-
-        # read potential energy and stress from lammps output file
         try:
-            pe_stress_file = open(pe_stress_filename)
+            file = open(filename)
         except OSError:
-            raise OSError('Could not open file %s' % pe_stress_filename)
+            raise OSError('Could not open file %s.' % filename)
 
-        print("\nReading potential energy and stress from %s ..." % pe_stress_filename)
-
-        if image_num:
-            lines = pe_stress_file.readlines()[0:image_num+1]
+        if not append:
+            self.output_dict['pe'] = []
+            if read_stress:
+                self.output_dict['stress'] = []
+            if read_force:
+                self.output_dict['force'] = []
+                self.natoms_in_force = []
+            start_image = 0
         else:
-            lines = pe_stress_file.readlines()
-        pe_stress_file.close()
-
-        self.output_dict['pe'] = [self.str2float(lines[i].split()[1]) for i in range(1,len(lines))]
-
-        if lmp_stress_unit_convert:
-            unit_convert = lmp_stress_unit_convert
-        else:
-            unit_convert = 1.0
-
-        self.output_dict['stress'] = [-self.str2float(lines[i].split()[2:8]) * unit_convert for i in range(1,len(lines))]
-
-        print('  Finish reading pe and stress from %i images.\n'%len(self.output_dict['pe']))
-
-        self.output_dict['pe'] = tf.convert_to_tensor(self.output_dict['pe'],dtype=self.data_type)
-        self.output_dict['stress'] = tf.convert_to_tensor(self.output_dict['stress'],dtype=self.data_type)
-
-        # check data consistance
-        if 'fingerprints' in list(self.input_dict.keys()):
-            if self.num_images != len(self.output_dict['pe']):
-                print ("\nWarning: The image numbers of fingerprints and potentials are not consistant.\n")
-
-                
-        # read forces from lammps dump files
-        if force_filename is None:
-            return
+            start_image = len(self.output_dict['pe'])
         
-        try:
-            force_file = open(force_filename)
-        except OSError:
-            raise OSError('Could not open file %s' % force_filename)
-        
-        print("\nReading force from %s ..." % force_filename)
+        print("\nReading outputs from %s ..." % filename)
 
-        lines = force_file.readlines()    
-        force_file.close()
-        
-        self.output_dict['force'] = []
-        self.num_atoms_in_forcefiles = []
-        check = 0
-        fd = 0
-        natom = 0
+        lines = file.readlines()    
+        file.close()
+    
+        fd = start_image # count image number
+        check_pe = 0
+        check_stress = 0
+        check_force = 0
         count_atom = 0
-        for i in range(len(lines)):                
-            if 'fx' and 'fy' and 'fz' in lines[i]:
-                check = 1
-                self.output_dict['force'].append([])
-            elif 'ITEM: TIMESTEP' in lines[i] and check==1:    
-                check = 0
-                self.num_atoms_in_forcefiles.append(count_atom)
+
+        for i in range(len(lines)):
+            if 'image_id' in lines[i] and check_force==1:
+                self.natoms_in_force.append(count_atom)
+                check_force = 0
                 fd += 1
                 count_atom = 0
-                if image_num==fd:
+                if image_num == fd - start_image:
                     break
-                if fd > 0 and int(fd%50)==0:
-                    print ('  Progress: force read %d images ...' % fd)
-            elif check==1:
-                self.output_dict['force'][fd].append(self.str2float(lines[i].split()[5:8]))
+                if fd-start_image>0 and int((fd-start_image)%50)==0:
+                    print ('  so far read %d images ...' % fd)
+            elif 'potential_energy' in lines[i]:
+                check_pe = 1
+            elif 'pxx' and 'pyy' and 'pzz' and 'pxy' and 'pxz' and 'pyz' in lines[i]:
+                check_stress = 1
+            elif 'fx' and 'fy' and 'fz' in lines[i]:
+                check_force = 1
+                self.output_dict['force'].append([])
+            elif check_pe == 1:
+                self.output_dict['pe'].append(self.str2float(lines[i]))
+                check_pe = 0
+            elif check_stress == 1:
+                self.output_dict['stress'].append(self.str2float(lines[i].split()))
+                check_stress = 0
+            elif check_force == 1:
+                self.output_dict['force'][fd].append(self.str2float(lines[i].split()[1:4]))
                 count_atom += 1
-        self.num_atoms_in_forcefiles.append(count_atom)        
-        print('  Finish reading force from %i images.\n'% (fd+1))
-        
-        maxnum_atom = max(self.num_atoms_in_forcefiles)
+                
+        if count_atom>0: # append the last image
+            self.natoms_in_force.append(count_atom)
+            
+        print('  Finish reading outputs from total %i images.\n'% len(self.output_dict['pe']))
+
+        if read_force:
+            maxnum_atom = max(self.natoms_in_force)
         
         # pad zeros if the atom number is less than maxnum_atom
-        for i in range(len(self.num_atoms_in_forcefiles)):
-            if self.num_atoms_in_forcefiles[i] < maxnum_atom:
-                print('  Pad image %i with zeros forces.\n'%(i+1))
-                zeros = [0] * 3
-                self.input_dict['force'][i] = list(pad(self.input_dict['force'][i],maxnum_atom,zeros))
+        if read_force:
+            for i in range(len(self.output_dict['force'])):
+                if len(self.output_dict['force'][i]) < maxnum_atom:
+                    print('  Pad image %i with zeros forces.'%(i+1))
+                    zeros = [0] * 3
+                    self.input_dict['force'][i] = list(pad(self.input_dict['force'][i],maxnum_atom,zeros))
+            
+        # self.output_dict['pe'] = tf.convert_to_tensor(self.output_dict['pe'],dtype=self.data_type)
+        # if read_force:
+        #     self.output_dict['force'] = tf.convert_to_tensor(self.output_dict['force'],dtype=self.data_type)
+        # if read_stress:
+        #     self.output_dict['stress'] = tf.convert_to_tensor(self.output_dict['stress'],dtype=self.data_type)        
 
-        self.output_dict['force'] = tf.convert_to_tensor(self.output_dict['force'],dtype=self.data_type)        
-
-        # check data consistance
-        if 'fingerprints' in list(self.input_dict.keys()):
-            if self.num_images != len(self.output_dict['force']):
-                print ("\nWarning: The image numbers of fingerprints and forces are not consistant.\n")
-            if self.num_atoms_in_fpfiles != self.num_atoms_in_forcefiles:
-                print ("\nWarning: The atom numbers in fingerprints files and force files are not consistant.\n")
 
                 
 
-    def shuffel(self):
+    def shuffle(self):
         zipped = list(zip(*[self.input_dict[keys] for keys in list(self.input_dict.keys())],*[self.output_dict[keys] \
                                                                                 for keys in list(self.output_dict.keys())]))
         random.shuffle(zipped)
@@ -428,101 +364,170 @@ class Data(object):
 
         
         
-    # def create_tf_dataset(self, train_pct=None,val_pct=None,test_pct=None,data_size=None,shuffle=False):
-    #     if not data_size:
-    #         data_size = self.num_images
+    def create_tf_dataset(self, train_pct=None, val_pct=None, test_pct=None, shuffle=False, data_size=None):
 
-    #     if not train_pct:
-    #         train_pct = 0.7
-    #         print ("%f percent of data are used for training by default." % train_pct)
+        self.check_data() # check the data
         
-    #     if not val_pct:
-    #         val_pct = 0.2
-    #         print ("%f percent of data are used for validatiaon by default." % val_pct)
-            
-    #     if not test_pct:
-    #         test_pct = 0.1
-    #         print ("%f percent of data are used for test by default." % test_pct)
-            
-    #     train_size = int(train_pct * data_size)
-    #     val_size = int(val_pct * data_size)
-    #     test_size = data_size - train_size - val_size
-
-    #     print('Traning data: %d images'% train_size)
-    #     print('Validation data: %d images'% val_size )
-    #     print('Test data: %d images'% test_size)
-
-    #     full_dataset = tf.data.Dataset.from_tensor_slices((self.input_dict, self.output_dict))
-    #     if shuffle:
-    #         full_dataset.shuffle(buffer_size= full_dataset.cardinality().numpy())
-
-    #     train_dataset = full_dataset.take(train_size)
-    #     val_dataset = full_dataset.skip(train_size).take(val_size)
-    #     test_dataset = full_dataset.skip(train_size+val_size)
-
-    #     del full_dataset
-    #     return train_dataset,val_dataset,test_dataset
-
-
-    
-        
-    def split(self, train_pct=None, val_pct=None, test_pct=None, data_size=None):   
-
         if not data_size:
             data_size = self.num_images
-            
+
         if not train_pct:
-            train_pct = 0.7
-            print ("%f percent of data are used for training by default." % train_data_percent)
+            raise ValueError('Need to set the percentage of data used for tranining.')
         
         if not val_pct:
-            val_pct = 0.2
-            print ("%f percent of data are used for validatiaon by default." % val_data_percent)
+            val_pct = 0
+            print ("No data are used for validatiaon by default." % val_pct)
             
         if not test_pct:
-            test_pct = 0.1
-            print ("%f percent of data are used for test by default." % test_data_percent)  
+            test_pct = 0
+            print ("No data are used for test by default." % test_pct)
+
+        if train_pct+val_pct+test_pct>1:
+            raise ValueError('Percentages are not correct.')
             
         train_size = int(train_pct * data_size)
         val_size = int(val_pct * data_size)
-        test_size = data_size - train_size - val_size
-        
+        test_size = int(test_pct * data_size)
+
         print('Traning data: %d images'% train_size)
         print('Validation data: %d images'% val_size )
         print('Test data: %d images'% test_size)
-            
 
-        x_train = slice(self.input_dict, 0, train_size)
-        x_val = slice(self.input_dict, train_size, train_size + val_size)
-        x_test = slice(self.input_dict, train_size + val_size, data_size)
+        if not shuffle:
+            print ('Data are not shuffled by default, set shuffle=True if needed.')
+
+        print("Creating tensorflow datasets, this may take more than 10 minites for large dataset ...")
+        start_time = time.time()
+        full_dataset = tf.data.Dataset.from_tensor_slices((self.input_dict, self.output_dict))
+        if shuffle:
+            full_dataset.shuffle(buffer_size= full_dataset.cardinality().numpy())
+        train_dataset = full_dataset.take(train_size)
+        val_dataset = full_dataset.skip(train_size).take(val_size)
+        test_dataset = full_dataset.skip(train_size+val_size).take(test_size)
+        del full_dataset
+        end_time = time.time()
+        print('It took %.3f seconds to create tensorflow datasets' % (end_time-start_time))
         
-        y_train = slice(self.output_dict, 0, train_size)
-        y_val = slice(self.output_dict, train_size, train_size + val_size)
-        y_test = slice(self.output_dict, train_size + val_size, data_size)
+        return train_dataset,val_dataset,test_dataset
 
-        return (x_train,y_train),(x_val,y_val),(x_test,y_test)
-    
-    def clean_up(self):
-        if self.input_dict:
-            del self.input_dict
-        if self.output_dict:
-            del self.output_dict
-            
 
     
-    def check_consistance(self):
+        
+    def slice(self, start=None, end=None):   
+        # check data
+        self.check_data()            
+        input_dict = slice_dict(self.input_dict, start, end)
+        output_dict = slice_dict(self.output_dict, start, end)
+        return input_dict, output_dict
+    
 
-        # check if numbers are consistant with those in derivative file
-        if self.num_images_der is not None and self.num_images is not None:
-            if self.num_images != self.num_images_der:
-                print ("Warning: The image numbers in fingerprints files and derivative files are not consistant.")
-            
-        if self.num_fingerprints_der is not None and self.num_fingerprints is not None:
-            if self.num_fingerprints != self.num_fingerprints_der:
-                print ("Warning: The fingerprints numbers in fingerprints files and derivative files are not consistant.")
-                
+        
+    def check_data(self):
+        if 'fingerprints' in list(self.input_dict.keys()):            
+            if 'dGdr' in list(self.input_dict.keys()):
+                if len(self.input_dict['fingerprints']) != len(self.input_dict['dGdr']):
+                    raise ValueError("The image numbers of fingerprints files and derivative files are not consistant.")
+                if self.num_fingerprints != len(self.input_dict['dGdr'][0][0]):
+                    raise ValueError("The fingerprints numbers of fingerprints files and derivative files are not consistant.")
+            if 'pe' in list(self.output_dict.keys()):
+                if self.num_images != len(self.output_dict['pe']):
+                    raise ValueError("The image numbers of fingerprints files and pe files are not consistant.")
+            else:
+                raise ValueError("No potential energy in output data.")    
+            if 'force' in list(self.output_dict.keys()):
+                if self.num_images != len(self.output_dict['force']):
+                    raise ValueError("The image numbers of fingerprints files and force files are not consistant.")
+                if self.natoms_in_fpfiles != self.natoms_in_force:
+                    raise ValueError("The atom numbers in fingerprints files and force files are not consistant.")
+            if 'stress' in list(self.output_dict.keys()):
+                if self.num_images != len(self.output_dict['stress']):
+                    raise ValueError("The image numbers of fingerprints files and stress files are not consistant.")            
+        else:
+            raise ValueError('No fingerprints in input data.')
 
 
 
 
-            
+
+#=================================================================================================================
+# some functions to operate tensorflow dataset
+
+def get_input_dict(dataset):
+    for x,y in dataset.batch(dataset.cardinality().numpy()):
+        return x
+
+def get_output_dict(dataset):
+    for x,y in dataset.batch(dataset.cardinality().numpy()):
+        return y
+
+# # get the dictionary element from tensorflow dataset
+# def get_element(dataset,key):
+#     if key in ['fingerprints','atom_type','volume','dGdr','center_atom_id','neighbor_atom_id','neighbor_atom_coord']:
+#         element = dataset.map(lambda input_dict, output_dict: input_dict[key])
+#     elif key in ['pe','force','stress']:
+#         element = dataset.map(lambda input_dict, output_dict: output_dict[key])
+#     else:
+#         raise ValueError('Key is not found in the dataset dictionary')
+#     element = [item for item in list(element.as_numpy_iterator())]
+#     return element
+
+
+def get_fingerprints_num (dataset):
+    if dataset.element_spec[0]['fingerprints'].shape[1] is not None: 
+        return dataset.element_spec[0]['fingerprints'].shape[1]
+    else:
+        return len(get_input_dict(dataset)['fingerprints'][0][0]) # for tensorflow version below 2.6
+    
+
+def slice_dataset(dataset, start, end):
+    return dataset.skip(start).take(end-start)
+
+
+def split_dataset(dataset, train_pct=None, val_pct=None, test_pct=None, shuffle=False,data_size=None):
+    if not data_size:
+        data_size = dataset.cardinality().numpy()
+    if not train_pct:
+        raise ValueError('Need to set the percentage of data used for tranining.')
+    if not val_pct:
+        val_pct = 0
+        print ("No data are used for validatiaon by default." % val_pct)
+    if not test_pct:
+        test_pct = 0
+        print ("No data are used for test by default." % test_pct)
+    if train_pct+val_pct+test_pct>1:
+        raise ValueError('Percentages are not correct.')
+    train_size = int(train_pct * data_size)
+    val_size = int(val_pct * data_size)
+    test_size = int(test_pct * data_size)
+    print('Traning data: %d images'% train_size)
+    print('Validation data: %d images'% val_size )
+    print('Test data: %d images'% test_size)
+    if not shuffle:
+        print ('Data are not shuffled by default, set shuffle=True if needed.')
+    if shuffle: # note that: reshuffle_each_iteration has to be False
+        dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(),reshuffle_each_iteration=False)
+    train_dataset = dataset.take(train_size)
+    val_dataset = dataset.skip(train_size).take(val_size)
+    test_dataset = dataset.skip(train_size+val_size).take(test_size)
+
+    return train_dataset,val_dataset,test_dataset
+
+
+
+# element_spec is used for loading tensorflow dataset, only needed for the tensorflow version below 2.6
+if atomdnn.compute_force:
+    element_spec= ({'center_atom_id': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None),
+                    'fingerprints': tf.TensorSpec(shape=(None, None), dtype=tf.float64, name=None),
+                    'dGdr': tf.TensorSpec(shape=(None, None, None), dtype=tf.float64, name=None),
+                    'neighbor_atom_id': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None),
+                    'volume': tf.TensorSpec(shape=(None,), dtype=tf.float64, name=None),
+                    'neighbor_atom_coord': tf.TensorSpec(shape=(None, None, None), dtype=tf.float64, name=None),
+                    'atom_type': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None)},
+                   {'force': tf.TensorSpec(shape=(None, None), dtype=tf.float64, name=None),
+                    'pe': tf.TensorSpec(shape=(), dtype=tf.float64, name=None),
+                    'stress': tf.TensorSpec(shape=(None,), dtype=tf.float64, name=None)})
+else:
+    element_spec= ({'fingerprints': tf.TensorSpec(shape=(None, None), dtype=tf.float64, name=None),
+                    'atom_type': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None)},
+                   {'pe': tf.TensorSpec(shape=(), dtype=tf.float64, name=None)})
+
