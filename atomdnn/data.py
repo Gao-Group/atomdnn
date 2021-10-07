@@ -91,9 +91,9 @@ class Data(object):
             
         if not batch_mode:
             image_num = 1
-            print("\nReading fingerprints data from LAMMPS dump files %s ..." % (fp_filename))
+            print("\nReading fingerprints data from LAMMPS dump files %s" % (fp_filename))
         else:
-            print("\nReading fingerprints data from LAMMPS dump files %s ..." % (fp_filename+'.i'))
+            print("\nReading fingerprints data from LAMMPS dump files %s" % (fp_filename+'.i'))
             
         while (1):
             if image_num:
@@ -127,11 +127,11 @@ class Data(object):
                 self.natoms_in_fpfiles.append(count_atom)
                 fd += 1
                 if fd-start_image > 0 and int((fd-start_image)%50)==0:
-                    print ('  so far read %d images ...' % fd)
+                    print ('  so far read %d images ...' % fd,flush=True)
             else:
                 break
 
-        print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']))
+        print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']),flush=True)
         maxnum_atom = max(self.natoms_in_fpfiles)
 
         # pad zeros if the atom number is less than maxnum_atom
@@ -145,6 +145,10 @@ class Data(object):
         self.num_atoms = np.shape(self.input_dict['fingerprints'])[1]
         self.num_fingerprints = np.shape(self.input_dict['fingerprints'])[2]
         self.num_types = max(self.input_dict['atom_type'][0])
+
+        # self.input_dict['fingerprints'] = tf.convert_to_tensor(self.input_dict['fingerprints'],dtype=self.data_type)
+        # self.input_dict['atom_type'] = tf.convert_to_tensor(self.input_dict['atom_type'],dtype='int32')
+        # self.input_dict['volume'] = tf.convert_to_tensor(self.input_dict['volume'],dtype=self.data_type)
         
         print('  image number = %d' % self.num_images)
         print('  max number of atom = %d' % self.num_atoms)
@@ -198,12 +202,14 @@ class Data(object):
 
         if not batch_mode:
             image_num = 1
-            print("\nReading derivative data from one file %s ..." % der_filename)
+            print("\nReading derivative data from one file %s" % der_filename)
         else:
-            print("\nReading derivative data from a series of files %s ..." % (der_filename+'.i'))
-            
-        fd = start_image # count file/image
-        max_block = 0 # max number of atoms among all the images
+            print("\nReading derivative data from a series of files %s" % (der_filename+'.i'))
+
+        print('This may take a while ...')
+        
+        start_time = time.time()    
+        fd = start_image # count image
             
         while(1):
             if image_num:
@@ -231,24 +237,31 @@ class Data(object):
                 self.num_blocks_list.append(int(len(lines)/3))
                 fd += 1
                 if fd-start_image > 0 and int((fd-start_image)%50)==0:
-                    print ('  so far read %d images ...' % fd)
+                    print ('  so far read %d images ...' % fd,flush=True)
             else:
                 break
-            
-        print('  Finish reading dGdr derivatives from total %i images.\n'% len(self.input_dict['dGdr']))
+        print('  Finish reading dGdr derivatives from total %i images.\n'% len(self.input_dict['dGdr']),flush=True)
         maxnum_blocks = max(self.num_blocks_list)
-        
+
+        print('  Pad zeros to derivatives data if needed ...',flush=True)
         # pad zeros if the blocks is less than maxnum_blocks
+        count_pad = 0
         for i in range(len(self.input_dict['dGdr'])):
             if len(self.input_dict['dGdr'][i]) < maxnum_blocks:
-                print('  Pad image %i with zeros derivatives.'%(i+1))
                 self.input_dict['center_atom_id'][i] = list(pad(self.input_dict['center_atom_id'][i],maxnum_blocks,0))
                 self.input_dict['neighbor_atom_id'][i] = list(pad(self.input_dict['neighbor_atom_id'][i],maxnum_blocks,-1))
                 zeros = [[0]]*3
                 self.input_dict['neighbor_atom_coord'][i] = list(pad(self.input_dict['neighbor_atom_coord'][i],maxnum_blocks,zeros))
                 zeros = [[0]*3]*len(self.input_dict['dGdr'][i][0])
                 self.input_dict['dGdr'][i] = list(pad(self.input_dict['dGdr'][i],maxnum_blocks,zeros))
-
+                count_pad += 1
+                if int((count_pad)%50)==0:
+                    print ('  so far paded %d images ...' % count_pad,flush=True)
+ 
+        if count_pad ==0:
+            print('  Pading is not needed.')
+        else:
+            print('  Pading finished: %i images derivatives have been padded with zeros.'%count_pad,flush=True)
         self.num_images_der = np.shape(self.input_dict['dGdr'])[0]
         self.maxnum_blocks = maxnum_blocks
         self.num_fingerprints_der = np.shape(self.input_dict['dGdr'])[2]
@@ -259,10 +272,12 @@ class Data(object):
         # self.input_dict['neighbor_atom_id'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_id'],dtype='int32')
         # self.input_dict['neighbor_atom_coord'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_coord'],dtype=self.data_type)
         
-        print('  image number = %d' % self.num_images_der)
-        print('  max number of blocks = %d' % self.maxnum_blocks)
-        print('  number of fingerprints = %d' % self.num_fingerprints_der)
+        print('\n  image number = %d' % self.num_images_der,flush=True)
+        print('  max number of blocks = %d' % self.maxnum_blocks,flush=True)
+        print('  number of fingerprints = %d' % self.num_fingerprints_der,flush=True)
         
+        end_time = time.time()
+        print('\n  It took %.2f seconds to read the derivatives data.'%(end_time-start_time),flush=True)
 
         
             
@@ -445,12 +460,49 @@ class Data(object):
         else:
             raise ValueError('No fingerprints in input data.')
 
-        print('The dimensions of input and output data are consistant.')
 
+
+    def convert_data_to_tensor(self):
+        self.check_data()
+        print('Conversion may take a while ...',flush=True)
+        start_time = time.time()
+        for key in self.output_dict:
+            self.output_dict[key] = tf.convert_to_tensor(self.output_dict[key],dtype=self.data_type)
+
+        for key in self.input_dict:
+            if key=='fingerprints' or key=='volume' or key=='dGdr' or key=='neighbor_atom_coord':
+                self.input_dict[key] = tf.convert_to_tensor(self.input_dict[key],dtype=self.data_type)
+            else:
+                self.input_dict[key] = tf.convert_to_tensor(self.input_dict[key],dtype='int32')
+        end_time = time.time()
+        print('It took %.4f second.'%(end_time-start_time),flush=True)
+
+        # print('Pad zeros to derivatives data if needed ...',flush=True)
+        # # pad zeros if the blocks is less than maxnum_blocks
+        # count_pad = 0
+        # for i in range(len(self.input_dict['dGdr'])):
+        #     diff = self.maxnum_bloks-len(self.input_dict['dGdr'][i])
+        #     if diff>0:
+        #         paddings = tf.constant([[0, diff]])
+        #         self.input_dict['center_atom_id'][i] = tf.pad(self.input_dict['center_atom_id'][i], paddings, "CONSTANT",0)
+        #         self.input_dict['neighbor_atom_id'][i] = tf.pad(self.input_dict['center_atom_id'][i], paddings, "CONSTANT",-1)
+                                       
+        #         paddings = tf.constant([[0,diff],[0,0],[0,0]])
+        #         self.input_dict['neighbor_atom_coord'][i] = tf.pad(self.input_dict['neighbor_atom_coord'][i], paddings, "CONSTANT",0)
+        #         self.input_dict['dGdr'][i] = tf.pad(self.input_dict['dGdr'][i], paddings, "CONSTANT",0)
+        #         count_pad += 1
+        #         if int((count_pad)%50)==0:
+        #             print ('  so far paded %d images ...' % count_pad,flush=True) 
+        # if count_pad ==0:
+        #     print('  Pading is not needed.')
+        # else:
+        #     print('  Pading finished: %i images derivatives have been padded with zeros.'%count_pad,flush=True)
+        
 
 
 #=================================================================================================================
 # some functions to operate tensorflow dataset
+
 
 def get_input_dict(dataset):
     for x,y in dataset.batch(dataset.cardinality().numpy()):
