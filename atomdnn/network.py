@@ -100,7 +100,10 @@ class Network(tf.Module):
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
-        
+
+        self.train_loss = imported.train_loss
+        self.val_loss = imported.val_loss
+        self.loss_weights = imported.loss_weights
         
         try:
             self.params = []
@@ -493,8 +496,9 @@ class Network(tf.Module):
         
         if validation_dataset:
             self.val_loss={}
+            #self.val_loss['pe_loss']=tf.Variable([],dtype=self.data_type)
             self.val_loss['pe_loss']=[]
-
+            
         if loss_weights is None:
             self.loss_weights = {'pe':1,'force':0,'stress':0}
             print('loss_weights is set to default value:',self.loss_weights)
@@ -506,15 +510,13 @@ class Network(tf.Module):
         if compute_all_loss:
             self.compute_all_loss=True
         else:
-            self.compute_all_loss=False
-
-        
+            self.compute_all_loss=False        
             
         if self.loss_weights['force']!=0 or self.compute_all_loss: # when force is used for training/validation OR compute force_loss is requested     
             self.train_loss['force_loss']=[]
             if validation_dataset:
                 self.val_loss['force_loss']=[]
-
+                
         if self.loss_weights['force']!=0:
             print ("Forces are used for training.")
         else:
@@ -534,7 +536,6 @@ class Network(tf.Module):
             self.train_loss['total_loss']=[]
             if validation_dataset:
                 self.val_loss['total_loss']=[]
-
 
         # convert to tf.variable so that they can be saved to network
         self.saved_optimizer = tf.Variable(self.optimizer)
@@ -568,9 +569,7 @@ class Network(tf.Module):
                     for key in batch_loss:
                         epoch_loss[key] = batch_loss[key] + epoch_loss[key]
             for key in batch_loss:
-                self.train_loss[key].append(epoch_loss[key]/(step+1))
-                
-
+                self.train_loss[key].append(tf.Variable(epoch_loss[key]/(step+1)))
                 
             # Iterate over the batches of the validation dataset
             if validation_dataset is not None:  
@@ -582,9 +581,8 @@ class Network(tf.Module):
                         for key in batch_loss:
                             epoch_loss[key] = batch_loss[key] + epoch_loss[key]
                 for key in batch_loss:
-                    self.val_loss[key].append(epoch_loss[key]/(step+1))
+                    self.val_loss[key].append(tf.Variable(epoch_loss[key]/(step+1)))
                     
-
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
             print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
