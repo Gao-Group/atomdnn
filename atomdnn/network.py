@@ -85,9 +85,11 @@ class Network(tf.Module):
         self.arch = imported.saved_arch.numpy()
         self.num_fingerprints = imported.saved_num_fingerprints.numpy()
 
-        if hasattr(imported, 'saved_scaling'):
-            self.scaling = imported.saved_scaling.numpy().decode()
+        if imported.scaling:
+            self.scaling = imported.scaling
             self.scaling_factor = imported.scaling_factor
+        else:
+            self.scaling = None
             
         self.activation_function = imported.saved_activation_function.numpy().decode()
         self.tf_activation_function = tf.keras.activations.get(self.activation_function)
@@ -187,13 +189,10 @@ class Network(tf.Module):
     
     def compute_force_stress (self, dEdG, input_dict):
                 
-        if hasattr(self, 'scaling'):
-            if self.scaling=='std':
-                dEdG = dEdG/self.scaling_factor[1]
-            elif self.scaling=='norm':
-                dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
-            else:
-                raise ValueError('Scaling should be either \'std\' or \'norm\'.')
+        if self.scaling=='std':
+            dEdG = dEdG/self.scaling_factor[1]
+        elif self.scaling=='norm':
+            dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
             
         dGdr = input_dict['dGdr']
         if not tf.is_tensor(dGdr):
@@ -237,13 +236,11 @@ class Network(tf.Module):
     # only used for __call__ method
     def _compute_force_stress (self, dEdG, input_dict):
 
-        if hasattr(self, 'scaling'):
-            if self.scaling=='std':
+        if hasattr(self,'scaling'):
+            if self.scaling==tf.Variable('std'):
                 dEdG = dEdG/self.scaling_factor[1]
-            elif self.scaling=='norm':
+            elif self.scaling==tf.Variable('norm'):
                 dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
-            else:
-                raise ValueError('Scaling should be either \'std\' or \'norm\'.')
   
         fingerprints = input_dict['fingerprints']
         dGdr = input_dict['dGdr']
@@ -281,13 +278,11 @@ class Network(tf.Module):
             fingerprints = tf.convert_to_tensor(fingerprints)
 
         if not training:
-            if hasattr(self, 'scaling'):
-                if self.scaling == 'std':  # standardize with the mean and deviation
-                    fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
-                elif self.scaling == 'norm': # normalize with the minimum and maximum
-                    fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
-                else:
-                    raise ValueError('Scaling should be either \'std\' or \'norm\'.')
+            
+            if self.scaling == 'std':  # standardize with the mean and deviation
+                fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
+            elif self.scaling == 'norm': # normalize with the minimum and maximum
+                fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
                 
         if not compute_force:
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
@@ -312,13 +307,12 @@ class Network(tf.Module):
     def _predict(self, input_dict,compute_force=atomdnn.compute_force):
 
         fingerprints = input_dict['fingerprints']
-        if hasattr(self, 'scaling'):
-            if self.scaling == 'std':  # standardize with the mean and deviation
+
+        if hasattr(self,'scaling'):
+            if self.scaling == tf.Variable('std'):  # standardize with the mean and deviation
                 fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
-            elif self.scaling == 'norm': # normalize with the minimum and maximum
+            elif self.scaling == tf.Variable('norm'): # normalize with the minimum and maximum
                 fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
-            else:
-                raise ValueError('Scaling should be either \'std\' or \'norm\'.')
         
         if not compute_force:
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
@@ -464,7 +458,9 @@ class Network(tf.Module):
             if scaling != 'std' and scaling != 'norm':
                 raise ValueError('Scaling needs to be \'std\' (standardization) or \'norm\'(normalization).')
             else:
-                self.scaling = scaling
+                self.scaling = tf.Variable(scaling)
+        else:
+            self.scaling = None
             
         if optimizer:
             self.optimizer = optimizer
@@ -491,13 +487,13 @@ class Network(tf.Module):
             batch_size = 30
             print ("batch_size is set to 30 by default.")    
 
-        self.train_loss={}
-        self.train_loss['pe_loss']=[]
+        if not hasattr(self,'train_loss'):
+            self.train_loss={}
+            self.train_loss['epoch']=[]
         
-        if validation_dataset:
+        if validation_dataset and not hasattr(self,'val_loss'):
             self.val_loss={}
-            #self.val_loss['pe_loss']=tf.Variable([],dtype=self.data_type)
-            self.val_loss['pe_loss']=[]
+            self.val_loss['epoch']=[]
             
         if loss_weights is None:
             self.loss_weights = {'pe':1,'force':0,'stress':0}
@@ -511,10 +507,17 @@ class Network(tf.Module):
             self.compute_all_loss=True
         else:
             self.compute_all_loss=False        
+
+        if self.loss_weights['pe']!=0 or self.compute_all_loss:
+            if 'pe_loss' not in self.train_loss:
+                self.train_loss['pe_loss']=[]
+            if validation_dataset and 'pe_loss' not in self.val_loss:
+                self.val_loss['pe_loss']=[]
             
         if self.loss_weights['force']!=0 or self.compute_all_loss: # when force is used for training/validation OR compute force_loss is requested     
-            self.train_loss['force_loss']=[]
-            if validation_dataset:
+            if 'force_loss' not in self.train_loss:
+                self.train_loss['force_loss']=[]
+            if validation_dataset and 'force_loss' not in self.val_loss:
                 self.val_loss['force_loss']=[]
                 
         if self.loss_weights['force']!=0:
@@ -523,8 +526,9 @@ class Network(tf.Module):
             print ("Forces are not used for training.")
             
         if self.loss_weights['stress']!=0 or self.compute_all_loss: # when stress is used for traning/validation OR compute stress_loss is requested
-            self.train_loss['stress_loss']=[]
-            if validation_dataset:
+            if 'stress_loss' not in self.train_loss:
+                self.train_loss['stress_loss']=[]
+            if validation_dataset and 'stress_loss' not in self.val_loss:
                 self.val_loss['stress_loss']=[]
                 
         if self.loss_weights['stress']!=0:
@@ -533,15 +537,15 @@ class Network(tf.Module):
             print ("Stresses are not used for training.")
 
         if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0 or self.compute_all_loss: 
-            self.train_loss['total_loss']=[]
-            if validation_dataset:
+            if 'total_loss' not in self.train_loss:
+                self.train_loss['total_loss']=[]
+            if validation_dataset and 'total_loss' not in self.val_loss:
                 self.val_loss['total_loss']=[]
 
         # convert to tf.variable so that they can be saved to network
         self.saved_optimizer = tf.Variable(self.optimizer)
         self.saved_lr = tf.Variable(self.lr)
         self.saved_loss_fn = tf.Variable(self.loss_fn)
-        self.saved_scaling = tf.Variable(self.scaling)
                                                     
         if self.scaling:
             self.compute_scaling_factors(train_dataset)
@@ -555,7 +559,16 @@ class Network(tf.Module):
         if shuffle:
             train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
             print('Training dataset will be shuffled during training.')
-                                  
+
+        if self.train_loss['epoch']:
+            pre_train_epochs = self.train_loss['epoch'][-1].numpy()
+        else:
+            pre_train_epochs = 0
+        if self.val_loss['epoch']:
+            pre_val_epochs = self.train_loss['epoch'][-1].numpy()
+        else:
+            pre_val_epochs = 0
+
         train_start_time = time.time()
         for epoch in range(epochs):
             epoch_start_time = time.time()
@@ -564,32 +577,36 @@ class Network(tf.Module):
             for step, (input_dict, output_dict) in enumerate(train_dataset.batch(batch_size)):
                 batch_loss = self.train_step(input_dict, output_dict)
                 if step==0:
-                    epoch_loss = batch_loss
+                    train_epoch_loss = batch_loss
                 else:
                     for key in batch_loss:
-                        epoch_loss[key] = batch_loss[key] + epoch_loss[key]
+                        train_epoch_loss[key] = batch_loss[key] + train_epoch_loss[key]
             for key in batch_loss:
-                self.train_loss[key].append(tf.Variable(epoch_loss[key]/(step+1)))
+                train_epoch_loss[key] = train_epoch_loss[key]/(step+1)
+                self.train_loss[key].append(tf.Variable(train_epoch_loss[key]))
+            self.train_loss['epoch'].append(tf.Variable(pre_train_epochs+epoch+1))
                 
             # Iterate over the batches of the validation dataset
             if validation_dataset is not None:  
                 for step, (input_dict, output_dict) in enumerate(validation_dataset.batch(batch_size)):
                     batch_loss = self.validation_step(input_dict, output_dict)
                     if step==0:
-                        epoch_loss = batch_loss
+                        val_epoch_loss = batch_loss
                     else:
                         for key in batch_loss:
-                            epoch_loss[key] = batch_loss[key] + epoch_loss[key]
+                            val_epoch_loss[key] = batch_loss[key] + val_epoch_loss[key]
                 for key in batch_loss:
-                    self.val_loss[key].append(tf.Variable(epoch_loss[key]/(step+1)))
+                    val_epoch_loss[key] = val_epoch_loss[key]/(step+1)
+                    self.val_loss[key].append(tf.Variable(val_epoch_loss[key]))
+                self.val_loss['epoch'].append(tf.Variable(pre_val_epochs+epoch+1))
                     
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
             print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
 
-            print('     training_loss   ',*["- %s: %5.3f" % (key,value[epoch]) for key,value in self.train_loss.items()])
+            print('     training_loss   ',*["- %s: %5.3f" % (key,value) for key,value in train_epoch_loss.items()])
             if validation_dataset:
-                print('     validation_loss ',*["- %s: %5.3f" % (key,value[epoch]) for key,value in self.val_loss.items()])
+                print('     validation_loss ',*["- %s: %5.3f" % (key,value) for key,value in val_epoch_loss.items()])
 
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
