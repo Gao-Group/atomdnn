@@ -237,11 +237,11 @@ class Network(tf.Module):
     def _compute_force_stress (self, dEdG, input_dict):
 
         if hasattr(self,'scaling'):
-            if self.scaling==tf.Variable('std'):
+            if tf.math.equal(self.scaling, 'std'):
                 dEdG = dEdG/self.scaling_factor[1]
-            elif self.scaling==tf.Variable('norm'):
+            elif tf.math.equal(self.scaling, 'norm'):
                 dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
-  
+        
         fingerprints = input_dict['fingerprints']
         dGdr = input_dict['dGdr']
         center_atom_id = input_dict['center_atom_id']
@@ -309,9 +309,9 @@ class Network(tf.Module):
         fingerprints = input_dict['fingerprints']
 
         if hasattr(self,'scaling'):
-            if self.scaling == tf.Variable('std'):  # standardize with the mean and deviation
+            if tf.math.equal(self.scaling,'std'):  # standardize with the mean and deviation
                 fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
-            elif self.scaling == tf.Variable('norm'): # normalize with the minimum and maximum
+            elif tf.math.equal(self.scaling,'norm'): # normalize with the minimum and maximum
                 fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
         
         if not compute_force:
