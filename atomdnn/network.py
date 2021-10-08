@@ -360,13 +360,13 @@ class Network(tf.Module):
             pe_loss = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
 
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
-            # when evaluation OR train/validation using force OR all losses are requested 
-            if (not training and not validation) or ((training or validation) and self.loss_weights['force']!=0) or self.compute_all_loss: 
+            # when evaluation OR train/validation using force OR all losses are requested
+            if ((not training and not validation) or ((training or validation) and self.loss_weights['force']!=0)) or self.compute_all_loss:
                 force_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['force'],pred_dict['force']))
                 
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
             # when evaluation OR train/validation using stress OR all losses are requested
-            if (not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0)) or self.compute_all_loss: 
+            if ((not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0))) or self.compute_all_loss: 
                 mask = [True,True,True,False,True,True,False,False,True] # select upper triangle elements of the stress tensor
                 stress = tf.reshape(tf.boolean_mask(pred_dict['stress'], mask,axis=1),[-1,6]) # reduce to 6 components
                 stress_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
@@ -399,7 +399,7 @@ class Network(tf.Module):
      
     def train_step(self, input_dict, output_dict):    
         with tf.GradientTape() as tape: # automatically watch all tensorflow variables 
-            if self.loss_weights['force']==0 and self.loss_weights['stress']==0:
+            if self.loss_weights['force']==0 and self.loss_weights['stress']==0 and not self.compute_all_loss:
                 pred_dict = self.predict(input_dict, training=True,compute_force=False)
             else:
                 pred_dict = self.predict(input_dict, training=True,compute_force=True)
@@ -411,7 +411,7 @@ class Network(tf.Module):
 
     
     def validation_step(self, input_dict, output_dict):
-        if self.loss_weights['force']==0 and self.loss_weights['stress']==0:
+        if self.loss_weights['force']==0 and self.loss_weights['stress']==0 and not self.compute_all_loss:
             pred_dict = self.predict(input_dict,training=True,compute_force=False)
         else:
             pred_dict = self.predict(input_dict,training=True,compute_force=True)
