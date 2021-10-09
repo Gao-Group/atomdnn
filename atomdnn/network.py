@@ -155,19 +155,19 @@ class Network(tf.Module):
         Forward pass of the network
         '''
             
-        mask_1 = tf.ones([tf.shape(atom_type)[0],tf.shape(atom_type)[1]],dtype='int32')*1
+        #mask_1 = tf.ones([tf.shape(atom_type)[0],tf.shape(atom_type)[1]],dtype='int32')*1
         
-        type_onehot_1 = tf.linalg.diag(tf.cast(tf.math.equal(atom_type,mask_1),dtype=self.data_type))
+        #type_onehot_1 = tf.linalg.diag(tf.cast(tf.math.equal(atom_type,mask_1),dtype=self.data_type))
         
 #         mask_2 = tf.ones([tf.shape(atom_type)[0],tf.shape(atom_type)[1]],dtype='int32')*2
         
 #         type_onehot_2 = tf.linalg.diag(tf.cast(tf.math.equal(atom_type,mask),dtype='float32'))
         
         
-        fingerprints_1 = tf.matmul(type_onehot_1,fingerprints)
+        #fingerprints_1 = tf.matmul(type_onehot_1,fingerprints)
 #         fingerprints_2 = tf.matmul(type_onehot_2,fingerprints)
         
-        Z = tf.matmul(fingerprints_1,self.params[0]) + self.params[1]
+        Z = tf.matmul(fingerprints,self.params[0]) + self.params[1]
         Z = self.tf_activation_function(Z)
         
         nlayer = 1
@@ -285,11 +285,14 @@ class Network(tf.Module):
                 fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
                 
         if not compute_force:
+#            start_time = time.time()
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
+#            print('prediction takes %.2fs'%(time.time()-start_time))
             if training:
                 return {'pe':total_pe} 
             else:
-                return {'pe':total_pe.numpy()} 
+                return {'pe':total_pe.numpy()}
+
         else: 
             with tf.GradientTape() as dEdG_tape:
                 dEdG_tape.watch(fingerprints)
@@ -387,7 +390,8 @@ class Network(tf.Module):
             raise ValueError('loss_weights is not set correctly.')
 
         if (not training and not validation) or self.compute_all_loss:
-            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
+            if 'force_loss' in loss_dict and 'stress_loss' in loss_dict and 'total_loss' in loss_dict:
+                loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
             
         if training:
             return total_loss,loss_dict
@@ -397,7 +401,7 @@ class Network(tf.Module):
 
 
      
-    def train_step(self, input_dict, output_dict):    
+    def train_step(self, input_dict, output_dict):
         with tf.GradientTape() as tape: # automatically watch all tensorflow variables 
             if self.loss_weights['force']==0 and self.loss_weights['stress']==0 and not self.compute_all_loss:
                 pred_dict = self.predict(input_dict, training=True,compute_force=False)
@@ -415,7 +419,7 @@ class Network(tf.Module):
             pred_dict = self.predict(input_dict,training=True,compute_force=False)
         else:
             pred_dict = self.predict(input_dict,training=True,compute_force=True)
-            loss_dict = self.loss(output_dict, pred_dict,validation=True)
+        loss_dict = self.loss(output_dict, pred_dict,validation=True)
         return loss_dict
     
 
@@ -441,7 +445,7 @@ class Network(tf.Module):
         return dataset.map(map_fun)
 
     
-    def train(self, train_dataset, validation_dataset=None, scaling=None, batch_size=None, epochs=None, loss_fn=None, \
+    def train(self, train_dataset, validation_dataset=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fn=None, \
               optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
 
         if not self.built:            
@@ -452,8 +456,8 @@ class Network(tf.Module):
             self.lr = lr
         elif not self.lr: 
             self.lr = 0.01
-            print ("learning rate is set to 0.01 by default.")
-
+            print ("learning rate is set to 0.01 by default.")            
+                
         if scaling:
             if scaling != 'std' and scaling != 'norm':
                 raise ValueError('Scaling needs to be \'std\' (standardization) or \'norm\'(normalization).')
@@ -487,6 +491,10 @@ class Network(tf.Module):
             batch_size = 30
             print ("batch_size is set to 30 by default.")    
 
+        if early_stop:
+            if 'val_loss' in early_stop and not validation_dataset:
+                raise ValueError('No validation data for early stopping.')
+           
         if not hasattr(self,'train_loss') or not append_loss:
             self.train_loss={}
          
@@ -557,11 +565,13 @@ class Network(tf.Module):
         if shuffle:
             train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
             print('Training dataset will be shuffled during training.')
-
+            
         train_start_time = time.time()
+        
         for epoch in range(epochs):
-            epoch_start_time = time.time()
 
+            epoch_start_time = time.time()                
+            
             # Iterate over the batches of the training dataset.
             for step, (input_dict, output_dict) in enumerate(train_dataset.batch(batch_size)):
                 batch_loss = self.train_step(input_dict, output_dict)
@@ -570,10 +580,11 @@ class Network(tf.Module):
                 else:
                     for key in batch_loss:
                         train_epoch_loss[key] = batch_loss[key] + train_epoch_loss[key]
+
             for key in batch_loss:
                 train_epoch_loss[key] = train_epoch_loss[key]/(step+1)
                 self.train_loss[key].append(tf.Variable(train_epoch_loss[key]))
-                
+
             # Iterate over the batches of the validation dataset
             if validation_dataset is not None:  
                 for step, (input_dict, output_dict) in enumerate(validation_dataset.batch(batch_size)):
@@ -586,10 +597,32 @@ class Network(tf.Module):
                 for key in batch_loss:
                     val_epoch_loss[key] = val_epoch_loss[key]/(step+1)
                     self.val_loss[key].append(tf.Variable(val_epoch_loss[key]))
-
                     
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
+
+            if early_stop:
+                if 'train_loss' in early_stop:
+                    if 'total_loss' in train_epoch_loss:
+                        if train_epoch_loss['total_loss']<=early_stop['train_loss'][0]:
+                            stop_check += 1
+                    elif 'pe_loss' in train_epoch_loss:
+                        if train_epoch_loss['pe_loss']<=early_stop['train_loss'][0]
+                            stop_check += 1
+                    if stop_check == early_stop['train_loss'][1]:
+                        print('Training is stopped when train_loss <= %.3f for %i time.'%(early_stop['train_loss'][0],early_stop['train_loss'][1]))
+                        break
+                elif 'val_loss' in early_stop:
+                    if 'total_loss' in val_epoch_loss:
+                        if val_epoch_loss['total_loss']<=early_stop['val_loss'][0]:
+                            stop_check += 1
+                    elif 'pe_loss' in val_epoch_loss:
+                        if val_epoch_loss['pe_loss']<=early_stop['val_loss'][0]
+                            stop_check += 1
+                    if stop_check == early_stop['val_loss'][1]:
+                        print('Training is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
+                        break
+            
             print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
 
             print('     training_loss   ',*["- %s: %5.3f" % (key,value) for key,value in train_epoch_loss.items()])
