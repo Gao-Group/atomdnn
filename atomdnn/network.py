@@ -426,8 +426,8 @@ class Network(tf.Module):
             self.scaling_factor.append(tf.math.reduce_mean(fingerprints,axis=[0,1]))  
             self.scaling_factor.append(tf.math.reduce_std(fingerprints,axis=[0,1]))
         if self.scaling == 'norm':
-            self.scaling_factor.append(tf.math.reduce_max(fingerprints,axis=[0,1]))
             self.scaling_factor.append(tf.math.reduce_min(fingerprints,axis=[0,1]))
+            self.scaling_factor.append(tf.math.reduce_max(fingerprints,axis=[0,1]))
         self.scaling_factor = tf.Variable(self.scaling_factor) # convert to tf.Variable for saving
 
         
@@ -442,7 +442,7 @@ class Network(tf.Module):
 
     
     def train(self, train_dataset, validation_dataset=None, scaling=None, batch_size=None, epochs=None, loss_fn=None, \
-              optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True):
+              optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
 
         if not self.built:            
             self._build()
@@ -487,14 +487,12 @@ class Network(tf.Module):
             batch_size = 30
             print ("batch_size is set to 30 by default.")    
 
-        if not hasattr(self,'train_loss'):
+        if not hasattr(self,'train_loss') or not append_loss:
             self.train_loss={}
-            self.train_loss['epoch']=[]
-        
-        if validation_dataset and not hasattr(self,'val_loss'):
+         
+        if validation_dataset and (not hasattr(self,'val_loss') or not append_loss):
             self.val_loss={}
-            self.val_loss['epoch']=[]
-            
+             
         if loss_weights is None:
             self.loss_weights = {'pe':1,'force':0,'stress':0}
             print('loss_weights is set to default value:',self.loss_weights)
@@ -509,15 +507,15 @@ class Network(tf.Module):
             self.compute_all_loss=False        
 
         if self.loss_weights['pe']!=0 or self.compute_all_loss:
-            if 'pe_loss' not in self.train_loss:
+            if 'pe_loss' not in self.train_loss or not append_loss:
                 self.train_loss['pe_loss']=[]
-            if validation_dataset and 'pe_loss' not in self.val_loss:
+            if validation_dataset and ('pe_loss' not in self.val_loss or not append_loss):
                 self.val_loss['pe_loss']=[]
             
         if self.loss_weights['force']!=0 or self.compute_all_loss: # when force is used for training/validation OR compute force_loss is requested     
-            if 'force_loss' not in self.train_loss:
+            if 'force_loss' not in self.train_loss or not append_loss:
                 self.train_loss['force_loss']=[]
-            if validation_dataset and 'force_loss' not in self.val_loss:
+            if validation_dataset and ('force_loss' not in self.val_loss or not append_loss):
                 self.val_loss['force_loss']=[]
                 
         if self.loss_weights['force']!=0:
@@ -526,9 +524,9 @@ class Network(tf.Module):
             print ("Forces are not used for training.")
             
         if self.loss_weights['stress']!=0 or self.compute_all_loss: # when stress is used for traning/validation OR compute stress_loss is requested
-            if 'stress_loss' not in self.train_loss:
+            if 'stress_loss' not in self.train_loss or not append_loss:
                 self.train_loss['stress_loss']=[]
-            if validation_dataset and 'stress_loss' not in self.val_loss:
+            if validation_dataset and ('stress_loss' not in self.val_loss or not append_loss):
                 self.val_loss['stress_loss']=[]
                 
         if self.loss_weights['stress']!=0:
@@ -537,9 +535,9 @@ class Network(tf.Module):
             print ("Stresses are not used for training.")
 
         if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0 or self.compute_all_loss: 
-            if 'total_loss' not in self.train_loss:
+            if 'total_loss' not in self.train_loss or not append_loss:
                 self.train_loss['total_loss']=[]
-            if validation_dataset and 'total_loss' not in self.val_loss:
+            if validation_dataset and ('total_loss' not in self.val_loss or not append_loss):
                 self.val_loss['total_loss']=[]
 
         # convert to tf.variable so that they can be saved to network
@@ -551,23 +549,14 @@ class Network(tf.Module):
             self.compute_scaling_factors(train_dataset)
             print('Scaling factors are computed using training dataset.')
             train_dataset = self.scaling_dataset(train_dataset)
-            print('Training dataset are %s.' % 'standardized' if self.scaling =='std' else 'normalized')
+            print('Training dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'))
             if validation_dataset:
                 validation_dataset = self.scaling_dataset(validation_dataset)
-                print('Validation dataset are %s.' % 'standardized' if self.scaling =='std' else 'normalized')
+                print('Validation dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'))
 
         if shuffle:
             train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
             print('Training dataset will be shuffled during training.')
-
-        if self.train_loss['epoch']:
-            pre_train_epochs = self.train_loss['epoch'][-1].numpy()
-        else:
-            pre_train_epochs = 0
-        if self.val_loss['epoch']:
-            pre_val_epochs = self.train_loss['epoch'][-1].numpy()
-        else:
-            pre_val_epochs = 0
 
         train_start_time = time.time()
         for epoch in range(epochs):
@@ -584,7 +573,6 @@ class Network(tf.Module):
             for key in batch_loss:
                 train_epoch_loss[key] = train_epoch_loss[key]/(step+1)
                 self.train_loss[key].append(tf.Variable(train_epoch_loss[key]))
-            self.train_loss['epoch'].append(tf.Variable(pre_train_epochs+epoch+1))
                 
             # Iterate over the batches of the validation dataset
             if validation_dataset is not None:  
@@ -598,7 +586,7 @@ class Network(tf.Module):
                 for key in batch_loss:
                     val_epoch_loss[key] = val_epoch_loss[key]/(step+1)
                     self.val_loss[key].append(tf.Variable(val_epoch_loss[key]))
-                self.val_loss['epoch'].append(tf.Variable(pre_val_epochs+epoch+1))
+
                     
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
