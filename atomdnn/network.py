@@ -330,7 +330,7 @@ class Network(tf.Module):
 
         
 
-    def evaluate(self,dataset,batch_size=None,compute_force=atomdnn.compute_force):
+    def evaluate(self,dataset,batch_size=None,return_prediction=True,compute_force=atomdnn.compute_force):
 
         if batch_size is None:
             batch_size = dataset.cardinality().numpy()
@@ -346,53 +346,55 @@ class Network(tf.Module):
         for key in batch_loss:
             eval_loss[key] = eval_loss[key]/(step+1)
 
-        print('Evaluation loss is:')
+        print('Evaluation loss is:')    
         for key in eval_loss:
             print('%15s:  %15.4e' % (key, eval_loss[key]))
+        if 'total_loss' in eval_loss:
+            print('The total loss is computed using the following loss weights:')
+            print(self.loss_weights)
 
-        print ('\nThe prediction is:')
-        return y_predict
+        if return_prediction:
+            print('\nThe prediction is returned.')
+            return y_predict
                                                 
         
         
     def loss(self, true_dict, pred_dict, training=False, validation=False):
 
+        loss_dict={}
+        
         if self.tf_loss_fn is None:
             raise ValueError('Need to set up loss function.')
         else:
-            pe_loss = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
+            loss_dict['pe_loss'] = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
 
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
             # when evaluation OR train/validation using force OR all losses are requested
             if ((not training and not validation) or ((training or validation) and self.loss_weights['force']!=0)) or self.compute_all_loss:
-                force_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['force'],pred_dict['force']))
+                loss_dict['force_loss'] = tf.reduce_mean(self.tf_loss_fn(true_dict['force'],pred_dict['force']))
                 
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
             # when evaluation OR train/validation using stress OR all losses are requested
             if ((not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0))) or self.compute_all_loss: 
                 mask = [True,True,True,False,True,True,False,False,True] # select upper triangle elements of the stress tensor
                 stress = tf.reshape(tf.boolean_mask(pred_dict['stress'], mask,axis=1),[-1,6]) # reduce to 6 components
-                stress_loss = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
+                loss_dict['stress_loss'] = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
 
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
-            total_loss = pe_loss
-            loss_dict = {'pe_loss':pe_loss.numpy()}
+            total_loss = loss_dict['pe_loss']
         elif self.loss_weights['force']!=0 and self.loss_weights['stress']!=0: # pe, force and stress used for training
-            total_loss = pe_loss * self.loss_weights['pe'] + force_loss * self.loss_weights['force'] + stress_loss * self.loss_weights['stress']
-            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
+            total_loss = loss_dict['pe_loss'] * self.loss_weights['pe'] + loss_dict['force_loss'] * self.loss_weights['force']\
+                + loss_dict['stress_loss'] * self.loss_weights['stress']
+            loss_dict['total_loss'] = total_loss 
         elif self.loss_weights['force']!=0: # pe and force used for training 
-            total_loss = pe_loss * self.loss_weights['pe'] + force_loss * self.loss_weights['force']
-            loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'total_loss':total_loss.numpy()}
+            total_loss = loss_dict['pe_loss'] * self.loss_weights['pe'] + loss_dict['force_loss'] * self.loss_weights['force']
+            loss_dict['total_loss'] = total_loss
         elif self.loss_weights['stress']!=0: # pe and stress used for training
-            total_loss = pe_loss * self.loss_weights['pe'] + stress_loss * self.loss_weights['stress']
-            loss_dict = {'pe_loss':pe_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
+            total_loss = loss_dict['pe_loss'] * self.loss_weights['pe'] + loss_dict['stress_loss'] * self.loss_weights['stress']
+            loss_dict['total_loss'] = total_loss
         else:
             raise ValueError('loss_weights is not set correctly.')
 
-        if (not training and not validation) or self.compute_all_loss:
-            if 'force_loss' in loss_dict and 'stress_loss' in loss_dict and 'total_loss' in loss_dict:
-                loss_dict = {'pe_loss':pe_loss.numpy(), 'force_loss':force_loss.numpy(), 'stress_loss':stress_loss.numpy(), 'total_loss':total_loss.numpy()}
-            
         if training:
             return total_loss,loss_dict
         else:
@@ -607,7 +609,7 @@ class Network(tf.Module):
                         if train_epoch_loss['total_loss']<=early_stop['train_loss'][0]:
                             stop_check += 1
                     elif 'pe_loss' in train_epoch_loss:
-                        if train_epoch_loss['pe_loss']<=early_stop['train_loss'][0]
+                        if train_epoch_loss['pe_loss']<=early_stop['train_loss'][0]:
                             stop_check += 1
                     if stop_check == early_stop['train_loss'][1]:
                         print('Training is stopped when train_loss <= %.3f for %i time.'%(early_stop['train_loss'][0],early_stop['train_loss'][1]))
@@ -617,7 +619,7 @@ class Network(tf.Module):
                         if val_epoch_loss['total_loss']<=early_stop['val_loss'][0]:
                             stop_check += 1
                     elif 'pe_loss' in val_epoch_loss:
-                        if val_epoch_loss['pe_loss']<=early_stop['val_loss'][0]
+                        if val_epoch_loss['pe_loss']<=early_stop['val_loss'][0]:
                             stop_check += 1
                     if stop_check == early_stop['val_loss'][1]:
                         print('Training is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
