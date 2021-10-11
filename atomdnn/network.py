@@ -5,6 +5,8 @@ import time
 import os
 import atomdnn
 from atomdnn.data import *
+import matplotlib.pyplot as plt
+import matplotlib
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -350,8 +352,7 @@ class Network(tf.Module):
         for key in eval_loss:
             print('%15s:  %15.4e' % (key, eval_loss[key]))
         if 'total_loss' in eval_loss:
-            print('The total loss is computed using the following loss weights:')
-            print(self.loss_weights)
+            print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value.numpy()) for key, value in self.loss_weights.items()])
 
         if return_prediction:
             print('\nThe prediction is returned.')
@@ -636,6 +637,28 @@ class Network(tf.Module):
 
 
         
+
+    def plot_loss(self,start_epoch=1,figsize=(8,5)):
+    
+        matplotlib.rc('legend', fontsize=15) 
+        matplotlib.rc('xtick', labelsize=20) 
+        matplotlib.rc('ytick', labelsize=20) 
+        matplotlib.rc('axes', labelsize=20) 
+        matplotlib.rc('figure', titlesize=18)
+
+        for key in self.train_loss:
+            fig, axs = plt.subplots(1, 1 ,figsize=figsize)
+            epoch = np.arange(start_epoch,len(self.train_loss[key])+1)
+            axs.plot(epoch,self.train_loss[key][start_epoch-1:],'-', markersize=5, fillstyle='none', linewidth=1, color= 'blue', label='train_loss')
+            axs.plot(epoch,self.val_loss[key][start_epoch-1:],'-', markersize=5, fillstyle='none', linewidth=1, color= 'darkgreen', label='val_loss')
+            axs.set_xlabel('epoch')
+            axs.set_ylabel('loss')
+            plt.legend(loc='upper right',frameon=True,borderaxespad=1)
+            fig.suptitle(key)
+            plt.show()
+
+
+                                    
 def get_signature(model_dir):
     stream = os.popen('saved_model_cli show --dir '+ model_dir +' --tag_set serve --signature_def serving_default')
     output = stream.read()
