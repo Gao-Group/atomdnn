@@ -68,7 +68,7 @@ class Network(tf.Module):
             self.optimizer=None # string
             self.tf_optimizer=None
             self.lr=None
-#            self.loss_weights=None
+
                 
         self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
         self.saved_arch = tf.Variable(self.arch)
@@ -287,9 +287,7 @@ class Network(tf.Module):
                 fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
                 
         if not compute_force:
-#            start_time = time.time()
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
-#            print('prediction takes %.2fs'%(time.time()-start_time))
             if training:
                 return {'pe':total_pe} 
             else:
@@ -377,8 +375,8 @@ class Network(tf.Module):
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
             # when evaluation OR train/validation using stress OR all losses are requested
             if ((not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0))) or self.compute_all_loss: 
-                mask = [True,True,True,False,True,True,False,False,True] # select upper triangle elements of the stress tensor
-                stress = tf.reshape(tf.boolean_mask(pred_dict['stress'], mask,axis=1),[-1,6]) # reduce to 6 components
+                indices = [[[0],[4],[8],[1],[2],[5]]] * len(pred_dict['stress']) # select upper triangle elements (pxx,pyy,pzz,pxy,pxz,pyz) of the stress tensor
+                stress = tf.gather_nd(pred_dict['stress'], indices=indices, batch_dims=1)
                 loss_dict['stress_loss'] = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
 
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
