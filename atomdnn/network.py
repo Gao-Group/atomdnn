@@ -63,8 +63,7 @@ class Network(tf.Module):
             self.params = [] # layer and node parameters
         
             # training parameter
-            self.loss_fn=None # string
-            self.tf_loss_fn=None
+            self.loss_fun=None # string
             self.optimizer=None # string
             self.tf_optimizer=None
             self.lr=None
@@ -87,7 +86,7 @@ class Network(tf.Module):
         self.arch = imported.saved_arch.numpy()
         self.num_fingerprints = imported.saved_num_fingerprints.numpy()
 
-        if imported.scaling:
+        if hasattr(imported,'scaling'):
             self.scaling = imported.scaling
             self.scaling_factor = imported.scaling_factor
         else:
@@ -99,8 +98,8 @@ class Network(tf.Module):
         self.elements = [imported.saved_elements.numpy()[i].decode() for i in range(imported.saved_elements.shape[0])]
            
         self.lr = imported.saved_lr.numpy()
-        self.loss_fn = imported.saved_loss_fn.numpy().decode()
-        self.tf_loss_fn = tf.keras.losses.get(self.loss_fn)
+        self.loss_fun = imported.saved_loss_fun.numpy().decode()
+
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
@@ -238,7 +237,7 @@ class Network(tf.Module):
     # only used for __call__ method
     def _compute_force_stress (self, dEdG, input_dict):
 
-        if hasattr(self,'scaling'):
+        if self.scaling:
             if tf.math.equal(self.scaling, 'std'):
                 dEdG = dEdG/self.scaling_factor[1]
             elif tf.math.equal(self.scaling, 'norm'):
@@ -311,7 +310,7 @@ class Network(tf.Module):
 
         fingerprints = input_dict['fingerprints']
 
-        if hasattr(self,'scaling'):
+        if self.scaling:
             if tf.math.equal(self.scaling,'std'):  # standardize with the mean and deviation
                 fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
             elif tf.math.equal(self.scaling,'norm'): # normalize with the minimum and maximum
@@ -356,28 +355,34 @@ class Network(tf.Module):
             print('\nThe prediction is returned.')
             return y_predict
                                                 
+
+    def loss_function (self,true, pred): # customized loss function can be defined here
+        if self.loss_fun == 'rmse':
+            tf_loss_fun = tf.keras.losses.get('mse')
+            return tf.sqrt(tf_loss_fun(true,pred))
+        else:
+            tf_loss_fun = tf.keras.losses.get(self.loss_fun)
+            return tf_loss_fun(true, pred)
+            
         
         
     def loss(self, true_dict, pred_dict, training=False, validation=False):
 
         loss_dict={}
         
-        if self.tf_loss_fn is None:
-            raise ValueError('Need to set up loss function.')
-        else:
-            loss_dict['pe_loss'] = self.tf_loss_fn(true_dict['pe'], pred_dict['pe'])
+        loss_dict['pe_loss'] = self.loss_function(true_dict['pe'], pred_dict['pe'])
 
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
             # when evaluation OR train/validation using force OR all losses are requested
             if ((not training and not validation) or ((training or validation) and self.loss_weights['force']!=0)) or self.compute_all_loss:
-                loss_dict['force_loss'] = tf.reduce_mean(self.tf_loss_fn(true_dict['force'],pred_dict['force']))
+                loss_dict['force_loss'] = tf.reduce_mean(self.loss_function(true_dict['force'],pred_dict['force']))
                 
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
             # when evaluation OR train/validation using stress OR all losses are requested
             if ((not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0))) or self.compute_all_loss: 
                 indices = [[[0],[4],[8],[1],[2],[5]]] * len(pred_dict['stress']) # select upper triangle elements (pxx,pyy,pzz,pxy,pxz,pyz) of the stress tensor
                 stress = tf.gather_nd(pred_dict['stress'], indices=indices, batch_dims=1)
-                loss_dict['stress_loss'] = tf.reduce_mean(self.tf_loss_fn(true_dict['stress'],stress))
+                loss_dict['stress_loss'] = tf.reduce_mean(self.loss_function(true_dict['stress'],stress))
 
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
             total_loss = loss_dict['pe_loss']
@@ -446,7 +451,7 @@ class Network(tf.Module):
         return dataset.map(map_fun)
 
     
-    def train(self, train_dataset, validation_dataset=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fn=None, \
+    def train(self, train_dataset, validation_dataset=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
               optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
 
         if not self.built:            
@@ -476,13 +481,11 @@ class Network(tf.Module):
             self.tf_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr) 
             print ("optimizer is set to Adam by default.")
             
-        if loss_fn:
-            self.loss_fn = loss_fn
-            self.tf_loss_fn = tf.keras.losses.get(self.loss_fn)
-        elif not self.loss_fn and not self.tf_loss_fn:
-            self.loss_fn = 'mae'
-            self.tf_loss_fn = tf.keras.losses.get(self.loss_fn)
-            print ("loss_fn is set to mae by default.")
+        if loss_fun:
+            self.loss_fun = loss_fun
+        elif self.loss_fun is not None:
+            self.loss_fun = 'rmse'
+            print ("loss_fun is set to rmse by default.")
                                    
         if not epochs:
             epochs = 1
@@ -552,7 +555,7 @@ class Network(tf.Module):
         # convert to tf.variable so that they can be saved to network
         self.saved_optimizer = tf.Variable(self.optimizer)
         self.saved_lr = tf.Variable(self.lr)
-        self.saved_loss_fn = tf.Variable(self.loss_fn)
+        self.saved_loss_fun = tf.Variable(self.loss_fun)
                                                     
         if self.scaling:
             self.compute_scaling_factors(train_dataset)
@@ -568,7 +571,7 @@ class Network(tf.Module):
             print('Training dataset will be shuffled during training.')
             
         train_start_time = time.time()
-        
+        early_stop_repeats = 0
         for epoch in range(epochs):
 
             epoch_start_time = time.time()                
@@ -602,27 +605,6 @@ class Network(tf.Module):
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
 
-            if early_stop:
-                if 'train_loss' in early_stop:
-                    if 'total_loss' in train_epoch_loss:
-                        if train_epoch_loss['total_loss']<=early_stop['train_loss'][0]:
-                            stop_check += 1
-                    elif 'pe_loss' in train_epoch_loss:
-                        if train_epoch_loss['pe_loss']<=early_stop['train_loss'][0]:
-                            stop_check += 1
-                    if stop_check == early_stop['train_loss'][1]:
-                        print('Training is stopped when train_loss <= %.3f for %i time.'%(early_stop['train_loss'][0],early_stop['train_loss'][1]))
-                        break
-                elif 'val_loss' in early_stop:
-                    if 'total_loss' in val_epoch_loss:
-                        if val_epoch_loss['total_loss']<=early_stop['val_loss'][0]:
-                            stop_check += 1
-                    elif 'pe_loss' in val_epoch_loss:
-                        if val_epoch_loss['pe_loss']<=early_stop['val_loss'][0]:
-                            stop_check += 1
-                    if stop_check == early_stop['val_loss'][1]:
-                        print('Training is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
-                        break
             
             print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
 
@@ -630,19 +612,49 @@ class Network(tf.Module):
             if validation_dataset:
                 print('     validation_loss ',*["- %s: %5.3f" % (key,value) for key,value in val_epoch_loss.items()])
 
+            if early_stop:
+                if 'train_loss' in early_stop:
+                    if 'total_loss' in train_epoch_loss:
+                        if train_epoch_loss['total_loss']<=early_stop['train_loss'][0]:
+                            early_stop_repeats += 1
+                        else:
+                            early_stop_repeats = 0
+                    elif 'pe_loss' in train_epoch_loss:
+                        if train_epoch_loss['pe_loss']<=early_stop['train_loss'][0]:
+                            early_stop_repeats += 1
+                        else:
+                            early_stop_repeats = 0
+                    if early_stop_repeats == early_stop['train_loss'][1]:
+                        print('\nTraining is stopped when train_loss <= %.3f for %i time.'%(early_stop['train_loss'][0],early_stop['train_loss'][1]))
+                        break
+                elif 'val_loss' in early_stop:
+                    if 'total_loss' in val_epoch_loss:
+                        if val_epoch_loss['total_loss']<=early_stop['val_loss'][0]:
+                            early_stop_repeats += 1
+                        else:
+                            early_stop_repeats = 0
+                    elif 'pe_loss' in val_epoch_loss:
+                        if val_epoch_loss['pe_loss']<=early_stop['val_loss'][0]:
+                            early_stop_repeats += 1
+                        else:
+                            early_stop_repeats = 0
+                    if early_stop_repeats == early_stop['val_loss'][1]:
+                        print('\nTraining is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
+                        break
+                
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
-
+        
         
 
     def plot_loss(self,start_epoch=1,figsize=(8,5)):
     
         matplotlib.rc('legend', fontsize=15) 
-        matplotlib.rc('xtick', labelsize=20) 
-        matplotlib.rc('ytick', labelsize=20) 
-        matplotlib.rc('axes', labelsize=20) 
-        matplotlib.rc('figure', titlesize=18)
+        matplotlib.rc('xtick', labelsize=15) 
+        matplotlib.rc('ytick', labelsize=15) 
+        matplotlib.rc('axes', labelsize=15) 
+        matplotlib.rc('figure', titlesize=25)
 
         for key in self.train_loss:
             fig, axs = plt.subplots(1, 1 ,figsize=figsize)
