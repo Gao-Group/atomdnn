@@ -20,7 +20,7 @@ import sphinx_rtd_theme
 
 project = 'AtomDNN'
 copyright = '2021, Gao-group'
-author = 'Gao-group'
+author = 'Gao-Group'
 
 
 # -- General configuration ---------------------------------------------------

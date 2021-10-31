@@ -237,7 +237,7 @@ class Network(tf.Module):
     # only used for __call__ method
     def _compute_force_stress (self, dEdG, input_dict):
 
-        if self.scaling:
+        if self.scaling is not None:
             if tf.math.equal(self.scaling, 'std'):
                 dEdG = dEdG/self.scaling_factor[1]
             elif tf.math.equal(self.scaling, 'norm'):
@@ -310,7 +310,7 @@ class Network(tf.Module):
 
         fingerprints = input_dict['fingerprints']
 
-        if self.scaling:
+        if self.scaling is not None:
             if tf.math.equal(self.scaling,'std'):  # standardize with the mean and deviation
                 fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
             elif tf.math.equal(self.scaling,'norm'): # normalize with the minimum and maximum

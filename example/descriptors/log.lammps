@@ -10,16 +10,16 @@ read_data lmpdatafile
   1 by 1 by 1 MPI processor grid
   reading atoms ...
   4 atoms
-  read_data CPU = 0.000547886 secs
+  read_data CPU = 0.000545979 secs
 mass * 1.0
 pair_style zero ${cutoff} nocoeff
 pair_style zero 6.5 nocoeff
 pair_coeff * * 1.0 1.0
 neighbor 0.0 bin
-compute 1 all fingerprints ${cutoff} etaG2 0.01 0.1 0.5 0.8 1 5 10 etaG4 0.01 zeta 0.05 0.5 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
-compute 1 all fingerprints 6.5 etaG2 0.01 0.1 0.5 0.8 1 5 10 etaG4 0.01 zeta 0.05 0.5 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
-compute 2 all derivatives ${cutoff} etaG2 0.01 0.1 0.5 0.8 1 5 10 etaG4 0.01 zeta 0.05 0.5 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
-compute 2 all derivatives 6.5 etaG2 0.01 0.1 0.5 0.8 1 5 10 etaG4 0.01 zeta 0.05 0.5 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
+compute 1 all fingerprints ${cutoff} etaG2 0.01 0.05 0.1 0.5 1 5 10 etaG4 0.01 zeta 0.08 0.2 1.0 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
+compute 1 all fingerprints 6.5 etaG2 0.01 0.05 0.1 0.5 1 5 10 etaG4 0.01 zeta 0.08 0.2 1.0 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
+compute 2 all derivatives ${cutoff} etaG2 0.01 0.05 0.1 0.5 1 5 10 etaG4 0.01 zeta 0.08 0.2 1.0 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
+compute 2 all derivatives 6.5 etaG2 0.01 0.05 0.1 0.5 1 5 10 etaG4 0.01 zeta 0.08 0.2 1.0 5.0 10.0 50.0 100.0 lambda 1.0 -1.0 end
 dump dump_fingerprints all custom 1 ${dp_filename}.${file_id} id type c_1[*]
 dump dump_fingerprints all custom 1 dump_fp.${file_id} id type c_1[*]
 dump dump_fingerprints all custom 1 dump_fp.50 id type c_1[*]
@@ -52,7 +52,7 @@ Neighbor list info ...
       pair build: full/bin/atomonly
       stencil: full/bin/3d
       bin: standard
-Per MPI rank memory allocation (min/avg/max) = 6.811 | 6.811 | 6.811 Mbytes
+Per MPI rank memory allocation (min/avg/max) = 6.829 | 6.829 | 6.829 Mbytes
 Step Temp E_pair E_mol TotEng Press 
        0            0            0            0            0            0 
 Loop time of 1.90735e-06 on 1 procs for 0 steps with 4 atoms
