@@ -6,8 +6,7 @@ import time
 import atomdnn
 import random
 import shutil
-    
-    
+from ase.io import read,write        
 
 # slice dictionary
 def slice_dict (data_dict, start, end):
@@ -130,7 +129,10 @@ class Data(object):
                     print ('  so far read %d images ...' % fd,flush=True)
             else:
                 break
-
+            
+        if fd==start_image:
+            raise OSError('Could not find the input file.')
+        
         print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']),flush=True)
         maxnum_atom = max(self.natoms_in_fpfiles)
 
@@ -206,7 +208,7 @@ class Data(object):
         else:
             print("\nReading derivative data from a series of files %s" % (der_filename+'.i'))
 
-        print('This may take a while ...')
+        print('This may take a while for large data set ...')
         
         start_time = time.time()    
         fd = start_image # count image
@@ -265,28 +267,18 @@ class Data(object):
         self.num_images_der = np.shape(self.input_dict['dGdr'])[0]
         self.maxnum_blocks = maxnum_blocks
         self.num_fingerprints_der = np.shape(self.input_dict['dGdr'])[2]
-
-
-        # self.input_dict['dGdr'] = tf.convert_to_tensor(self.input_dict['dGdr'],dtype=self.data_type)
-        # self.input_dict['center_atom_id'] = tf.convert_to_tensor(self.input_dict['center_atom_id'],dtype='int32')
-        # self.input_dict['neighbor_atom_id'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_id'],dtype='int32')
-        # self.input_dict['neighbor_atom_coord'] = tf.convert_to_tensor(self.input_dict['neighbor_atom_coord'],dtype=self.data_type)
         
         print('\n  image number = %d' % self.num_images_der,flush=True)
-        print('  max number of blocks = %d' % self.maxnum_blocks,flush=True)
+        print('  max number of derivative pairs = %d' % self.maxnum_blocks,flush=True)
         print('  number of fingerprints = %d' % self.num_fingerprints_der,flush=True)
         
         end_time = time.time()
         print('\n  It took %.2f seconds to read the derivatives data.'%(end_time-start_time),flush=True)
 
-        
-            
-    def read_outputdata(self, filename=None, image_num=None, append=False, read_force=True, read_stress=True):
 
-        try:
-            file = open(filename)
-        except OSError:
-            raise OSError('Could not open file %s.' % filename)
+        
+        
+    def read_outputdata(self, xyzfile_path=None, xyzfile_name=None, read_force=True, read_stress=True, image_num=None, append=False):
 
         if not append:
             self.output_dict['pe'] = []
@@ -299,69 +291,57 @@ class Data(object):
         else:
             start_image = len(self.output_dict['pe'])
         
-        print("\nReading outputs from %s ..." % filename)
+        print("Reading outputs from extxyz files ...")
 
-        lines = file.readlines()    
-        file.close()
-    
-        fd = start_image # count image number
-        check_pe = 0
-        check_stress = 0
-        check_force = 0
-        count_atom = 0
+        if xyzfile_name.split('.')[-1] == '*':
+            batch_mode = 1
+            xyzfile_name = xyzfile_name[:-2]
+        else:
+            batch_mode = 0    
+        if not batch_mode:
+            image_num = 1
 
-        for i in range(len(lines)):
-            if 'image_id' in lines[i] and check_force==1:
-                self.natoms_in_force.append(count_atom)
-                check_force = 0
-                fd += 1
-                count_atom = 0
-                if image_num == fd - start_image:
+        fd = start_image # count image
+        while (1):
+            if image_num:
+                if fd-start_image+1>image_num:
                     break
-                if fd-start_image>0 and int((fd-start_image)%50)==0:
-                    print ('  so far read %d images ...' % fd)
-            elif 'potential_energy' in lines[i]:
-                check_pe = 1
-            elif 'pxx' and 'pyy' and 'pzz' and 'pxy' and 'pxz' and 'pyz' in lines[i]:
-                check_stress = 1
-            elif 'fx' and 'fy' and 'fz' in lines[i]:
-                check_force = 1
-                self.output_dict['force'].append([])
-            elif check_pe == 1:
-                self.output_dict['pe'].append(self.str2float(lines[i]))
-                check_pe = 0
-            elif check_stress == 1:
-                self.output_dict['stress'].append(self.str2float(lines[i].split()))
-                check_stress = 0
-            elif check_force == 1:
-                self.output_dict['force'][fd].append(self.str2float(lines[i].split()[1:4]))
-                count_atom += 1
-                
-        if count_atom>0: # append the last image
-            self.natoms_in_force.append(count_atom)
-            
-        print('  Finish reading outputs from total %i images.\n'% len(self.output_dict['pe']))
+            if batch_mode:
+                filename = xyzfile_path + '/' + xyzfile_name +'.'+ str(fd-start_image+1)
+            else:
+                filename = xyzfile_path + '/' + xyzfile_name
 
+            if os.path.isfile(filename):
+                patom = read(filename,format='extxyz')
+                pe = patom.get_potential_energy(patom)
+                self.output_dict['pe'].append(pe)
+                if read_force:
+                    force = patom.get_forces(patom)
+                    self.output_dict['force'].append(force)
+                    self.natoms_in_force.append(len(force))
+                if read_stress:
+                    stress = patom.get_stress(patom)
+                    self.output_dict['stress'].append(stress)
+                fd += 1
+                if fd-start_image > 0 and int((fd-start_image)%50)==0:
+                    print ('  so far read %d images ...' % fd,flush=True)
+            else:
+                break
+            
+        print('  Finish reading outputs from total %i images.\n' % len(self.output_dict['pe']),flush=True)
         if read_force:
             maxnum_atom = max(self.natoms_in_force)
-        
+
         # pad zeros if the atom number is less than maxnum_atom
         if read_force:
             for i in range(len(self.output_dict['force'])):
                 if len(self.output_dict['force'][i]) < maxnum_atom:
                     print('  Pad image %i with zeros forces.'%(i+1))
                     zeros = [0] * 3
-                    self.input_dict['force'][i] = list(pad(self.input_dict['force'][i],maxnum_atom,zeros))
-            
-        # self.output_dict['pe'] = tf.convert_to_tensor(self.output_dict['pe'],dtype=self.data_type)
-        # if read_force:
-        #     self.output_dict['force'] = tf.convert_to_tensor(self.output_dict['force'],dtype=self.data_type)
-        # if read_stress:
-        #     self.output_dict['stress'] = tf.convert_to_tensor(self.output_dict['stress'],dtype=self.data_type)        
-
-
+                    self.output_dict['force'][i] = list(pad(self.output_dict['force'][i],maxnum_atom,zeros))
                 
 
+                    
     def shuffle(self):
         zipped = list(zip(*[self.input_dict[keys] for keys in list(self.input_dict.keys())],*[self.output_dict[keys] \
                                                                                 for keys in list(self.output_dict.keys())]))
@@ -463,8 +443,8 @@ class Data(object):
 
 
     def convert_data_to_tensor(self):
-        self.check_data()
-        print('Conversion may take a while ...',flush=True)
+        #self.check_data()
+        print('Conversion may take a while for large datasets...',flush=True)
         start_time = time.time()
         for key in self.output_dict:
             self.output_dict[key] = tf.convert_to_tensor(self.output_dict[key],dtype=self.data_type)
@@ -477,39 +457,17 @@ class Data(object):
         end_time = time.time()
         print('It took %.4f second.'%(end_time-start_time),flush=True)
 
-        # print('Pad zeros to derivatives data if needed ...',flush=True)
-        # # pad zeros if the blocks is less than maxnum_blocks
-        # count_pad = 0
-        # for i in range(len(self.input_dict['dGdr'])):
-        #     diff = self.maxnum_bloks-len(self.input_dict['dGdr'][i])
-        #     if diff>0:
-        #         paddings = tf.constant([[0, diff]])
-        #         self.input_dict['center_atom_id'][i] = tf.pad(self.input_dict['center_atom_id'][i], paddings, "CONSTANT",0)
-        #         self.input_dict['neighbor_atom_id'][i] = tf.pad(self.input_dict['center_atom_id'][i], paddings, "CONSTANT",-1)
-                                       
-        #         paddings = tf.constant([[0,diff],[0,0],[0,0]])
-        #         self.input_dict['neighbor_atom_coord'][i] = tf.pad(self.input_dict['neighbor_atom_coord'][i], paddings, "CONSTANT",0)
-        #         self.input_dict['dGdr'][i] = tf.pad(self.input_dict['dGdr'][i], paddings, "CONSTANT",0)
-        #         count_pad += 1
-        #         if int((count_pad)%50)==0:
-        #             print ('  so far paded %d images ...' % count_pad,flush=True) 
-        # if count_pad ==0:
-        #     print('  Pading is not needed.')
-        # else:
-        #     print('  Pading finished: %i images derivatives have been padded with zeros.'%count_pad,flush=True)
-        
 
 
 #=================================================================================================================
 # some functions to operate tensorflow dataset
 
-
 def get_input_dict(dataset):
-    for x,y in dataset.batch(dataset.cardinality().numpy()):
+    for x,y in dataset.batch(len(dataset)):
         return x
 
 def get_output_dict(dataset):
-    for x,y in dataset.batch(dataset.cardinality().numpy()):
+    for x,y in dataset.batch(len(dataset)):
         return y
 
 # # get the dictionary element from tensorflow dataset
@@ -563,23 +521,3 @@ def split_dataset(dataset, train_pct=None, val_pct=None, test_pct=None, shuffle=
     test_dataset = dataset.skip(train_size+val_size).take(test_size)
 
     return train_dataset,val_dataset,test_dataset
-
-
-
-# element_spec is used for loading tensorflow dataset, only needed for the tensorflow version below 2.6
-if atomdnn.compute_force:
-    element_spec= ({'center_atom_id': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None),
-                    'fingerprints': tf.TensorSpec(shape=(None, None), dtype=tf.float64, name=None),
-                    'dGdr': tf.TensorSpec(shape=(None, None, None), dtype=tf.float64, name=None),
-                    'neighbor_atom_id': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None),
-                    'volume': tf.TensorSpec(shape=(None,), dtype=tf.float64, name=None),
-                    'neighbor_atom_coord': tf.TensorSpec(shape=(None, None, None), dtype=tf.float64, name=None),
-                    'atom_type': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None)},
-                   {'force': tf.TensorSpec(shape=(None, None), dtype=tf.float64, name=None),
-                    'pe': tf.TensorSpec(shape=(), dtype=tf.float64, name=None),
-                    'stress': tf.TensorSpec(shape=(None,), dtype=tf.float64, name=None)})
-else:
-    element_spec= ({'fingerprints': tf.TensorSpec(shape=(None, None), dtype=tf.float64, name=None),
-                    'atom_type': tf.TensorSpec(shape=(None,), dtype=tf.int32, name=None)},
-                   {'pe': tf.TensorSpec(shape=(), dtype=tf.float64, name=None)})
-
