@@ -1,0 +1,22 @@
+element              C
+
+input                6
+atom_type            serving_default_atom_type:0
+center_atom_id       serving_default_center_atom_id:0
+dgdr                 serving_default_dgdr:0
+fingerprints         serving_default_fingerprints:0
+neighbor_atom_coord  serving_default_neighbor_atom_coord:0
+neighbor_atom_id     serving_default_neighbor_atom_id:0
+
+output               3
+atom_pe              StatefulPartitionedCall:0
+force                StatefulPartitionedCall:1
+stress               StatefulPartitionedCall:2
+
+cutoff               6.500000
+
+descriptor           acsf  4
+etaG2                0.01  0.1  0.5  0.8  1  5  10
+etaG4                0.01
+zeta                 0.05  0.5  5.0  10.0  50.0  100.0
+lambda               1.0  -1.0
