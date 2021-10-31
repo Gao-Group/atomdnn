@@ -8,24 +8,14 @@ Welcome to AtomDNN's documentation!
 AtomDNN is a package for training descriptor-based Behler-Parinello type of neural
 network potentials. It provides:
 
-- **Generation of descriptors**: we use LAMMPS as a Calculator
+- **Generation of descriptors**: users just need to provide the atomic structures
+  saved as extxyz files. we use LAMMPS as a Calculator
   (through an added Compute comand) to compute descritpors and their
   derivatives w.r.t. atom positions (`ACSF <https://aip.scitation.org/doi/abs/10.1063/1.3553717>`_ and
   `SOAP <https://journals.aps.org/prb/abstract/10.1103/PhysRevB.87.184115>`_ are currently supported), while users are free to use any other
   tools to generate descriptors. Note that the parallelized LAMMPS can save
   computation time since the calculation of the derivatives may be
   time consuming.
-
-- **Data pipeline**: users just need to provide the atomic structures
-  saved as extxyz files (with lattice, atom coordinates, potential energy, atomic forces and stress),
-  which are converted to lammps datafiles in order to compute
-  descritpors and derivatives (saved as lammps dump files). We then
-  create a Data object to read the descritpors and derivatives (from
-  lammps dump files) as the inputs, and the potential energy, atomic force and stress (from
-  extxyz files) as the outputs. The data object is finally saved as Tensorflow
-  dataset, which is used for traning and also can be conveniently
-  shared among collaborators. This data pipeline is designed for
-  data flexibility and transparency.
 
 - **Potential training**: we use the `tf.module in Tensorflow2
   <https://www.tensorflow.org/api_docs/python/tf/Module>`_ to build
@@ -56,7 +46,6 @@ network potentials. It provides:
    force_calculation.rst
    stress_calculation.rst
    lammps.rst
-   docker.rst
    about.rst
 
  

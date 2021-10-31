@@ -7,6 +7,22 @@ dataset that can be used for training, a data pipeline goes through
 the following three steps, where we use the example inside
 atomdnn/example to walk through the process.
 
+
+
+
+- **Data pipeline**: users just need to provide the atomic structures
+  saved as extxyz files (with lattice, atom coordinates, potential energy, atomic forces and stress),
+  which are converted to lammps datafiles in order to compute
+  descritpors and derivatives (saved as lammps dump files). We then
+  create a Data object to read the descritpors and derivatives (from
+  lammps dump files) as the inputs, and the potential energy, atomic force and stress (from
+  extxyz files) as the outputs. The data object is finally saved as Tensorflow
+  dataset, which is used for traning and also can be conveniently
+  shared among collaborators. This data pipeline is designed for
+  data flexibility and transparency.
+
+
+
 Step 1: Read atomic structures
 ==============================
 In the package, we put an example in the atomdnn/example
