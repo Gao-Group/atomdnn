@@ -11,9 +11,7 @@
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "This example demonstrates the whole process from initial atomic structure to training, evaluation and prediction. \n",
-    "\n",
-    "It includes:\n",
+    "This example demonstrates the whole process from initial atomic structure to training, evaluation and prediction. It includes:\n",
     "\n",
     "1. Read input atomic structures (saved as extxyz files) and create descriptors and their derivatives.\n",
     "\n",
