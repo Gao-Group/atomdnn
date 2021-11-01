@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Force and stress calculation &mdash; AtomDNN  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="author" title="About these documents" href="about.html" />
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="LAMMPS interface" href="lammps.html" />
+    <link rel="prev" title="Energy calculation" href="energy_calculation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> AtomDNN
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="example.html">Example</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data_pipeline.html">Data pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="energy_calculation.html">Energy calculation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Force and stress calculation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#theory">Theory</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation">Implementation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="lammps.html">LAMMPS interface</a></li>
+<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">AtomDNN</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Force and stress calculation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/force_calculation.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="force-and-stress-calculation">
+<h1>Force and stress calculation<a class="headerlink" href="#force-and-stress-calculation" title="Permalink to this headline"></a></h1>
+<section id="theory">
+<h2>Theory<a class="headerlink" href="#theory" title="Permalink to this headline"></a></h2>
+<p>Consider a material containing <span class="math notranslate nohighlight">\(N\)</span> atoms has a total potential energy
+<span class="math notranslate nohighlight">\(\cal E\)</span>. The atomistic environment of each atom can be described by <span class="math notranslate nohighlight">\(M\)</span> fingerprints <span class="math notranslate nohighlight">\(G_{im}\)</span> (<span class="math notranslate nohighlight">\(i=1,2,\dots,N\)</span> and <span class="math notranslate nohighlight">\(m=1,2,\dots,M\)</span>), which are used to determine the potential energy <span class="math notranslate nohighlight">\(E_{i}\)</span> of <span class="math notranslate nohighlight">\(i\)</span>-th atom. The atomic forces acting on each atom can be calculated as:</p>
+<div class="math notranslate nohighlight" id="equation-force">
+<span class="eqno">(1)<a class="headerlink" href="#equation-force" title="Permalink to this equation"></a></span>\[f_{j\alpha}=-\frac{\partial {\cal E}}{\partial r_{j\alpha}}= -
+\sum_{i=1}^{N} \frac{\partial E_i (G_{i1},
+G_{i2},\dots,G_{iM})}{\partial r_{j\alpha}} = -  \sum_{i=1}^{N}
+\sum_{m=1}^{M}       {\frac{\partial E_i}{\partial G_{im}}}
+{\frac{\partial G_{im}}{\partial r_{j\alpha}}}\]</div>
+<p>where <span class="math notranslate nohighlight">\(r_{j\alpha}\)</span> (<span class="math notranslate nohighlight">\(\alpha=1,2,3\)</span>) are the Cartesian coordinates of <span class="math notranslate nohighlight">\(j\)</span>-th atom (<span class="math notranslate nohighlight">\(j=1,2,\dots,N\)</span>).</p>
+<p>The first Piola-Kirchhoff (PK) stress tensor can be calculated as the work conjugate of deformation gradient tensor</p>
+<div class="math notranslate nohighlight" id="equation-pk-stress-def">
+<span class="eqno">(2)<a class="headerlink" href="#equation-pk-stress-def" title="Permalink to this equation"></a></span>\[\begin{equation}
+     P_{\alpha\beta} = \frac{1}{V_0} \frac{\partial {\cal E}}{\partial F_{\alpha\beta}},
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(V_0\)</span> is the volume of the reference configuration and <span class="math notranslate nohighlight">\(F_{\alpha\beta}\)</span> is the deformation gradient tensor. Similar to the atomic force calculation, the potential energy can be written as the sum of atomic potential energies, so the stress can be written as</p>
+<div class="math notranslate nohighlight" id="equation-pk-stress-1">
+<span class="eqno">(3)<a class="headerlink" href="#equation-pk-stress-1" title="Permalink to this equation"></a></span>\[\begin{equation}
+P_{\alpha\beta} = \frac{1}{V_0} \sum_{i=1}^{N} \sum_{m=1}^{M} \frac{\partial E_i}{\partial G_{im}} \frac{\partial G_{im} } {\partial F_{\alpha \beta}}.
+\end{equation}\]</div>
+<p>The fingerprint <span class="math notranslate nohighlight">\(G_{im}\)</span> is determined by the coordinates of the atoms inside the cutoff of atom <span class="math notranslate nohighlight">\(i\)</span>. Therefore,</p>
+<div class="math notranslate nohighlight" id="equation-dgdf">
+<span class="eqno">(4)<a class="headerlink" href="#equation-dgdf" title="Permalink to this equation"></a></span>\[\begin{equation}
+\frac{\partial G_{im} } {\partial F_{\alpha \beta}} = \sum_{j \in \text{NB}_{i}} \sum_{\gamma=1}^{3} \frac{\partial G_{im}}{\partial r_{j\gamma}} \frac{\partial r_{j\gamma}}{\partial F_{\alpha \beta}},
+\end{equation}\]</div>
+<p>where atom <span class="math notranslate nohighlight">\(j\)</span> is inside the neighbor list of atom <span class="math notranslate nohighlight">\(i\)</span>. By definition, the deformation gradient maps the atom positionfrom the reference configuration to the current configuration.</p>
+<div class="math notranslate nohighlight" id="equation-coordinate-mapping">
+<span class="eqno">(5)<a class="headerlink" href="#equation-coordinate-mapping" title="Permalink to this equation"></a></span>\[\begin{equation}
+     r_{j\gamma} = \sum_{\beta=1}^{3}F_{\gamma\beta}R_{j\beta} ,
+\end{equation}\]</div>
+<p>where <span class="math notranslate nohighlight">\(R_{j\beta}\)</span> is the coordinates of atom <span class="math notranslate nohighlight">\(j\)</span> in the
+reference configuration. Then, the stress in Eq. <a class="reference internal" href="#equation-pk-stress-1">(3)</a> can be
+written as</p>
+<div class="math notranslate nohighlight" id="equation-pk-stress-2">
+<span class="eqno">(6)<a class="headerlink" href="#equation-pk-stress-2" title="Permalink to this equation"></a></span>\[\begin{equation}
+     P_{\alpha\beta} = \frac{1}{V_0} \sum_{i=1}^{N} \sum_{m=1}^{M} \sum_{j \in \text{NB}_i} \frac{\partial E_i}{\partial G_{im}} \frac{\partial G_{im} } {\partial r_{j \alpha}} R_{j\beta}.
+\end{equation}\]</div>
+<p>Cauchy stress can be further calculated by</p>
+<div class="math notranslate nohighlight" id="equation-cauchy-stress-from-pk">
+<span class="eqno">(7)<a class="headerlink" href="#equation-cauchy-stress-from-pk" title="Permalink to this equation"></a></span>\[\begin{equation}
+     \sigma_{\alpha\gamma} = \det ({\bf F})^{-1} \sum_{\beta=1}^{3}P_{\alpha\beta} F_{\gamma \beta}.
+\end{equation}\]</div>
+<p>Substitute Eq. <a class="reference internal" href="#equation-pk-stress-2">(6)</a> into Eq. <a class="reference internal" href="#equation-cauchy-stress-from-pk">(7)</a>, and
+then apply <span class="math notranslate nohighlight">\(V = V_0 \det ({\bf F})\)</span>, which is the volume in
+current configuration, as well as <span class="math notranslate nohighlight">\(r_{j\gamma} = \sum_{\beta
+=1}^{3}F_{\gamma\beta}R_{j\beta}\)</span>, we get</p>
+<div class="math notranslate nohighlight" id="equation-cauchy-stress">
+<span class="eqno">(8)<a class="headerlink" href="#equation-cauchy-stress" title="Permalink to this equation"></a></span>\[\begin{equation}
+     \sigma_{\alpha\beta} = \frac{1}{V}  \sum_{i=1}^{N} \sum_{m=1}^{M} \sum_{j \in \text{NB}_i} \frac{\partial E_i}{\partial G_{im}} \frac{\partial G_{im} } {\partial r_{j \alpha}} r_{j\beta}
+\end{equation}\]</div>
+<p>after replacing <span class="math notranslate nohighlight">\(\gamma\)</span> with <span class="math notranslate nohighlight">\(\beta\)</span>.</p>
+</section>
+<section id="implementation">
+<h2>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline"></a></h2>
+<p>In Tensorflow, it is more convenient and efficient to implement the above summation
+in terms of matrix multiplication. Therefore, we define matrix</p>
+<div class="math notranslate nohighlight">
+\[[dEdG]_i =   \begin{pmatrix} \dfrac{\partial E_i}{\partial G_{i1}}
+&amp; \dfrac{\partial E_i}{\partial G_{i2}}      &amp; \dots &amp;
+\dfrac{\partial E_i}{\partial G_{iM}} \end{pmatrix}\]</div>
+<p>and</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}[dGdr]_{ij} = \begin{bmatrix}
+            \dfrac{\partial G_{i1}}{\partial r_{j1}} &amp; \dfrac{\partial G_{i1}}{\partial r_{j2}} &amp; \dfrac{\partial G_{i1}}{\partial r_{j3}}  \\ \rule{0pt}{22pt}
+            \dfrac{\partial G_{i2}}{\partial r_{j1}} &amp; \dfrac{\partial G_{i2}}{\partial r_{j2}} &amp; \dfrac{\partial G_{i2}}{\partial r_{j3}}  \\ \rule{0pt}{15pt}
+            \vdots &amp; \vdots &amp; \vdots \\\rule{0pt}{15pt}
+            \dfrac{\partial G_{iM}}{\partial r_{j1}} &amp; \dfrac{\partial G_{iM}}{\partial r_{j2}} &amp; \dfrac{\partial G_{iM}}{\partial r_{j3}}  \\
+    \end{bmatrix}\end{split}\]</div>
+<p>Next, we use an example to demonstrate the matrix multiplicaiton
+process. Assume there are 8 pairs of derivative (<span class="math notranslate nohighlight">\(dGdr\)</span>) data in
+one structure that contains 6 atoms. The center atoms IDs for thes 8 pairs are</p>
+<div class="math notranslate nohighlight">
+\[\begin{bmatrix}
+    1&amp;2&amp;2&amp;4&amp;5&amp;0&amp;1&amp;2
+\end{bmatrix}\]</div>
+<p>The neighbor atoms IDs are</p>
+<div class="math notranslate nohighlight">
+\[\begin{equation}
+\begin{bmatrix}
+2&amp;3&amp;4&amp;2&amp;1&amp;4&amp;0&amp;4
+\end{bmatrix}
+\end{equation}\]</div>
+<p>The atomic forces can be computed as:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+\begin{bmatrix}
+             \left[dEdG\right]_1 \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_2  \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_2  \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_4  \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_5  \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_0  \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_1  \\ \rule{0pt}{10pt}
+             \left[dEdG\right]_2  \\
+     \end{bmatrix}
+     \begin{bmatrix}
+             \left[dGdr\right]_{12} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{23} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{24} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{42} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{51} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{04} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{10} \\ \rule{0pt}{10pt}
+             \left[dGdr\right]_{24} \\
+     \end{bmatrix}
+     =       \begin{bmatrix}
+                     (f_2^x)_1 &amp; (f_2^y)_1 &amp; (f_2^z)_1 \\ \rule{0pt}{10pt}
+                     (f_3^x)_2 &amp; (f_3^y)_2 &amp; (f_3^z)_2 \\ \rule{0pt}{10pt}
+                     (f_4^x)_2 &amp; (f_4^y)_2 &amp; (f_4^z)_2 \\ \rule{0pt}{10pt}
+                     (f_2^x)_4 &amp; (f_2^y)_4 &amp; (f_2^z)_4 \\ \rule{0pt}{10pt}
+                     (f_1^x)_5 &amp; (f_1^y)_5 &amp; (f_1^z)_5 \\ \rule{0pt}{10pt}
+                     (f_4^x)_0 &amp; (f_4^y)_0 &amp; (f_4^z)_0 \\ \rule{0pt}{10pt}
+                     (f_0^x)_1 &amp; (f_0^y)_1 &amp; (f_0^z)_1 \\ \rule{0pt}{10pt}
+                     (f_4^x)_2 &amp; (f_4^y)_2 &amp; (f_4^z)_2
+     \end{bmatrix}
+     \end{equation}\end{split}\]</div>
+<p>where <span class="math notranslate nohighlight">\((f_j^x)_i\)</span> is the force on <span class="math notranslate nohighlight">\(j\)</span>-th atom contributed
+by atom <span class="math notranslate nohighlight">\(i\)</span>. Then we need to compute the total force acting on
+atom <span class="math notranslate nohighlight">\(j\)</span>, <span class="math notranslate nohighlight">\(F_j\)</span>, by summing up all the contributions for
+other atoms. This is done by using one-hot matrix generated by the
+neighbor atom IDs:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+     -\begin{bmatrix}
+             0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 1 &amp; 0 \\ \rule{0pt}{10pt}
+             0 &amp; 0 &amp; 0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 \\ \rule{0pt}{10pt}
+             1 &amp; 0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\ \rule{0pt}{10pt}
+             0 &amp; 1 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 \\ \rule{0pt}{10pt}
+             0 &amp; 0 &amp; 1 &amp; 0 &amp; 0 &amp; 1 &amp; 0 &amp; 1 \\ \rule{0pt}{10pt}
+             0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0 &amp; 0
+     \end{bmatrix}
+ \begin{bmatrix}
+                     (f_2^x)_1 &amp; (f_2^y)_1 &amp; (f_2^z)_1 \\ \rule{0pt}{10pt}
+                     (f_3^x)_2 &amp; (f_3^y)_2 &amp; (f_3^z)_2 \\ \rule{0pt}{10pt}
+                     (f_4^x)_2 &amp; (f_4^y)_2 &amp; (f_4^z)_2 \\ \rule{0pt}{10pt}
+                     (f_2^x)_4 &amp; (f_2^y)_4 &amp; (f_2^z)_4 \\ \rule{0pt}{10pt}
+                     (f_1^x)_5 &amp; (f_1^y)_5 &amp; (f_1^z)_5 \\ \rule{0pt}{10pt}
+                     (f_4^x)_0 &amp; (f_4^y)_0 &amp; (f_4^z)_0 \\ \rule{0pt}{10pt}
+                     (f_0^x)_1 &amp; (f_0^y)_1 &amp; (f_0^z)_1 \\ \rule{0pt}{10pt}
+                     (f_4^x)_2 &amp; (f_4^y)_2 &amp; (f_4^z)_2
+     \end{bmatrix}
+     =       \begin{bmatrix}
+             F_0^x &amp; F_0^y &amp; F_0^z \\ \rule{0pt}{10pt}
+             F_1^x &amp; F_1^y &amp; F_1^z \\ \rule{0pt}{10pt}
+             F_2^x &amp; F_2^y &amp; F_2^z \\ \rule{0pt}{10pt}
+             F_3^x &amp; F_3^y &amp; F_3^z \\ \rule{0pt}{10pt}
+             F_4^x &amp; F_4^y &amp; F_4^z \\ \rule{0pt}{10pt}
+             F_5^x &amp; F_5^y &amp; F_5^z
+     \end{bmatrix}
+     \end{equation}\end{split}\]</div>
+<p>Define the coordinates of neighboring atom</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+    [r]_j = \begin{bmatrix}
+    r_{jx}\\
+    r_{jy}\\
+    r_{jz}
+    \end{bmatrix}
+\end{equation}\end{split}\]</div>
+<p>The stress can be calculated as</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{equation}
+\begin{bmatrix}
+  [r]_2 \\ [r]_3 \\ [r]_4 \\ [r]_2 \\ [r]_1 \\ [r]_4 \\ [r]_0 \\ [r]_4
+\end{bmatrix}
+\begin{bmatrix}
+  [(f_2^x)_1 &amp; (f_2^y)_1 &amp; (f_2^z)_1] \\ \rule{0pt}{10pt}
+  [(f_3^x)_2 &amp; (f_3^y)_2 &amp; (f_3^z)_2] \\ \rule{0pt}{10pt}
+  [(f_4^x)_2 &amp; (f_4^y)_2 &amp; (f_4^z)_2]\\ \rule{0pt}{10pt}
+  [(f_2^x)_4 &amp; (f_2^y)_4 &amp; (f_2^z)_4] \\ \rule{0pt}{10pt}
+  [(f_1^x)_5 &amp; (f_1^y)_5 &amp; (f_1^z)_5] \\ \rule{0pt}{10pt}
+  [(f_4^x)_0 &amp; (f_4^y)_0 &amp; (f_4^z)_0] \\ \rule{0pt}{10pt}
+  [(f_0^x)_1 &amp; (f_0^y)_1 &amp; (f_0^z)_1] \\ \rule{0pt}{10pt}
+  [(f_4^x)_2 &amp; (f_4^y)_2 &amp; (f_4^z)_2]
+ \end{bmatrix}
+  = \begin{bmatrix}
+       [\sigma_{\alpha\beta}]_1 \\
+       [\sigma_{\alpha\beta}]_2 \\
+       [\sigma_{\alpha\beta}]_3 \\
+       [\sigma_{\alpha\beta}]_4 \\
+       [\sigma_{\alpha\beta}]_5 \\
+       [\sigma_{\alpha\beta}]_6 \\
+       [\sigma_{\alpha\beta}]_7 \\
+       [\sigma_{\alpha\beta}]_8 \\
+    \end{bmatrix}
+\end{equation}\end{split}\]</div>
+<p>The final stress is</p>
+<blockquote>
+<div><div class="math notranslate nohighlight">
+\[\begin{equation}
+    \sigma_{\alpha\beta} = \frac{1}{V} \sum_{k=1}^{8} [\sigma_{\alpha\beta}]_k
+\end{equation}\]</div>
+</div></blockquote>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="energy_calculation.html" class="btn btn-neutral float-left" title="Energy calculation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="lammps.html" class="btn btn-neutral float-right" title="LAMMPS interface" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Gao-group.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
