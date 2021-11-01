@@ -14,4 +14,4 @@ The working principle of descriptor-based neural network potential can be explai
 
 Implementation
 ---------------
-The neural network could be easily implemented with tensorflow.keras dense layers if one only wants to train the potential with potential energies. However, when adding atomic forces and stress as training variables, it is not convenient to compute force and stress with Keras packaged layers. Therefore, we use more flexible tf.module to implement this neural network.
+The neural network could be easily implemented with tensorflow.keras dense layers if one only wants to train the potential with potential energies. However, when adding atomic forces and stress as training variables, it is not convenient to apply the math described in :ref:`force-reference-label` in Keras packaged layers. Therefore, we use more flexible tf.module to implement this neural network.

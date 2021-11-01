@@ -1,3 +1,5 @@
+.. _force-reference-label:
+
 ============================
 Force and stress calculation
 ============================
