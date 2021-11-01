@@ -129,64 +129,65 @@ class Network(tf.Module):
             
         
     def _build(self):
-        '''
-        Initializes weights for each layer
-        '''
-        
+  
         # Declare layer-wise weights and biases
-        self.W1 = tf.Variable(
-            self.weights_initializer(shape=(self.num_fingerprints,self.arch[0]),dtype=self.data_type), name='W1')
-        self.b1 = tf.Variable(self.bias_initializer(shape=(1,self.arch[0]), dtype=self.data_type),name='b1')
-        self.params.append(self.W1)
-        self.params.append(self.b1)
-        nlayer = 1
+        for element in self.elements:
+            self.W1 = tf.Variable(
+                self.weights_initializer(shape=(self.num_fingerprints,self. arch[0]), dtype=self.data_type))
+            self.b1 = tf.Variable(self.bias_initializer(shape=(1,self.arch[0]), dtype=self.data_type))
+            self.params.append(self.W1)
+            self.params.append(self.b1)
+            nlayer = 1
         
-        for nneuron_layer in self.arch[1:]:
-            self.params.append(tf.Variable(self.weights_initializer(shape=(self.arch[nlayer-1], self.arch[nlayer]),dtype=self.data_type)))
-            self.params.append(tf.Variable(self.bias_initializer([1,self.arch[nlayer]],dtype=self.data_type)))
-            nlayer+=1
-        
-        self.params.append(tf.Variable(self.weights_initializer(shape=(self.arch[-1],1),dtype=self.data_type)))
-        self.params.append(tf.Variable(self.bias_initializer([1, 1],dtype=self.data_type)))
+            for nneuron_layer in self.arch[1:]:
+                self.params.append(tf.Variable(self.weights_initializer(shape=(self.arch[nlayer], self.arch[nlayer-1]), dtype=self.data_type)))
+                self.params.append(tf.Variable(self.bias_initializer([1, self.arch[nlayer]], dtype=self.data_type)))
+                nlayer+=1
+            
+            self.params.append(tf.Variable(self.weights_initializer(shape=(self.arch[-1], 1), dtype=self.data_type)))
+            self.params.append(tf.Variable(self.bias_initializer([1,], dtype=self.data_type)))
 
-     
+
     
     def compute_pe (self, fingerprints, atom_type):
         '''
         Forward pass of the network
         '''
-            
-        #mask_1 = tf.ones([tf.shape(atom_type)[0],tf.shape(atom_type)[1]],dtype='int32')*1
+        nimages = tf.shape(atom_type)[0]
+        natoms = tf.shape(atom_type)[1]
         
-        #type_onehot_1 = tf.linalg.diag(tf.cast(tf.math.equal(atom_type,mask_1),dtype=self.data_type))
-        
-#         mask_2 = tf.ones([tf.shape(atom_type)[0],tf.shape(atom_type)[1]],dtype='int32')*2
-        
-#         type_onehot_2 = tf.linalg.diag(tf.cast(tf.math.equal(atom_type,mask),dtype='float32'))
-        
-        
-        #fingerprints_1 = tf.matmul(type_onehot_1,fingerprints)
-#         fingerprints_2 = tf.matmul(type_onehot_2,fingerprints)
-        
-        Z = tf.matmul(fingerprints,self.params[0]) + self.params[1]
-        Z = self.tf_activation_function(Z)
-        
-        nlayer = 1
+        atom_pe = tf.zeros([nimages,natoms,1],dtype=self.data_type)
         params_iter = 0
+        nlayer = len(self.arch)+1 # include one linear layer
+        nelements = len(self.elements)
+        
+        for i in range(nelements):
+            type_id = i + 1
+            type_array = tf.ones([nimages,natoms],dtype='int32')*type_id
+            type_mask = tf.cast(tf.math.equal(atom_type,type_array),dtype=self.data_type)
+            type_onehot = tf.linalg.diag(type_mask)
+            fingerprints = tf.matmul(type_onehot,fingerprints)
 
-        for nneuron_layer in self.arch[1:]:
-            nlayer+=1
-            params_iter+=2
-            Z = tf.matmul(Z,self.params[params_iter]) + self.params[params_iter+1]
+            # first dense layer
+            Z = tf.matmul(fingerprints,self.params[nlayer*2*i]) + self.params[nlayer*2*i+1]
             Z = self.tf_activation_function(Z)
 
-        atom_pe = tf.matmul(Z, self.params[-2]) + self.params[-1]
+            # sequential dense layer
+            for j in range(1,nlayer-1):
+                Z = tf.matmul(Z,self.params[nlayer*2*i+j*2]) + self.params[nlayer*2*i+j*2+1]
+                Z = self.tf_activation_function(Z)
 
-        total_pe = tf.reshape(tf.math.reduce_sum(atom_pe, axis=1),[tf.shape(atom_pe)[0]])
+            # linear layer
+            Z = tf.matmul(Z, self.params[nlayer*2*(i+1)-2]) + self.params[nlayer*2*(i+1)-1]
+
+            # apply the mask
+            mask = tf.reshape(type_mask,[nimages,natoms,1])
+            atom_pe += Z * mask
+        
+        total_pe = tf.reshape(tf.math.reduce_sum(atom_pe, axis=1),[nimages])
 
         return total_pe, atom_pe
-    
-    
+        
     
     def compute_force_stress (self, dEdG, input_dict):
                 
