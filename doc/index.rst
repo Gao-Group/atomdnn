@@ -9,28 +9,27 @@ AtomDNN is a package for training descriptor-based Behler-Parinello type of neur
 network potentials. It provides:
 
 - **Generation of descriptors**: users just need to provide the atomic structures
-  saved as extxyz files. we use LAMMPS as a Calculator
-  (through an added Compute comand) to compute descritpors and their
-  derivatives w.r.t. atom positions (`ACSF <https://aip.scitation.org/doi/abs/10.1063/1.3553717>`_ and
-  `SOAP <https://journals.aps.org/prb/abstract/10.1103/PhysRevB.87.184115>`_ are currently supported), while users are free to use any other
+  saved as extxyz files. We use LAMMPS as a Calculator
+  (through an added Compute comand) to compute descritpors (`ACSF <https://aip.scitation.org/doi/abs/10.1063/1.3553717>`_) and their
+  derivatives w.r.t. atom positions, while users are free to use any other
   tools to generate descriptors. Note that the parallelized LAMMPS can save
   computation time since the calculation of the derivatives may be
   time consuming.
 
 - **Potential training**: we use the `tf.module in Tensorflow2
   <https://www.tensorflow.org/api_docs/python/tf/Module>`_ to build
-  and train the neurall network. Potential energy, atomic forces and
+  and train the neural network. Potential energy, atomic forces and
   stress can be used for training. Any activation functions and loss
   functions supported by Tensorflow can be used. The trained potential is finally saved as a
-  tensorflow model. The descritpors parameters are saved in the same
-  folder for the predictions with LAMMPS.
+  tensorflow model.
 
 - **Integration to LAMMPS/ASE**: a new pair style pair_tfdnn is added to
   LAMMPS in order to do the predictions with the trained tensorflow
   model in MD and MS simulations. In this pair style, the prediction is
   performed with tensorflow C APIs. To use the potential in ASE, one
-  just needs to use LAMMPS as an extenral Calculator, like any other potentials.  
+  just needs to use LAMMPS as an extenral Calculator, like any other potentials.
 
+A good starting point is the Example.
 
 .. toctree::
    :maxdepth: 2
@@ -38,14 +37,8 @@ network potentials. It provides:
 
    install.rst
    example.ipynb
-   atom_descriptor.rst
    data_pipeline.rst
-   training.rst
-   prediction.rst
    energy_calculation.rst
    force_calculation.rst
-   stress_calculation.rst
    lammps.rst
    about.rst
-
- 
