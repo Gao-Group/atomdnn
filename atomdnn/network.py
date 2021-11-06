@@ -166,10 +166,10 @@ class Network(tf.Module):
             type_array = tf.ones([nimages,natoms],dtype='int32')*type_id
             type_mask = tf.cast(tf.math.equal(atom_type,type_array),dtype=self.data_type)
             type_onehot = tf.linalg.diag(type_mask)
-            fingerprints = tf.matmul(type_onehot,fingerprints)
+            fingerprints_i = tf.matmul(type_onehot,fingerprints)
 
             # first dense layer
-            Z = tf.matmul(fingerprints,self.params[nlayer*2*i]) + self.params[nlayer*2*i+1]
+            Z = tf.matmul(fingerprints_i,self.params[nlayer*2*i]) + self.params[nlayer*2*i+1]
             Z = self.tf_activation_function(Z)
 
             # sequential dense layer
