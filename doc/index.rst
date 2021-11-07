@@ -29,23 +29,45 @@ network potentials. It provides:
   LAMMPS in order to do the predictions with the trained tensorflow
   model in MD and MS simulations. In this pair style, the prediction is
   performed with tensorflow C APIs. To use the potential in ASE, one
-  just needs to use LAMMPS as an extenral Calculator, like any other potentials.  
+  just needs to use LAMMPS as an extenral Calculator, like any other potentials.
 
 
 .. toctree::
-   :maxdepth: 2
-   :hidden:
+   :glob:
+   :caption: Getting Started
+   :maxdepth: 1
 
-   install.rst
-   example.ipynb
-   atom_descriptor.rst
-   data_pipeline.rst
-   training.rst
-   prediction.rst
-   energy_calculation.rst
-   force_calculation.rst
-   stress_calculation.rst
-   lammps.rst
-   about.rst
+   getstarted/install.rst
+   getstarted/example.rst
 
- 
+
+.. toctree::
+   :glob:
+   :caption: Tutorials
+   :maxdepth: 1
+
+   tutorials/data_pipeline.rst
+   tutorials/energy_calculation.rst
+   tutorials/force_calculation.rst
+   tutorials/lammps.rst
+
+.. toctree::
+   :glob:
+   :caption: Modules
+   :maxdepth: 1
+
+   module/descriptor.rst
+   module/data.rst
+   module/network.rst
+
+
+
+.. toctree::
+   :glob:
+   :caption: About
+   :maxdepth: 1
+
+   about/authors.rst
+   about/contact.rst
+   about/license.rst
+   about/funding.rst
