@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Example &mdash; AtomDNN  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Data pipeline" href="../tutorials/data_pipeline.html" />
+    <link rel="prev" title="Installation" href="install.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AtomDNN
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Example</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#Create-descriptors">Create descriptors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Read-inputs&amp;outputs">Read inputs&amp;outputs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Create-TFdataset">Create TFdataset</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Training">Training</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Save/load-model">Save/load model</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/data_pipeline.html">Data pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/energy_calculation.html">Energy calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/force_calculation.html">Force and stress calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/lammps.html">LAMMPS interface</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../module/descriptor.html">Descriptor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/data.html">Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/network.html">Network</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/funding.html">Funding</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AtomDNN</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Example</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/getstarted/example.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="Example">
+<h1>Example<a class="headerlink" href="#Example" title="Permalink to this headline"></a></h1>
+<p>This example demonstrates the whole process from initial atomic structure to training, evaluation and prediction. It includes:</p>
+<ol class="arabic simple">
+<li><p>Read input atomic structures (saved as extxyz files) and create descriptors and their derivatives.</p></li>
+<li><p>Read inputs and outputs into a Data object.</p></li>
+<li><p>Create tensorflow dataset for training.</p></li>
+<li><p>Train the potential and apply it for prediction.</p></li>
+<li><p>Save the trained model and then load it for retraining or prediction.</p></li>
+</ol>
+<p>The code has been tested on Tensorflow 2.5 and 2.6.</p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">atomdnn</span>
+
+<span class="c1"># &#39;float64&#39; is used for reading data and train by default</span>
+<span class="n">atomdnn</span><span class="o">.</span><span class="n">data_type</span> <span class="o">=</span> <span class="s1">&#39;float64&#39;</span>
+
+<span class="c1"># force and stress are evaluated by default,</span>
+<span class="c1"># if one only need to compute potential energy, then set compute_force to false</span>
+<span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span> <span class="o">=</span> <span class="kc">True</span>
+
+<span class="c1"># default value is for converting ev/A^3 to GPa</span>
+<span class="c1"># note that: the predicted positive stress means tension and negative stress means compression</span>
+<span class="n">stress_unit_convert</span> <span class="o">=</span> <span class="mf">160.2176</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
+<span class="kn">from</span> <span class="nn">atomdnn</span> <span class="kn">import</span> <span class="n">data</span>
+<span class="kn">from</span> <span class="nn">atomdnn.data</span> <span class="kn">import</span> <span class="n">Data</span>
+<span class="kn">from</span> <span class="nn">atomdnn.data</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">atomdnn.descriptor</span> <span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span> <span class="nn">atomdnn</span> <span class="kn">import</span> <span class="n">network</span>
+<span class="kn">from</span> <span class="nn">atomdnn.network</span> <span class="kn">import</span> <span class="n">Network</span>
+</pre></div>
+</div>
+</div>
+<section id="Create-descriptors">
+<h2>Create descriptors<a class="headerlink" href="#Create-descriptors" title="Permalink to this headline"></a></h2>
+<p><strong>Read input atomic structures (saved as extxyz files) and create descriptors and their derivatives</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">descriptor</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;acsf&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;cutoff&#39;</span><span class="p">:</span> <span class="mf">6.5</span><span class="p">,</span>
+              <span class="s1">&#39;etaG2&#39;</span><span class="p">:[</span><span class="mf">0.01</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span>
+              <span class="s1">&#39;etaG4&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">],</span>
+              <span class="s1">&#39;zeta&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.08</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">10.0</span><span class="p">,</span><span class="mf">100.0</span><span class="p">],</span>
+              <span class="s1">&#39;lambda&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">]}</span>
+
+
+<span class="c1"># define lammps excutable (serial or mpi)</span>
+<span class="c1"># LAMMPS has to be compiled with the added compute and dump_local subrutines (inside atomdnn/lammps)</span>
+<span class="n">lmpexe</span> <span class="o">=</span> <span class="s1">&#39;lmp_serial&#39;</span>
+<span class="c1">#lmpexe = &#39;mpirun -np 2 lmp_mpi&#39;  # can be mpi version</span>
+
+
+<span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;C&#39;</span><span class="p">]</span>
+<span class="n">xyzfile_path</span><span class="o">=</span><span class="s1">&#39;extxyz&#39;</span>
+<span class="n">xyzfile_name</span> <span class="o">=</span> <span class="s1">&#39;example_extxyz.*&#39;</span> <span class="c1"># a serials of files like example_extxyz.1, example_extxyz.2, ...example_extxyz.n</span>
+<span class="n">descriptors_path</span> <span class="o">=</span> <span class="s1">&#39;./descriptors&#39;</span>
+
+<span class="n">descriptor_filename</span> <span class="o">=</span> <span class="s1">&#39;dump_fp.*&#39;</span> <span class="c1"># a serials of dump_fp.* files will be created</span>
+<span class="n">der_filename</span> <span class="o">=</span><span class="s1">&#39;dump_der.*&#39;</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;total number of fingerprints = </span><span class="si">%i</span><span class="s1">&#39;</span><span class="o">%</span><span class="k">get_num_fingerprints</span>(descriptor,elements))
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+total number of fingerprints = 14
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># this will create a serials of files for descriptors and their derivatives inside descriptors_path</span>
+<span class="n">create_descriptors</span><span class="p">(</span><span class="n">lmpexe</span><span class="p">,</span>
+                   <span class="n">elements</span><span class="p">,</span>
+                   <span class="n">xyzfile_path</span><span class="p">,</span>
+                   <span class="n">xyzfile_name</span><span class="p">,</span>
+                   <span class="n">descriptors_path</span><span class="p">,</span>
+                   <span class="n">descriptor</span><span class="p">,</span>
+                   <span class="n">descriptor_filename</span><span class="p">,</span>
+                   <span class="n">der_filename</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Start creating fingerprints and derivatives for 50 files ...
+  so far finished for 10 images ...
+  so far finished for 20 images ...
+  so far finished for 30 images ...
+  so far finished for 40 images ...
+  so far finished for 50 images ...
+Finish creating descriptors and derivatives for total 50 images.
+It took 10.55 seconds.
+</pre></div></div>
+</div>
+</section>
+<section id="Read-inputs&amp;outputs">
+<h2>Read inputs&amp;outputs<a class="headerlink" href="#Read-inputs&outputs" title="Permalink to this headline"></a></h2>
+<p><strong>Read inputs and outputs into a Data object</strong></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># create a Data object</span>
+<span class="n">mydata</span> <span class="o">=</span> <span class="n">Data</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># read inputs: descriptors and their derivatives</span>
+<span class="n">mydata</span><span class="o">.</span><span class="n">read_inputdata</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span> <span class="n">descriptor_filename</span><span class="p">,</span> <span class="n">der_filename</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Start reading fingerprints from &#39;dump_fp.*&#39; for total 50 files ...
+  so far read 50 images ...
+  Finish reading fingerprints from total 50 images.
+
+
+Start reading derivatives from &#39;dump_der.*&#39; for total 50 files ...
+  This may take a while for large data set ...
+  so far read 50 images ...
+  Finish reading dGdr derivatives from total 50 images.
+
+  It took 1.02 seconds to read the derivatives data.
+
+---------- input dataset information ----------
+total images = 50
+max number of atoms = 4
+number of fingerprints = 14
+number of atom types = 1
+max number of derivative pairs = 200
+------------------------------------------------
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># read outputs: potential energy, force and stress from extxyz files</span>
+<span class="n">mydata</span><span class="o">.</span><span class="n">read_outputdata</span><span class="p">(</span><span class="n">xyzfile_path</span><span class="p">,</span> <span class="n">xyzfile_name</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Reading outputs from extxyz files ...
+  so far read 50 images ...
+  Finish reading outputs from total 50 images.
+
+
+---------- output dataset information ------------
+total images = 50
+max number of atoms = 4
+read_force = True
+read_stress = True
+---------------------------------------------------
+</pre></div></div>
+</div>
+</section>
+<section id="Create-TFdataset">
+<h2>Create TFdataset<a class="headerlink" href="#Create-TFdataset" title="Permalink to this headline"></a></h2>
+<p><strong>Create tensorflow dataset for training</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># convert data to tensors</span>
+<span class="n">mydata</span><span class="o">.</span><span class="n">convert_data_to_tensor</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Conversion may take a while for large datasets...
+It took 0.0046 second.
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># create tensorflow dataset</span>
+<span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">((</span><span class="n">mydata</span><span class="o">.</span><span class="n">input_dict</span><span class="p">,</span><span class="n">mydata</span><span class="o">.</span><span class="n">output_dict</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">dataset_path</span> <span class="o">=</span> <span class="s1">&#39;./example_tfdataset&#39;</span>
+
+<span class="c1"># save the dataset</span>
+<span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">tf_dataset</span><span class="p">,</span> <span class="n">dataset_path</span><span class="p">)</span>
+
+<span class="c1"># save the element_spec to disk for future loading, this is only needed for tensorflow lower than 2.6</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dataset_path</span> <span class="o">+</span> <span class="s1">&#39;/element_spec&#39;</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">out_</span><span class="p">:</span>
+    <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">tf_dataset</span><span class="o">.</span><span class="n">element_spec</span><span class="p">,</span> <span class="n">out_</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<p><strong>Note: The above three steps just need to be done once for one data set, the training only uses the saved tensorflow dataset.</strong></p>
+</section>
+<section id="Training">
+<h2>Training<a class="headerlink" href="#Training" title="Permalink to this headline"></a></h2>
+<p><strong>Load the dataset and train the model</strong></p>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># load tensorflow dataset, for Tensorflow version lower than 2.6, need to specify element_spec.</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dataset_path</span> <span class="o">+</span> <span class="s1">&#39;/element_spec&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">in_</span><span class="p">:</span>
+    <span class="n">element_spec</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">in_</span><span class="p">)</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">dataset_path</span><span class="p">,</span><span class="n">element_spec</span><span class="o">=</span><span class="n">element_spec</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># split the data to training, validation and testing sets</span>
+
+<span class="n">train_dataset</span><span class="p">,</span> <span class="n">val_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">split_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span><span class="mf">0.7</span><span class="p">,</span><span class="mf">0.2</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span><span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Traning data: 35 images
+Validation data: 10 images
+Test data: 5 images
+</pre></div></div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Build the network</span>
+<span class="c1"># See section &#39;Training&#39; for detailed description on Network object.</span>
+
+<span class="n">act_fun</span> <span class="o">=</span> <span class="s1">&#39;relu&#39;</span> <span class="c1"># activation function</span>
+<span class="n">nfp</span> <span class="o">=</span> <span class="n">get_num_fingerprints</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span><span class="n">elements</span><span class="p">)</span> <span class="c1"># number of fingerprints (or descriptors) from dataset</span>
+<span class="n">arch</span> <span class="o">=</span> <span class="p">[</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">]</span> <span class="c1"># NN layers</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">Network</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span> <span class="n">nfp</span><span class="p">,</span> <span class="n">arch</span><span class="p">,</span> <span class="n">act_fun</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Train the model</span>
+
+<span class="n">opt</span> <span class="o">=</span> <span class="s1">&#39;Adam&#39;</span> <span class="c1"># optimizer</span>
+<span class="n">loss_fun</span> <span class="o">=</span> <span class="s1">&#39;mae&#39;</span> <span class="c1"># loss function</span>
+<span class="n">scaling</span> <span class="o">=</span> <span class="s1">&#39;std&#39;</span> <span class="c1"># scaling the traning data with standardization</span>
+<span class="n">lr</span> <span class="o">=</span> <span class="mf">0.01</span> <span class="c1"># learning rate</span>
+<span class="n">loss_weights</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;force&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">}</span> <span class="c1"># the weights in loss function</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">,</span><span class="n">val_dataset</span><span class="p">,</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span>
+            <span class="n">loss_fun</span> <span class="o">=</span> <span class="n">loss_fun</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+            <span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">,</span>
+            <span class="n">epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="o">=</span><span class="n">scaling</span><span class="p">,</span>
+            <span class="n">loss_weights</span><span class="o">=</span><span class="n">loss_weights</span><span class="p">,</span>
+            <span class="n">compute_all_loss</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">append_loss</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Forces are used for training.
+Stresses are used for training.
+Scaling factors are computed using training dataset.
+Training dataset are standardized.
+Validation dataset are standardized.
+Training dataset will be shuffled during training.
+
+===&gt; Epoch 1/50 - 0.287s/epoch
+     training_loss    - pe_loss: 31.190 - force_loss: 356.384 - stress_loss: 39990.078 - total_loss: 4386.582
+     validation_loss  - pe_loss: 32.375 - force_loss: 327.956 - stress_loss: 38602.905 - total_loss: 4220.621
+
+===&gt; Epoch 2/50 - 0.255s/epoch
+     training_loss    - pe_loss: 29.309 - force_loss: 331.239 - stress_loss: 33570.114 - total_loss: 3717.558
+     validation_loss  - pe_loss: 28.926 - force_loss: 277.891 - stress_loss: 31481.089 - total_loss: 3454.926
+
+===&gt; Epoch 3/50 - 0.243s/epoch
+     training_loss    - pe_loss: 19.546 - force_loss: 299.680 - stress_loss: 23171.993 - total_loss: 2636.426
+     validation_loss  - pe_loss: 26.623 - force_loss: 241.708 - stress_loss: 25293.141 - total_loss: 2797.644
+
+===&gt; Epoch 4/50 - 0.267s/epoch
+     training_loss    - pe_loss: 17.683 - force_loss: 256.099 - stress_loss: 22112.295 - total_loss: 2485.011
+     validation_loss  - pe_loss: 24.879 - force_loss: 226.670 - stress_loss: 20505.446 - total_loss: 2302.093
+
+===&gt; Epoch 5/50 - 0.206s/epoch
+     training_loss    - pe_loss: 19.918 - force_loss: 292.258 - stress_loss: 19392.847 - total_loss: 2251.461
+     validation_loss  - pe_loss: 23.761 - force_loss: 227.353 - stress_loss: 14071.244 - total_loss: 1658.238
+
+===&gt; Epoch 6/50 - 0.217s/epoch
+     training_loss    - pe_loss: 18.440 - force_loss: 294.655 - stress_loss: 18934.791 - total_loss: 2206.574
+     validation_loss  - pe_loss: 23.181 - force_loss: 230.540 - stress_loss: 10633.239 - total_loss: 1317.044
+
+===&gt; Epoch 7/50 - 0.250s/epoch
+     training_loss    - pe_loss: 27.071 - force_loss: 287.616 - stress_loss: 17824.723 - total_loss: 2097.160
+     validation_loss  - pe_loss: 22.483 - force_loss: 233.838 - stress_loss: 10535.882 - total_loss: 1309.910
+
+===&gt; Epoch 8/50 - 0.213s/epoch
+     training_loss    - pe_loss: 19.139 - force_loss: 262.362 - stress_loss: 17680.789 - total_loss: 2049.580
+     validation_loss  - pe_loss: 21.706 - force_loss: 232.758 - stress_loss: 10097.616 - total_loss: 1264.227
+
+===&gt; Epoch 9/50 - 0.247s/epoch
+     training_loss    - pe_loss: 16.393 - force_loss: 290.298 - stress_loss: 19667.135 - total_loss: 2273.404
+     validation_loss  - pe_loss: 20.813 - force_loss: 250.224 - stress_loss: 12001.393 - total_loss: 1471.177
+
+===&gt; Epoch 10/50 - 0.211s/epoch
+     training_loss    - pe_loss: 19.249 - force_loss: 265.476 - stress_loss: 15017.614 - total_loss: 1786.486
+     validation_loss  - pe_loss: 19.828 - force_loss: 247.004 - stress_loss: 13313.849 - total_loss: 1598.217
+
+===&gt; Epoch 11/50 - 0.247s/epoch
+     training_loss    - pe_loss: 17.911 - force_loss: 275.333 - stress_loss: 15653.270 - total_loss: 1858.571
+     validation_loss  - pe_loss: 18.833 - force_loss: 240.327 - stress_loss: 13014.488 - total_loss: 1560.609
+
+===&gt; Epoch 12/50 - 0.239s/epoch
+     training_loss    - pe_loss: 17.082 - force_loss: 217.358 - stress_loss: 11507.945 - total_loss: 1385.234
+     validation_loss  - pe_loss: 17.622 - force_loss: 221.982 - stress_loss: 11865.776 - total_loss: 1426.182
+
+===&gt; Epoch 13/50 - 0.211s/epoch
+     training_loss    - pe_loss: 15.717 - force_loss: 214.068 - stress_loss: 13056.794 - total_loss: 1535.465
+     validation_loss  - pe_loss: 16.475 - force_loss: 230.185 - stress_loss: 12524.101 - total_loss: 1499.071
+
+===&gt; Epoch 14/50 - 0.212s/epoch
+     training_loss    - pe_loss: 14.213 - force_loss: 265.868 - stress_loss: 18321.999 - total_loss: 2112.281
+     validation_loss  - pe_loss: 15.383 - force_loss: 223.565 - stress_loss: 12250.728 - total_loss: 1464.020
+
+===&gt; Epoch 15/50 - 0.256s/epoch
+     training_loss    - pe_loss: 15.886 - force_loss: 223.352 - stress_loss: 12262.024 - total_loss: 1465.440
+     validation_loss  - pe_loss: 14.432 - force_loss: 212.618 - stress_loss: 13039.163 - total_loss: 1530.967
+
+===&gt; Epoch 16/50 - 0.255s/epoch
+     training_loss    - pe_loss: 10.931 - force_loss: 230.472 - stress_loss: 14679.957 - total_loss: 1709.399
+     validation_loss  - pe_loss: 14.192 - force_loss: 206.057 - stress_loss: 13255.603 - total_loss: 1545.809
+
+===&gt; Epoch 17/50 - 0.254s/epoch
+     training_loss    - pe_loss: 14.032 - force_loss: 214.895 - stress_loss: 12529.994 - total_loss: 1481.926
+     validation_loss  - pe_loss: 14.426 - force_loss: 217.929 - stress_loss: 11939.140 - total_loss: 1426.269
+
+===&gt; Epoch 18/50 - 0.258s/epoch
+     training_loss    - pe_loss: 13.977 - force_loss: 199.781 - stress_loss: 10151.721 - total_loss: 1228.930
+     validation_loss  - pe_loss: 14.610 - force_loss: 208.643 - stress_loss: 9057.785 - total_loss: 1129.031
+
+===&gt; Epoch 19/50 - 0.237s/epoch
+     training_loss    - pe_loss: 14.160 - force_loss: 190.762 - stress_loss: 9122.232 - total_loss: 1117.146
+     validation_loss  - pe_loss: 15.200 - force_loss: 214.031 - stress_loss: 7970.364 - total_loss: 1026.267
+
+===&gt; Epoch 20/50 - 0.567s/epoch
+     training_loss    - pe_loss: 12.521 - force_loss: 187.481 - stress_loss: 8241.700 - total_loss: 1024.172
+     validation_loss  - pe_loss: 15.501 - force_loss: 207.533 - stress_loss: 7092.256 - total_loss: 932.260
+
+===&gt; Epoch 21/50 - 0.235s/epoch
+     training_loss    - pe_loss: 12.524 - force_loss: 218.186 - stress_loss: 11744.765 - total_loss: 1405.186
+     validation_loss  - pe_loss: 15.301 - force_loss: 203.474 - stress_loss: 7162.949 - total_loss: 935.070
+
+===&gt; Epoch 22/50 - 0.240s/epoch
+     training_loss    - pe_loss: 14.047 - force_loss: 213.436 - stress_loss: 10236.759 - total_loss: 1251.159
+     validation_loss  - pe_loss: 14.761 - force_loss: 199.951 - stress_loss: 7072.908 - total_loss: 922.003
+
+===&gt; Epoch 23/50 - 0.208s/epoch
+     training_loss    - pe_loss: 9.837 - force_loss: 248.349 - stress_loss: 11092.987 - total_loss: 1367.484
+     validation_loss  - pe_loss: 14.310 - force_loss: 194.913 - stress_loss: 6726.697 - total_loss: 881.892
+
+===&gt; Epoch 24/50 - 0.244s/epoch
+     training_loss    - pe_loss: 11.016 - force_loss: 184.585 - stress_loss: 8991.769 - total_loss: 1094.778
+     validation_loss  - pe_loss: 14.106 - force_loss: 187.860 - stress_loss: 6918.478 - total_loss: 893.814
+
+===&gt; Epoch 25/50 - 0.211s/epoch
+     training_loss    - pe_loss: 15.097 - force_loss: 184.636 - stress_loss: 8829.165 - total_loss: 1082.650
+     validation_loss  - pe_loss: 13.765 - force_loss: 186.991 - stress_loss: 7435.635 - total_loss: 944.320
+
+===&gt; Epoch 26/50 - 0.242s/epoch
+     training_loss    - pe_loss: 12.930 - force_loss: 203.051 - stress_loss: 9268.753 - total_loss: 1142.856
+     validation_loss  - pe_loss: 13.263 - force_loss: 178.193 - stress_loss: 6942.370 - total_loss: 885.693
+
+===&gt; Epoch 27/50 - 0.266s/epoch
+     training_loss    - pe_loss: 10.075 - force_loss: 180.792 - stress_loss: 9319.836 - total_loss: 1122.851
+     validation_loss  - pe_loss: 12.740 - force_loss: 172.928 - stress_loss: 6968.925 - total_loss: 882.560
+
+===&gt; Epoch 28/50 - 0.303s/epoch
+     training_loss    - pe_loss: 9.762 - force_loss: 177.376 - stress_loss: 9268.017 - total_loss: 1113.940
+     validation_loss  - pe_loss: 12.235 - force_loss: 166.857 - stress_loss: 7379.211 - total_loss: 917.013
+
+===&gt; Epoch 29/50 - 0.252s/epoch
+     training_loss    - pe_loss: 10.697 - force_loss: 178.297 - stress_loss: 6721.237 - total_loss: 861.117
+     validation_loss  - pe_loss: 11.725 - force_loss: 160.584 - stress_loss: 6881.283 - total_loss: 860.437
+
+===&gt; Epoch 30/50 - 0.197s/epoch
+     training_loss    - pe_loss: 12.150 - force_loss: 168.624 - stress_loss: 8436.945 - total_loss: 1024.468
+     validation_loss  - pe_loss: 11.199 - force_loss: 166.258 - stress_loss: 7778.549 - total_loss: 955.312
+
+===&gt; Epoch 31/50 - 0.232s/epoch
+     training_loss    - pe_loss: 13.997 - force_loss: 164.493 - stress_loss: 6873.374 - total_loss: 865.827
+     validation_loss  - pe_loss: 10.699 - force_loss: 160.313 - stress_loss: 7252.115 - total_loss: 896.223
+
+===&gt; Epoch 32/50 - 0.218s/epoch
+     training_loss    - pe_loss: 11.401 - force_loss: 160.173 - stress_loss: 7200.905 - total_loss: 891.664
+     validation_loss  - pe_loss: 10.229 - force_loss: 154.167 - stress_loss: 7178.661 - total_loss: 882.263
+
+===&gt; Epoch 33/50 - 0.246s/epoch
+     training_loss    - pe_loss: 9.099 - force_loss: 184.592 - stress_loss: 5416.165 - total_loss: 735.307
+     validation_loss  - pe_loss: 9.814 - force_loss: 150.473 - stress_loss: 6569.242 - total_loss: 817.212
+
+===&gt; Epoch 34/50 - 0.228s/epoch
+     training_loss    - pe_loss: 8.762 - force_loss: 160.241 - stress_loss: 5852.148 - total_loss: 754.218
+     validation_loss  - pe_loss: 9.374 - force_loss: 145.594 - stress_loss: 6108.906 - total_loss: 765.858
+
+===&gt; Epoch 35/50 - 0.240s/epoch
+     training_loss    - pe_loss: 12.406 - force_loss: 159.299 - stress_loss: 8944.486 - total_loss: 1066.153
+     validation_loss  - pe_loss: 8.900 - force_loss: 141.091 - stress_loss: 5858.747 - total_loss: 735.865
+
+===&gt; Epoch 36/50 - 0.213s/epoch
+     training_loss    - pe_loss: 9.840 - force_loss: 149.606 - stress_loss: 7718.608 - total_loss: 931.307
+     validation_loss  - pe_loss: 8.535 - force_loss: 131.647 - stress_loss: 5924.420 - total_loss: 732.624
+
+===&gt; Epoch 37/50 - 0.245s/epoch
+     training_loss    - pe_loss: 8.595 - force_loss: 147.061 - stress_loss: 6082.042 - total_loss: 763.860
+     validation_loss  - pe_loss: 8.216 - force_loss: 132.321 - stress_loss: 5114.304 - total_loss: 651.967
+
+===&gt; Epoch 38/50 - 0.223s/epoch
+     training_loss    - pe_loss: 6.672 - force_loss: 129.401 - stress_loss: 5902.543 - total_loss: 726.327
+     validation_loss  - pe_loss: 7.922 - force_loss: 139.757 - stress_loss: 6516.377 - total_loss: 799.317
+
+===&gt; Epoch 39/50 - 0.263s/epoch
+     training_loss    - pe_loss: 7.650 - force_loss: 133.333 - stress_loss: 6576.271 - total_loss: 798.610
+     validation_loss  - pe_loss: 7.689 - force_loss: 137.120 - stress_loss: 6384.103 - total_loss: 783.219
+
+===&gt; Epoch 40/50 - 0.237s/epoch
+     training_loss    - pe_loss: 6.882 - force_loss: 129.057 - stress_loss: 5120.016 - total_loss: 647.940
+     validation_loss  - pe_loss: 7.396 - force_loss: 136.088 - stress_loss: 7042.040 - total_loss: 847.688
+
+===&gt; Epoch 41/50 - 0.206s/epoch
+     training_loss    - pe_loss: 6.412 - force_loss: 109.322 - stress_loss: 6859.636 - total_loss: 801.697
+     validation_loss  - pe_loss: 7.084 - force_loss: 130.286 - stress_loss: 5301.032 - total_loss: 667.474
+
+===&gt; Epoch 42/50 - 0.233s/epoch
+     training_loss    - pe_loss: 8.292 - force_loss: 124.199 - stress_loss: 5566.544 - total_loss: 689.145
+     validation_loss  - pe_loss: 6.817 - force_loss: 125.865 - stress_loss: 5427.751 - total_loss: 675.457
+
+===&gt; Epoch 43/50 - 0.241s/epoch
+     training_loss    - pe_loss: 7.371 - force_loss: 111.575 - stress_loss: 4294.890 - total_loss: 548.434
+     validation_loss  - pe_loss: 6.633 - force_loss: 117.875 - stress_loss: 5009.373 - total_loss: 625.446
+
+===&gt; Epoch 44/50 - 0.222s/epoch
+     training_loss    - pe_loss: 6.747 - force_loss: 115.083 - stress_loss: 5000.162 - total_loss: 621.846
+     validation_loss  - pe_loss: 6.580 - force_loss: 115.144 - stress_loss: 4611.756 - total_loss: 582.899
+
+===&gt; Epoch 45/50 - 0.239s/epoch
+     training_loss    - pe_loss: 6.703 - force_loss: 162.029 - stress_loss: 6026.879 - total_loss: 771.421
+     validation_loss  - pe_loss: 6.608 - force_loss: 113.569 - stress_loss: 4733.484 - total_loss: 593.526
+
+===&gt; Epoch 46/50 - 0.236s/epoch
+     training_loss    - pe_loss: 6.483 - force_loss: 147.566 - stress_loss: 7066.115 - total_loss: 860.661
+     validation_loss  - pe_loss: 6.658 - force_loss: 114.772 - stress_loss: 3948.175 - total_loss: 516.247
+
+===&gt; Epoch 47/50 - 0.223s/epoch
+     training_loss    - pe_loss: 9.509 - force_loss: 158.753 - stress_loss: 5859.098 - total_loss: 754.172
+     validation_loss  - pe_loss: 6.646 - force_loss: 108.553 - stress_loss: 3693.647 - total_loss: 484.564
+
+===&gt; Epoch 48/50 - 0.221s/epoch
+     training_loss    - pe_loss: 8.387 - force_loss: 109.751 - stress_loss: 5225.576 - total_loss: 640.695
+     validation_loss  - pe_loss: 6.606 - force_loss: 100.762 - stress_loss: 3702.446 - total_loss: 477.613
+
+===&gt; Epoch 49/50 - 0.251s/epoch
+     training_loss    - pe_loss: 6.458 - force_loss: 109.626 - stress_loss: 5447.562 - total_loss: 660.840
+     validation_loss  - pe_loss: 6.442 - force_loss: 100.152 - stress_loss: 3516.438 - total_loss: 458.238
+
+===&gt; Epoch 50/50 - 0.231s/epoch
+     training_loss    - pe_loss: 8.750 - force_loss: 105.299 - stress_loss: 3383.525 - total_loss: 452.402
+     validation_loss  - pe_loss: 6.207 - force_loss: 94.140 - stress_loss: 4186.339 - total_loss: 518.981
+
+End of training, elapsed time:  00:00:12
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># plot the training loss</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">plot_loss</span><span class="p">(</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_24_0.png" src="../_images/getstarted_example_24_0.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_24_1.png" src="../_images/getstarted_example_24_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_24_2.png" src="../_images/getstarted_example_24_2.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_24_3.png" src="../_images/getstarted_example_24_3.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># Evaluate using the first 5 data in test dataset</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="n">return_prediction</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Evaluation loss is:
+        pe_loss:       8.3364e+00
+     force_loss:       9.8733e+01
+    stress_loss:       4.5703e+03
+     total_loss:       5.6410e+02
+The total loss is computed using the loss weights - pe: 1.00 - force: 1.00 - stress: 0.10
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># prediction using the first 5 data in test dataset</span>
+
+<span class="n">input_dict</span> <span class="o">=</span> <span class="n">get_input_dict</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+<span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">input_dict</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;pe&#39;: array([  4.98966932, -15.53297727, -21.9046552 , -29.27170519,
+        -26.450315  ]),
+ &#39;force&#39;: array([[[ -75.06978466, -172.92211148,  229.67395629],
+         [  74.41928761,  -38.89317527, -129.60283767],
+         [ 291.48027163,   79.89212325,  108.91411508],
+         [-290.82977488,  131.92316363, -208.98523383]],
+
+        [[  -1.12284797,  -46.38003397,  -56.78587395],
+         [  37.89161011,   60.28494093,  -68.44166021],
+         [ -45.4923701 ,  -90.1904247 ,  132.87016702],
+         [   8.7236079 ,   76.2855178 ,   -7.64263283]],
+
+        [[-106.47649583,  -12.34103851,  377.1129094 ],
+         [  80.46425249,  217.20247428, -316.56428174],
+         [ 150.11888887, -261.81965841,  112.99040383],
+         [-124.10664501,   56.95822197, -173.53903144]],
+
+        [[-263.93606985,   84.63016038, -102.77425547],
+         [-179.60252309,   15.28498485,  -69.12516193],
+         [ 317.26096084,  -41.53343411,  -15.18248703],
+         [ 126.27763224,  -58.38171139,  187.08190441]],
+
+        [[ 254.3949484 ,  107.85178033,  304.67510746],
+         [ -52.12582621,   17.22681417, -255.89791842],
+         [-182.44827854,  -27.31303965,   94.44380832],
+         [ -19.82084327,  -97.76555481, -143.22099734]]]),
+ &#39;stress&#39;: array([[-6.20371789e+03,  1.13627470e+01, -2.37123066e+01,
+          1.13627484e+01, -6.39380530e+03, -1.62881455e+00,
+         -2.37123045e+01, -1.62881573e+00,  1.20551161e+00],
+        [-8.50114487e+03,  1.84839986e+00,  2.08877457e-01,
+          1.84840042e+00, -8.65504055e+03, -4.07797059e-01,
+          2.08877844e-01, -4.07797449e-01, -4.92153189e+00],
+        [ 3.63854203e+04, -1.97266425e+01, -9.44855164e+00,
+         -1.97266432e+01,  3.63329050e+04,  2.73247795e+00,
+         -9.44855559e+00,  2.73248313e+00,  1.26945233e+01],
+        [-6.59333928e+03,  5.05246045e+01,  1.00709374e+01,
+          5.05246048e+01, -6.35512008e+03, -2.80925787e+00,
+          1.00709363e+01, -2.80925581e+00,  7.70519751e+00],
+        [ 4.09253355e+03,  3.87355845e+00, -4.18005947e+00,
+          3.87355820e+00,  4.34530492e+03, -1.30450751e+00,
+         -4.18006231e+00, -1.30450772e+00, -8.47212142e+00]])}
+</pre></div></div>
+</div>
+</section>
+<section id="Save/load-model">
+<h2>Save/load model<a class="headerlink" href="#Save/load-model" title="Permalink to this headline"></a></h2>
+<p><strong>save the trained model</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="c1"># we re-write the descriptor here to empasize that it should be the same one defined above</span>
+<span class="n">descriptor</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;acsf&#39;</span><span class="p">,</span>
+              <span class="s1">&#39;cutoff&#39;</span><span class="p">:</span> <span class="mf">6.5</span><span class="p">,</span>
+              <span class="s1">&#39;etaG2&#39;</span><span class="p">:[</span><span class="mf">0.01</span><span class="p">,</span><span class="mf">0.05</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span>
+              <span class="s1">&#39;etaG4&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">],</span>
+              <span class="s1">&#39;zeta&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.08</span><span class="p">,</span><span class="mf">0.2</span><span class="p">,</span><span class="mf">1.0</span><span class="p">,</span><span class="mf">5.0</span><span class="p">,</span><span class="mf">10.0</span><span class="p">,</span><span class="mf">50.0</span><span class="p">,</span><span class="mf">100.0</span><span class="p">],</span>
+              <span class="s1">&#39;lambda&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">]}</span>
+
+<span class="n">save_dir</span> <span class="o">=</span> <span class="s1">&#39;example.tfdnn&#39;</span>
+<span class="n">network</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="p">,</span><span class="n">save_dir</span><span class="p">,</span><span class="n">descriptor</span><span class="o">=</span><span class="n">descriptor</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+INFO:tensorflow:Assets written to: example.tfdnn/assets
+Network signatures and descriptor are written to example.tfdnn/parameters for LAMMPS simulation.
+</pre></div></div>
+</div>
+<p><strong>Load the trained model for continuous training and prediction</strong></p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">imported_model</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">save_dir</span><span class="p">)</span>
+
+<span class="c1"># Re-train the model</span>
+<span class="n">loss_weights</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;force&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">}</span>
+
+<span class="n">opt</span> <span class="o">=</span> <span class="s1">&#39;Adam&#39;</span>
+<span class="n">loss_fun</span> <span class="o">=</span> <span class="s1">&#39;mae&#39;</span>
+<span class="n">scaling</span> <span class="o">=</span> <span class="s1">&#39;std&#39;</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">,</span> <span class="n">val_dataset</span><span class="p">,</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">opt</span><span class="p">,</span>
+            <span class="n">loss_fun</span> <span class="o">=</span> <span class="n">loss_fun</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+            <span class="n">lr</span><span class="o">=</span><span class="mf">0.02</span><span class="p">,</span>
+            <span class="n">epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+            <span class="n">scaling</span><span class="o">=</span><span class="n">scaling</span><span class="p">,</span>
+            <span class="n">loss_weights</span><span class="o">=</span><span class="n">loss_weights</span><span class="p">,</span>
+            <span class="n">compute_all_loss</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">append_loss</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Network has been inflated! self.built: True
+Forces are used for training.
+Stresses are used for training.
+Scaling factors are computed using training dataset.
+Training dataset are standardized.
+Validation dataset are standardized.
+Training dataset will be shuffled during training.
+
+===&gt; Epoch 1/50 - 0.286s/epoch
+     training_loss    - pe_loss: 6.225 - force_loss: 107.097 - stress_loss: 5896.093 - total_loss: 702.930
+     validation_loss  - pe_loss: 5.153 - force_loss: 81.355 - stress_loss: 3708.718 - total_loss: 457.380
+
+===&gt; Epoch 2/50 - 0.291s/epoch
+     training_loss    - pe_loss: 6.683 - force_loss: 85.014 - stress_loss: 3550.454 - total_loss: 446.742
+     validation_loss  - pe_loss: 6.016 - force_loss: 72.757 - stress_loss: 3547.104 - total_loss: 433.484
+
+===&gt; Epoch 3/50 - 0.208s/epoch
+     training_loss    - pe_loss: 4.510 - force_loss: 71.721 - stress_loss: 3633.668 - total_loss: 439.598
+     validation_loss  - pe_loss: 6.587 - force_loss: 69.578 - stress_loss: 3321.606 - total_loss: 408.326
+
+===&gt; Epoch 4/50 - 0.313s/epoch
+     training_loss    - pe_loss: 4.918 - force_loss: 72.456 - stress_loss: 3999.166 - total_loss: 477.291
+     validation_loss  - pe_loss: 7.014 - force_loss: 61.233 - stress_loss: 3738.862 - total_loss: 442.133
+
+===&gt; Epoch 5/50 - 0.269s/epoch
+     training_loss    - pe_loss: 4.612 - force_loss: 68.645 - stress_loss: 3438.338 - total_loss: 417.091
+     validation_loss  - pe_loss: 7.047 - force_loss: 63.952 - stress_loss: 2774.278 - total_loss: 348.426
+
+===&gt; Epoch 6/50 - 0.219s/epoch
+     training_loss    - pe_loss: 6.011 - force_loss: 61.255 - stress_loss: 3458.065 - total_loss: 413.073
+     validation_loss  - pe_loss: 6.830 - force_loss: 63.454 - stress_loss: 3492.039 - total_loss: 419.488
+
+===&gt; Epoch 7/50 - 0.216s/epoch
+     training_loss    - pe_loss: 5.938 - force_loss: 64.808 - stress_loss: 3637.062 - total_loss: 434.452
+     validation_loss  - pe_loss: 6.210 - force_loss: 57.891 - stress_loss: 3011.305 - total_loss: 365.231
+
+===&gt; Epoch 8/50 - 0.225s/epoch
+     training_loss    - pe_loss: 4.245 - force_loss: 76.674 - stress_loss: 2692.130 - total_loss: 350.132
+     validation_loss  - pe_loss: 5.141 - force_loss: 56.055 - stress_loss: 2189.114 - total_loss: 280.108
+
+===&gt; Epoch 9/50 - 0.227s/epoch
+     training_loss    - pe_loss: 3.599 - force_loss: 51.576 - stress_loss: 2436.548 - total_loss: 298.829
+     validation_loss  - pe_loss: 4.396 - force_loss: 58.601 - stress_loss: 2538.165 - total_loss: 316.814
+
+===&gt; Epoch 10/50 - 0.258s/epoch
+     training_loss    - pe_loss: 3.344 - force_loss: 46.560 - stress_loss: 2197.354 - total_loss: 269.640
+     validation_loss  - pe_loss: 4.293 - force_loss: 47.936 - stress_loss: 2566.444 - total_loss: 308.873
+
+===&gt; Epoch 11/50 - 0.239s/epoch
+     training_loss    - pe_loss: 3.545 - force_loss: 47.598 - stress_loss: 2464.916 - total_loss: 297.635
+     validation_loss  - pe_loss: 4.367 - force_loss: 45.184 - stress_loss: 2279.156 - total_loss: 277.467
+
+===&gt; Epoch 12/50 - 0.245s/epoch
+     training_loss    - pe_loss: 3.830 - force_loss: 45.659 - stress_loss: 2423.599 - total_loss: 291.849
+     validation_loss  - pe_loss: 4.177 - force_loss: 40.014 - stress_loss: 1761.722 - total_loss: 220.364
+
+===&gt; Epoch 13/50 - 0.258s/epoch
+     training_loss    - pe_loss: 3.439 - force_loss: 55.449 - stress_loss: 2754.962 - total_loss: 334.384
+     validation_loss  - pe_loss: 3.599 - force_loss: 38.619 - stress_loss: 1264.196 - total_loss: 168.638
+
+===&gt; Epoch 14/50 - 0.244s/epoch
+     training_loss    - pe_loss: 3.371 - force_loss: 43.619 - stress_loss: 1720.694 - total_loss: 219.059
+     validation_loss  - pe_loss: 3.033 - force_loss: 37.956 - stress_loss: 964.631 - total_loss: 137.452
+
+===&gt; Epoch 15/50 - 0.216s/epoch
+     training_loss    - pe_loss: 2.820 - force_loss: 43.306 - stress_loss: 1832.361 - total_loss: 229.362
+     validation_loss  - pe_loss: 2.787 - force_loss: 41.718 - stress_loss: 1062.309 - total_loss: 150.736
+
+===&gt; Epoch 16/50 - 0.260s/epoch
+     training_loss    - pe_loss: 2.301 - force_loss: 37.596 - stress_loss: 2066.742 - total_loss: 246.571
+     validation_loss  - pe_loss: 2.631 - force_loss: 34.549 - stress_loss: 942.406 - total_loss: 131.421
+
+===&gt; Epoch 17/50 - 0.205s/epoch
+     training_loss    - pe_loss: 2.490 - force_loss: 33.295 - stress_loss: 1390.026 - total_loss: 174.788
+     validation_loss  - pe_loss: 2.603 - force_loss: 28.231 - stress_loss: 1015.503 - total_loss: 132.384
+
+===&gt; Epoch 18/50 - 0.223s/epoch
+     training_loss    - pe_loss: 2.607 - force_loss: 40.722 - stress_loss: 1264.683 - total_loss: 169.797
+     validation_loss  - pe_loss: 2.482 - force_loss: 28.160 - stress_loss: 1063.177 - total_loss: 136.959
+
+===&gt; Epoch 19/50 - 0.243s/epoch
+     training_loss    - pe_loss: 2.484 - force_loss: 36.703 - stress_loss: 1246.367 - total_loss: 163.824
+     validation_loss  - pe_loss: 2.171 - force_loss: 25.673 - stress_loss: 646.808 - total_loss: 92.525
+
+===&gt; Epoch 20/50 - 0.245s/epoch
+     training_loss    - pe_loss: 2.196 - force_loss: 37.554 - stress_loss: 1010.980 - total_loss: 140.848
+     validation_loss  - pe_loss: 2.050 - force_loss: 27.034 - stress_loss: 989.504 - total_loss: 128.035
+
+===&gt; Epoch 21/50 - 0.313s/epoch
+     training_loss    - pe_loss: 1.950 - force_loss: 40.177 - stress_loss: 1302.699 - total_loss: 172.397
+     validation_loss  - pe_loss: 2.259 - force_loss: 28.655 - stress_loss: 923.259 - total_loss: 123.240
+
+===&gt; Epoch 22/50 - 0.273s/epoch
+     training_loss    - pe_loss: 1.939 - force_loss: 33.098 - stress_loss: 920.506 - total_loss: 127.088
+     validation_loss  - pe_loss: 2.598 - force_loss: 27.771 - stress_loss: 920.784 - total_loss: 122.447
+
+===&gt; Epoch 23/50 - 0.273s/epoch
+     training_loss    - pe_loss: 2.114 - force_loss: 30.801 - stress_loss: 1053.435 - total_loss: 138.258
+     validation_loss  - pe_loss: 2.808 - force_loss: 23.787 - stress_loss: 796.039 - total_loss: 106.198
+
+===&gt; Epoch 24/50 - 0.284s/epoch
+     training_loss    - pe_loss: 2.508 - force_loss: 28.795 - stress_loss: 798.401 - total_loss: 111.143
+     validation_loss  - pe_loss: 2.946 - force_loss: 23.228 - stress_loss: 654.580 - total_loss: 91.632
+
+===&gt; Epoch 25/50 - 0.224s/epoch
+     training_loss    - pe_loss: 2.822 - force_loss: 28.372 - stress_loss: 639.680 - total_loss: 95.162
+     validation_loss  - pe_loss: 2.937 - force_loss: 22.818 - stress_loss: 562.909 - total_loss: 82.047
+
+===&gt; Epoch 26/50 - 0.268s/epoch
+     training_loss    - pe_loss: 2.591 - force_loss: 28.649 - stress_loss: 561.209 - total_loss: 87.362
+     validation_loss  - pe_loss: 2.668 - force_loss: 23.794 - stress_loss: 591.417 - total_loss: 85.604
+
+===&gt; Epoch 27/50 - 0.254s/epoch
+     training_loss    - pe_loss: 2.355 - force_loss: 23.397 - stress_loss: 483.879 - total_loss: 74.140
+     validation_loss  - pe_loss: 2.109 - force_loss: 24.381 - stress_loss: 475.684 - total_loss: 74.059
+
+===&gt; Epoch 28/50 - 0.254s/epoch
+     training_loss    - pe_loss: 2.215 - force_loss: 24.191 - stress_loss: 349.811 - total_loss: 61.387
+     validation_loss  - pe_loss: 1.648 - force_loss: 23.037 - stress_loss: 360.378 - total_loss: 60.722
+
+===&gt; Epoch 29/50 - 0.313s/epoch
+     training_loss    - pe_loss: 1.653 - force_loss: 26.394 - stress_loss: 387.579 - total_loss: 66.805
+     validation_loss  - pe_loss: 1.442 - force_loss: 18.368 - stress_loss: 334.823 - total_loss: 53.291
+
+===&gt; Epoch 30/50 - 0.303s/epoch
+     training_loss    - pe_loss: 1.154 - force_loss: 20.671 - stress_loss: 327.221 - total_loss: 54.548
+     validation_loss  - pe_loss: 1.302 - force_loss: 16.569 - stress_loss: 340.470 - total_loss: 51.917
+
+===&gt; Epoch 31/50 - 0.226s/epoch
+     training_loss    - pe_loss: 1.310 - force_loss: 22.966 - stress_loss: 326.334 - total_loss: 56.910
+     validation_loss  - pe_loss: 1.202 - force_loss: 16.213 - stress_loss: 318.304 - total_loss: 49.245
+
+===&gt; Epoch 32/50 - 0.233s/epoch
+     training_loss    - pe_loss: 1.443 - force_loss: 20.132 - stress_loss: 277.640 - total_loss: 49.338
+     validation_loss  - pe_loss: 1.136 - force_loss: 16.502 - stress_loss: 280.441 - total_loss: 45.682
+
+===&gt; Epoch 33/50 - 0.254s/epoch
+     training_loss    - pe_loss: 1.371 - force_loss: 20.072 - stress_loss: 294.634 - total_loss: 50.907
+     validation_loss  - pe_loss: 1.115 - force_loss: 15.626 - stress_loss: 218.226 - total_loss: 38.564
+
+===&gt; Epoch 34/50 - 0.234s/epoch
+     training_loss    - pe_loss: 1.158 - force_loss: 18.625 - stress_loss: 217.164 - total_loss: 41.499
+     validation_loss  - pe_loss: 1.145 - force_loss: 15.217 - stress_loss: 211.943 - total_loss: 37.557
+
+===&gt; Epoch 35/50 - 0.262s/epoch
+     training_loss    - pe_loss: 0.966 - force_loss: 16.210 - stress_loss: 171.115 - total_loss: 34.287
+     validation_loss  - pe_loss: 1.496 - force_loss: 16.229 - stress_loss: 217.624 - total_loss: 39.487
+
+===&gt; Epoch 36/50 - 0.207s/epoch
+     training_loss    - pe_loss: 1.585 - force_loss: 15.893 - stress_loss: 223.773 - total_loss: 39.856
+     validation_loss  - pe_loss: 1.950 - force_loss: 15.536 - stress_loss: 227.235 - total_loss: 40.210
+
+===&gt; Epoch 37/50 - 0.226s/epoch
+     training_loss    - pe_loss: 2.034 - force_loss: 15.639 - stress_loss: 162.887 - total_loss: 33.961
+     validation_loss  - pe_loss: 1.884 - force_loss: 14.791 - stress_loss: 193.579 - total_loss: 36.033
+
+===&gt; Epoch 38/50 - 0.251s/epoch
+     training_loss    - pe_loss: 1.547 - force_loss: 16.658 - stress_loss: 135.980 - total_loss: 31.803
+     validation_loss  - pe_loss: 1.340 - force_loss: 14.072 - stress_loss: 157.810 - total_loss: 31.193
+
+===&gt; Epoch 39/50 - 0.244s/epoch
+     training_loss    - pe_loss: 0.891 - force_loss: 13.698 - stress_loss: 172.006 - total_loss: 31.789
+     validation_loss  - pe_loss: 1.055 - force_loss: 13.231 - stress_loss: 140.377 - total_loss: 28.324
+
+===&gt; Epoch 40/50 - 0.219s/epoch
+     training_loss    - pe_loss: 1.238 - force_loss: 15.531 - stress_loss: 200.949 - total_loss: 36.864
+     validation_loss  - pe_loss: 1.002 - force_loss: 12.882 - stress_loss: 101.479 - total_loss: 24.033
+
+===&gt; Epoch 41/50 - 0.223s/epoch
+     training_loss    - pe_loss: 0.755 - force_loss: 13.338 - stress_loss: 130.370 - total_loss: 27.130
+     validation_loss  - pe_loss: 0.930 - force_loss: 12.227 - stress_loss: 97.618 - total_loss: 22.919
+
+===&gt; Epoch 42/50 - 0.226s/epoch
+     training_loss    - pe_loss: 0.833 - force_loss: 14.639 - stress_loss: 129.654 - total_loss: 28.437
+     validation_loss  - pe_loss: 0.882 - force_loss: 12.062 - stress_loss: 80.547 - total_loss: 20.998
+
+===&gt; Epoch 43/50 - 0.246s/epoch
+     training_loss    - pe_loss: 1.131 - force_loss: 13.162 - stress_loss: 110.646 - total_loss: 25.357
+     validation_loss  - pe_loss: 0.868 - force_loss: 13.379 - stress_loss: 71.995 - total_loss: 21.447
+
+===&gt; Epoch 44/50 - 0.250s/epoch
+     training_loss    - pe_loss: 0.952 - force_loss: 13.554 - stress_loss: 79.879 - total_loss: 22.494
+     validation_loss  - pe_loss: 0.932 - force_loss: 14.400 - stress_loss: 78.787 - total_loss: 23.211
+
+===&gt; Epoch 45/50 - 0.242s/epoch
+     training_loss    - pe_loss: 0.758 - force_loss: 12.906 - stress_loss: 117.809 - total_loss: 25.445
+     validation_loss  - pe_loss: 0.988 - force_loss: 14.545 - stress_loss: 90.461 - total_loss: 24.579
+
+===&gt; Epoch 46/50 - 0.186s/epoch
+     training_loss    - pe_loss: 0.701 - force_loss: 13.074 - stress_loss: 74.397 - total_loss: 21.215
+     validation_loss  - pe_loss: 0.977 - force_loss: 12.150 - stress_loss: 55.447 - total_loss: 18.672
+
+===&gt; Epoch 47/50 - 0.242s/epoch
+     training_loss    - pe_loss: 0.743 - force_loss: 14.006 - stress_loss: 51.716 - total_loss: 19.921
+     validation_loss  - pe_loss: 0.940 - force_loss: 11.309 - stress_loss: 76.686 - total_loss: 19.918
+
+===&gt; Epoch 48/50 - 0.227s/epoch
+     training_loss    - pe_loss: 0.777 - force_loss: 12.847 - stress_loss: 64.845 - total_loss: 20.109
+     validation_loss  - pe_loss: 0.931 - force_loss: 10.905 - stress_loss: 75.985 - total_loss: 19.434
+
+===&gt; Epoch 49/50 - 0.238s/epoch
+     training_loss    - pe_loss: 0.679 - force_loss: 12.772 - stress_loss: 54.894 - total_loss: 18.940
+     validation_loss  - pe_loss: 0.953 - force_loss: 10.538 - stress_loss: 63.520 - total_loss: 17.843
+
+===&gt; Epoch 50/50 - 0.252s/epoch
+     training_loss    - pe_loss: 0.789 - force_loss: 11.463 - stress_loss: 58.099 - total_loss: 18.062
+     validation_loss  - pe_loss: 0.978 - force_loss: 10.639 - stress_loss: 46.868 - total_loss: 16.304
+
+End of training, elapsed time:  00:00:12
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">model</span><span class="o">.</span><span class="n">plot_loss</span><span class="p">(</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_32_0.png" src="../_images/getstarted_example_32_0.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_32_1.png" src="../_images/getstarted_example_32_1.png" />
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_32_2.png" src="../_images/getstarted_example_32_2.png" />
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../_images/getstarted_example_32_3.png" src="../_images/getstarted_example_32_3.png" />
+</div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">imported_model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="n">return_prediction</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Evaluation loss is:
+        pe_loss:       8.3364e+00
+     force_loss:       9.8733e+01
+    stress_loss:       4.5703e+03
+     total_loss:       5.6410e+02
+The total loss is computed using the loss weights - pe: 1.00 - force: 1.00 - stress: 0.10
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">input_dict</span> <span class="o">=</span> <span class="n">get_input_dict</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+<span class="n">imported_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">input_dict</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+{&#39;pe&#39;: array([-35.19343363, -30.5018231 , -13.10211931, -40.24163573,
+        -34.76370812]),
+ &#39;force&#39;: array([[[  62.99615578,  -13.02417413,   35.15568535],
+         [ 125.17564353,   56.29076835,    4.00421797],
+         [-120.00388   ,  -31.82880756,    4.69251285],
+         [ -68.16791941,  -11.43778665,  -43.85241614]],
+
+        [[ -10.02454801,  -75.68597036,  -84.857218  ],
+         [  76.18432679,   28.68981993,  116.42437951],
+         [ 104.90041358,   37.58853954,  216.42067892],
+         [-171.06019292,    9.40761135, -247.98784042]],
+
+        [[-187.60105157,   72.76025473,   95.32019806],
+         [ 115.33638883,  -71.88966868,  -41.80044277],
+         [  69.78280937,  152.38949361,   73.49249946],
+         [   2.48185339, -153.26007932, -127.01225473]],
+
+        [[ -78.6992566 , -152.26434996,  -34.44163215],
+         [ 217.72729506,   42.42075491,  330.17770106],
+         [  61.01884481, -136.88389852,   -9.8914536 ],
+         [-200.04688344,  246.72749333, -285.84461536]],
+
+        [[ 343.49811374,   -6.76913846,   74.74235097],
+         [-171.71298205,   96.87952106,  -14.96776701],
+         [-198.50906892, -136.20298223,   16.80680101],
+         [  26.7239375 ,   46.09259955,  -76.581385  ]]]),
+ &#39;stress&#39;: array([[-1.96553956e+03, -3.84383326e+01,  5.27824788e+00,
+         -3.84383324e+01, -2.24581615e+03,  1.04064708e+00,
+          5.27824870e+00,  1.04064694e+00,  1.57429504e+00],
+        [-1.04472838e+04, -3.39653871e+01, -1.10222099e+01,
+         -3.39653872e+01, -1.05141466e+04,  3.61939603e-01,
+         -1.10222056e+01,  3.61936112e-01, -1.71367644e+01],
+        [ 4.39121460e+03,  4.09626905e+01, -1.07343792e+01,
+          4.09626917e+01,  4.26569843e+03, -5.34677434e+00,
+         -1.07343794e+01, -5.34677692e+00, -5.61152547e-01],
+        [ 3.66647618e+04,  3.74010913e+01,  1.02510058e+01,
+          3.74010908e+01,  3.65224082e+04,  9.64309282e-01,
+          1.02510072e+01,  9.64311133e-01,  1.47602297e+01],
+        [-1.49339234e+04, -1.26911479e+02, -8.38920551e+00,
+         -1.26911479e+02, -1.47875442e+04,  1.52792284e+00,
+         -8.38920762e+00,  1.52792340e+00, -2.73513556e+00]])}
+</pre></div></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../tutorials/data_pipeline.html" class="btn btn-neutral float-right" title="Data pipeline" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Gao-group.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

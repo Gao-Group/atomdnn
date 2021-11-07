@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network &mdash; AtomDNN  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Authors" href="../about/authors.html" />
+    <link rel="prev" title="Data" href="data.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AtomDNN
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../getstarted/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getstarted/example.html">Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/data_pipeline.html">Data pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/energy_calculation.html">Energy calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/force_calculation.html">Force and stress calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/lammps.html">LAMMPS interface</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="descriptor.html">Descriptor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="data.html">Data</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Network</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#class">Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#functions">Functions</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/funding.html">Funding</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AtomDNN</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Network</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/module/network.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="network">
+<h1>Network<a class="headerlink" href="#network" title="Permalink to this headline"></a></h1>
+<section id="class">
+<h2>Class<a class="headerlink" href="#class" title="Permalink to this headline"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="atomdnn.network.Network">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">atomdnn.network.</span></span><span class="sig-name descname"><span class="pre">Network</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">elements</span></em>, <em class="sig-param"><span class="pre">num_fingerprints</span></em>, <em class="sig-param"><span class="pre">arch=None</span></em>, <em class="sig-param"><span class="pre">activation_function=None</span></em>, <em class="sig-param"><span class="pre">weights_initializer=&lt;function</span> <span class="pre">random_normal&gt;</span></em>, <em class="sig-param"><span class="pre">bias_initializer=&lt;function</span> <span class="pre">zeros&gt;</span></em>, <em class="sig-param"><span class="pre">import_dir=None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network" title="Permalink to this definition"></a></dt>
+<dd><p>The nueral network is built based on tf.Module.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>elements</strong> (<em>python list</em>) – list of element in the system, e.g. [C,O,H]</p></li>
+<li><p><strong>num_fingerprints</strong> (<em>int</em>) – number of fingerprints in dataset</p></li>
+<li><p><strong>arch</strong> – network architecture, e.g. [10,10,10], 3 dense layers each with 10 neurons</p></li>
+<li><p><strong>activation_function</strong> – any avialiable Tensorflow activation function, e.g. ‘relu’</p></li>
+<li><p><strong>weighs_initializer</strong> – the way to initialize weights, default one is tf.random.normal</p></li>
+<li><p><strong>bias_initializer</strong> – the way to initialize bias, default one is tf.zeros</p></li>
+<li><p><strong>import_dir</strong> – the directory of a saved model to be loaded</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.inflate_from_file">
+<span class="sig-name descname"><span class="pre">inflate_from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imported</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.inflate_from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.inflate_from_file" title="Permalink to this definition"></a></dt>
+<dd><p>Inflate network object from a SavedModel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>imported</strong> – a saved tensorflow neural network model</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.compute_pe">
+<span class="sig-name descname"><span class="pre">compute_pe</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fingerprints</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atom_type</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.compute_pe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.compute_pe" title="Permalink to this definition"></a></dt>
+<dd><p>Forward pass of the network to compute potential energy. Parallel networks are used for multiple atom types.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fingerprints</strong> – 3D array <em>[batch_size,atom_num,fingerprints_num]</em></p></li>
+<li><p><strong>atom_type</strong> – 2D array <em>[batch_size, atom_num]</em></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>total potential energy and per-atom potential energy</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.compute_force_stress">
+<span class="sig-name descname"><span class="pre">compute_force_stress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dEdG</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.compute_force_stress"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.compute_force_stress" title="Permalink to this definition"></a></dt>
+<dd><p>Compute force and stress.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dEdG</strong> – derivatives of per-atom potential energy w.r.t. descriptors</p></li>
+<li><p><strong>input_dict</strong> – input dictionary data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>force per atom and stress tensor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.predict" title="Permalink to this definition"></a></dt>
+<dd><p>Predict energy, force and stress.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_dict</strong> – input dictionary data</p></li>
+<li><p><strong>compute_force</strong> (<em>bool</em>) – True to compute force and stress</p></li>
+<li><p><strong>training</strong> – True when used during training</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>potential energy, force and stress</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.evaluate">
+<span class="sig-name descname"><span class="pre">evaluate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_prediction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.evaluate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.evaluate" title="Permalink to this definition"></a></dt>
+<dd><p>Do evaluation on trained model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> – tensorflow dataset used for evaluation</p></li>
+<li><p><strong>batch_size</strong> – default is total data size</p></li>
+<li><p><strong>return_prediction</strong> (<em>bool</em>) – True for returning prediction resutls</p></li>
+<li><p><strong>compute_force</strong> (<em>bool</em>) – True for computing force and stress</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.loss_function">
+<span class="sig-name descname"><span class="pre">loss_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">true</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.loss_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.loss_function" title="Permalink to this definition"></a></dt>
+<dd><p>Build-in tensorflow loss functions can be used.
+Customized loss function can be also defined here.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>true</strong> (<em>tensorflow tensor</em>) – true output data</p></li>
+<li><p><strong>pred</strong> (<em>tensorflow tensor</em>) – predicted results</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.loss">
+<span class="sig-name descname"><span class="pre">loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">true_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pred_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">training</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.loss" title="Permalink to this definition"></a></dt>
+<dd><p>Compute losses for energy, force and stress.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>true_dict</strong> (<em>dictionary</em>) – dictionary of outputs data</p></li>
+<li><p><strong>pred_dict</strong> (<em>dictionary</em>) – dictionary of predicted results</p></li>
+<li><p><strong>training</strong> (<em>bool</em>) – True for loss calculation during training</p></li>
+<li><p><strong>validation</strong> (<em>bool</em>) – True for loss calculation during validation</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>if training is true, return total_loss and loss_dict(loss dictionary), otherwise(for evaluation) return loss_dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.train_step">
+<span class="sig-name descname"><span class="pre">train_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.train_step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.train_step" title="Permalink to this definition"></a></dt>
+<dd><p>A single training step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_dict</strong> – input dictionary data</p></li>
+<li><p><strong>output_dict</strong> – output dictionary data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>loss dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.validation_step">
+<span class="sig-name descname"><span class="pre">validation_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.validation_step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.validation_step" title="Permalink to this definition"></a></dt>
+<dd><p>A single validation step.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_dict</strong> – input dictionary data</p></li>
+<li><p><strong>output_dict</strong> – output dictionary data</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>loss dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.compute_scaling_factors">
+<span class="sig-name descname"><span class="pre">compute_scaling_factors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dataset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.compute_scaling_factors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.compute_scaling_factors" title="Permalink to this definition"></a></dt>
+<dd><p>Compute scaling factors using training dataset.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.scaling_dataset">
+<span class="sig-name descname"><span class="pre">scaling_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.scaling_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.scaling_dataset" title="Permalink to this definition"></a></dt>
+<dd><p>Scaling a dataset with the scaling factors calculated with <a class="reference internal" href="#atomdnn.network.Network.compute_scaling_factors" title="atomdnn.network.Network.compute_scaling_factors"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute_scaling_factors()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.train">
+<span class="sig-name descname"><span class="pre">train</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">early_stop</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">epochs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_fun</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compute_all_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append_loss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.train"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.train" title="Permalink to this definition"></a></dt>
+<dd><p>Train the neural network.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>train_dataset</strong> (<em>tfdataset</em>) – dataset used for training</p></li>
+<li><p><strong>validation_dataset</strong> (<em>tfdataset</em>) – dataset used for validation</p></li>
+<li><p><strong>early_stop</strong> (<em>dictionary</em>) – condition for stop training,                                     e.g. {‘train_loss’:[0.01,3]} means stop when train loss is less than 0.01 for 3 times</p></li>
+<li><p><strong>scaling</strong> (<em>string</em>) – = None, ‘std’ or ‘norm’</p></li>
+<li><p><strong>batch_size</strong> – the training batch size</p></li>
+<li><p><strong>epochs</strong> – training epochs</p></li>
+<li><p><strong>loss_fun</strong> (<em>string</em>) – loss function, ‘mae’, ‘mse’, ‘rmse’ and others</p></li>
+<li><p><strong>opimizer</strong> (<em>string</em>) – any Tensorflow optimizer such as ‘Adam’</p></li>
+<li><p><strong>lr</strong> (<em>float</em>) – learning rate</p></li>
+<li><p><strong>loss_weight</strong> (<em>dictionary</em>) – weights assigned to loss function, e.g. {‘pe’:1,’force’:1,’stress’:0.1}</p></li>
+<li><p><strong>compute_all_loss</strong> (<em>bool</em>) – compute loss for force and stress even when they are not used for training</p></li>
+<li><p><strong>shuffle</strong> (<em>bool</em>) – shuffle training dataset during training</p></li>
+<li><p><strong>append_loss</strong> (<em>bool</em>) – append loss history</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.network.Network.plot_loss">
+<span class="sig-name descname"><span class="pre">plot_loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_epoch</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">figsize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(8,</span> <span class="pre">5)</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#Network.plot_loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.Network.plot_loss" title="Permalink to this definition"></a></dt>
+<dd><p>Plot the losses.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>start_epoch</strong> – plotting starts from start_epoch</p></li>
+<li><p><strong>figsize</strong> – set the fingersize, e.g. (8.5)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.network.save">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.network.</span></span><span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">obj</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#save"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.save" title="Permalink to this definition"></a></dt>
+<dd><p>Save a trained model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_dir</strong> – directory for the saved neural network model</p></li>
+<li><p><strong>descriptor</strong> (<em>dictionary</em>) – descriptor parameters, used for LAMMPS prediction</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.network.load">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.network.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.load" title="Permalink to this definition"></a></dt>
+<dd><p>Load a saved model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>model_dir</strong> – directory of a saved neural network model</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.network.get_signature">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.network.</span></span><span class="sig-name descname"><span class="pre">get_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#get_signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.get_signature" title="Permalink to this definition"></a></dt>
+<dd><p>Run shell command ‘saved_model_cli show –dir  model_dir  –tag_set serve –signature_def serving_default’,
+and get the signature of the network from the shell outputs.
+SavedModel Command Line Interface (CLI) is a Tensorflow tool to inspect a SavedModel.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>model_dir</strong> – directory for a saved neural network model</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.network.print_signature">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.network.</span></span><span class="sig-name descname"><span class="pre">print_signature</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_dir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/network.html#print_signature"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.network.print_signature" title="Permalink to this definition"></a></dt>
+<dd><p>Print the neural network signature.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>model_dir</strong> – directory for a saved neural network model</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="data.html" class="btn btn-neutral float-left" title="Data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../about/authors.html" class="btn btn-neutral float-right" title="Authors" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Gao-group.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

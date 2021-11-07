@@ -5,23 +5,22 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Data pipeline &mdash; AtomDNN  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
+    <script src="../_static/js/html5shiv.min.js"></script>
   <![endif]-->
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-    <script src="_static/js/theme.js"></script>
-    <link rel="author" title="About these documents" href="about.html" />
-    <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Energy calculation" href="energy_calculation.html" />
-    <link rel="prev" title="Example" href="example.html" /> 
+    <link rel="prev" title="Example" href="../getstarted/example.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -29,19 +28,23 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> AtomDNN
+            <a href="../index.html" class="icon icon-home"> AtomDNN
           </a>
 <div role="search">
-  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
     <input type="text" name="q" placeholder="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="example.html">Example</a></li>
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../getstarted/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getstarted/example.html">Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Data pipeline</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#step-1-create-descriptor">Step 1: Create descriptor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#step-2-read-inputs-outputs">Step 2: Read inputs&amp;outputs</a></li>
@@ -51,7 +54,19 @@
 <li class="toctree-l1"><a class="reference internal" href="energy_calculation.html">Energy calculation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="force_calculation.html">Force and stress calculation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="lammps.html">LAMMPS interface</a></li>
-<li class="toctree-l1"><a class="reference internal" href="about.html">About</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../module/descriptor.html">Descriptor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/data.html">Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../module/network.html">Network</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/funding.html">Funding</a></li>
 </ul>
 
         </div>
@@ -60,17 +75,17 @@
 
     <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
           <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
-          <a href="index.html">AtomDNN</a>
+          <a href="../index.html">AtomDNN</a>
       </nav>
 
       <div class="wy-nav-content">
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
       <li>Data pipeline</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="_sources/data_pipeline.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/tutorials/data_pipeline.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -175,7 +190,7 @@ outputs include potential energies, atomic forces and stress.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="example.html" class="btn btn-neutral float-left" title="Example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../getstarted/example.html" class="btn btn-neutral float-left" title="Example" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="energy_calculation.html" class="btn btn-neutral float-right" title="Energy calculation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

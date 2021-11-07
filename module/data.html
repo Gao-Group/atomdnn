@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data &mdash; AtomDNN  documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Network" href="network.html" />
+    <link rel="prev" title="Descriptor" href="descriptor.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> AtomDNN
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../getstarted/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getstarted/example.html">Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/data_pipeline.html">Data pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/energy_calculation.html">Energy calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/force_calculation.html">Force and stress calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../tutorials/lammps.html">LAMMPS interface</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="descriptor.html">Descriptor</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#class">Class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#functions">Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="network.html">Network</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../about/funding.html">Funding</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">AtomDNN</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Data</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/module/data.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  
+<style>
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<section id="data">
+<h1>Data<a class="headerlink" href="#data" title="Permalink to this headline"></a></h1>
+<p>The <code class="docutils literal notranslate"><span class="pre">Data</span></code> class creates a data object that handles reading inputs and outputs.</p>
+<p>For example, <code class="docutils literal notranslate"><span class="pre">mydata</span> <span class="pre">=</span> <span class="pre">Data()</span></code> creates a Data object <code class="docutils literal notranslate"><span class="pre">mydata</span></code>. After read inputs and outputs data using <a class="reference internal" href="#atomdnn.data.Data.read_inputdata" title="atomdnn.data.Data.read_inputdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_inputdata()</span></code></a> and <a class="reference internal" href="#atomdnn.data.Data.read_outputdata" title="atomdnn.data.Data.read_outputdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_outputdata()</span></code></a>, the data are stored as numpy array in two dictionaries, which can be accessed by <code class="docutils literal notranslate"><span class="pre">mydata.input_dict['keys']</span></code> and <code class="docutils literal notranslate"><span class="pre">mydata.output_dict['key']</span></code>, where the <code class="docutils literal notranslate"><span class="pre">'key'</span></code> refers to input and output variables.</p>
+<p><strong>Input data dictionary</strong> <code class="docutils literal notranslate"><span class="pre">'key'</span></code>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'fingerprints'</span></code>: 3D array <em>[num_images, num_atoms, num_fingerprints]</em> of the fingerprints.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'atom_type'</span></code>: 2D array <em>[num_images, num_atoms]</em> of the atom element type, starting from 1 and sequentially increases.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'volume'</span></code>: 2D array <em>[num_images,1]</em> of cell volume, the last dimension is used for matrix multiplication.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'dGdr'</span></code>: 4D array <em>[num_images, num_der_paris, num_fingerprints, 3]</em> of the derivative of fingerprints w.r.t atom coordiante, the last dimension is three coordinates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'neighbor_atom_coord'</span></code>: 4D array <em>[num_images, num_der_pairs, 3, 1]</em> to store the neighbor atom coordinates, the last dimension is added for the convenience of matrix multiplication in tensorflow.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'center_atom_id'</span></code>: 2D array <em>[num_images, num_der_pairs]</em> to store the center atom ID.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'neighbor_atom_id'</span></code>: 2D array <em>[num_images, num_der_pairs]</em> to store the neighbor atom ID, note that the neighbors could be ghost atoms.</p></li>
+</ul>
+</div></blockquote>
+<p><strong>Output data dictionary</strong> <code class="docutils literal notranslate"><span class="pre">'keys'</span></code>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'pe'</span></code>: 1D array <em>[num_images]</em> of potential energy.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'force'</span></code>: 3D array <em>[num_images, num_atoms, 3]</em> of atomic force.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'stress'</span></code>: 2D array <em>[num_images, 9]</em> of stress tensor with 9 components (6 independent).</p></li>
+</ul>
+</div></blockquote>
+<section id="class">
+<h2>Class<a class="headerlink" href="#class" title="Permalink to this headline"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="atomdnn.data.Data">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">atomdnn.data.</span></span><span class="sig-name descname"><span class="pre">Data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">der_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_der</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data" title="Permalink to this definition"></a></dt>
+<dd><p>Create Data object, with an option to read inputs and outputs.     Parameters are explained in <a class="reference internal" href="#atomdnn.data.Data.read_inputdata" title="atomdnn.data.Data.read_inputdata"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_inputdata()</span></code></a>.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.data.Data.read_inputdata">
+<span class="sig-name descname"><span class="pre">read_inputdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp_filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">der_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_der</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data.read_inputdata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data.read_inputdata" title="Permalink to this definition"></a></dt>
+<dd><p>Read input data from <a class="reference internal" href="#atomdnn.data.Data.read_fingerprints_from_lmpdump" title="atomdnn.data.Data.read_fingerprints_from_lmpdump"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_fingerprints_from_lmpdump()</span></code></a> and <a class="reference internal" href="#atomdnn.data.Data.read_der_from_lmpdump" title="atomdnn.data.Data.read_der_from_lmpdump"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_der_from_lmpdump()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>descriptor_path</strong> – directory to descriptor files</p></li>
+<li><p><strong>fp_filename</strong> – file names for descriptors, use ‘*’ for multiple files order numerically</p></li>
+<li><p><strong>der_filename</strong> – file names for derivatives, use ‘*’ for multiple files order numerically</p></li>
+<li><p><strong>image_num</strong> – None if read all files given by the fp_filename</p></li>
+<li><p><strong>skip</strong> (<em>int</em>) – skip some images</p></li>
+<li><p><strong>append</strong> (<em>bool</em>) – True if append inputs to already existing data object</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – True to show all reading file names</p></li>
+<li><p><strong>read_der</strong> (<em>bool</em>) – True if read derivatives</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.data.Data.read_fingerprints_from_lmpdump">
+<span class="sig-name descname"><span class="pre">read_fingerprints_from_lmpdump</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fp_filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data.read_fingerprints_from_lmpdump"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data.read_fingerprints_from_lmpdump" title="Permalink to this definition"></a></dt>
+<dd><p>Read descriptors(fingerprints), atom_type and volume from the descriptor files created with LAMMPS, and save them into data object.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.data.Data.read_der_from_lmpdump">
+<span class="sig-name descname"><span class="pre">read_der_from_lmpdump</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptor_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">der_filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data.read_der_from_lmpdump"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data.read_der_from_lmpdump" title="Permalink to this definition"></a></dt>
+<dd><p>Read derivatives of fingerprints w.r.t. coordinates (dGdr), neibhor_atom_coord, center_atom_id, neighbor_atom_id.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.data.Data.read_outputdata">
+<span class="sig-name descname"><span class="pre">read_outputdata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xyzfile_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">read_stress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data.read_outputdata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data.read_outputdata" title="Permalink to this definition"></a></dt>
+<dd><p>Read outputs(energy, force and stress) from extxyz files</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xyzfile_path</strong> – directory contains a serials of extxyz files of input atomic structures</p></li>
+<li><p><strong>xyzfile_name</strong> – extxyz filename, wildcard * is used for files numerically ordered</p></li>
+<li><p><strong>read_force</strong> (<em>bool</em>) – make sure extxyz files have force data if it’s True</p></li>
+<li><p><strong>read_stress</strong> (<em>bool</em>) – make sure extxyz files have stress data if it’s True</p></li>
+<li><p><strong>image_num</strong> – number of images that will be used, if it’s None then read all files specified by xyzfile_name</p></li>
+<li><p><strong>append</strong> (<em>bool</em>) – append the reading to previous data object</p></li>
+<li><p><strong>verbose</strong> (<em>bool</em>) – set to True if want to print out the extxyz file names</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.data.Data.convert_data_to_tensor">
+<span class="sig-name descname"><span class="pre">convert_data_to_tensor</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data.convert_data_to_tensor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data.convert_data_to_tensor" title="Permalink to this definition"></a></dt>
+<dd><p>Convert the input and ouput data to Tensorflow tensors. This can speed up the data manipulation using Tensorflow functions.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="atomdnn.data.Data.check_data">
+<span class="sig-name descname"><span class="pre">check_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#Data.check_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.Data.check_data" title="Permalink to this definition"></a></dt>
+<dd><p>Check consistance of input and output data.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Permalink to this headline"></a></h2>
+<p>These functions are used to manipulate Tensorflow dataset</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.data.split_dataset">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.data.</span></span><span class="sig-name descname"><span class="pre">split_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_pct</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_pct</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_pct</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shuffle</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#split_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.split_dataset" title="Permalink to this definition"></a></dt>
+<dd><p>Split the tensorflow dataset into training, validation and test.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> – tensorflow dataset</p></li>
+<li><p><strong>train_pct</strong> – the percentage of data used for training</p></li>
+<li><p><strong>val_pct</strong> – the percentage of data used for validation</p></li>
+<li><p><strong>test_pct</strong> – the percentage of data used for testing</p></li>
+<li><p><strong>shuffle</strong> (<em>bool</em>) – shuffle the dataset</p></li>
+<li><p><strong>data_size</strong> (<em>int</em>) – if None, then use all data in the dataset</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>training, validation and test dataset</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tensorflow dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.data.get_input_dict">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.data.</span></span><span class="sig-name descname"><span class="pre">get_input_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#get_input_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.get_input_dict" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dataset</strong> – Tensorflow dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>input dictionary, see <a class="reference internal" href="#atomdnn.data.Data" title="atomdnn.data.Data"><code class="xref py py-class docutils literal notranslate"><span class="pre">Data</span></code></a> for the structure of the dictionary</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.data.get_output_dict">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.data.</span></span><span class="sig-name descname"><span class="pre">get_output_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#get_output_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.get_output_dict" title="Permalink to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dataset</strong> – Tensorflow dataset</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output dictionary, see <a class="reference internal" href="#atomdnn.data.Data" title="atomdnn.data.Data"><code class="xref py py-class docutils literal notranslate"><span class="pre">Data</span></code></a> for the structure of the dictionary</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="atomdnn.data.slice_dataset">
+<span class="sig-prename descclassname"><span class="pre">atomdnn.data.</span></span><span class="sig-name descname"><span class="pre">slice_dataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/data.html#slice_dataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.data.slice_dataset" title="Permalink to this definition"></a></dt>
+<dd><p>Get a slice of the dataset.
+:param dataset: input dataset
+:param start: starting index
+:param end: ending index</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>tensorflow dataset</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="descriptor.html" class="btn btn-neutral float-left" title="Descriptor" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="network.html" class="btn btn-neutral float-right" title="Network" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Gao-group.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

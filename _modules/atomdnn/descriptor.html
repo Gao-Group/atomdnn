@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>atomdnn.descriptor &mdash; AtomDNN  documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../../index.html" class="icon icon-home"> AtomDNN
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../getstarted/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../getstarted/example.html">Example</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/data_pipeline.html">Data pipeline</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/energy_calculation.html">Energy calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/force_calculation.html">Force and stress calculation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/lammps.html">LAMMPS interface</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../module/descriptor.html">Descriptor</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/data.html">Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../module/network.html">Network</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">About</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../about/authors.html">Authors</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/contact.html">Contact</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/license.html">License</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../about/funding.html">Funding</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">AtomDNN</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      <li>atomdnn.descriptor</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for atomdnn.descriptor</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">ase.io</span> <span class="kn">import</span> <span class="n">read</span><span class="p">,</span><span class="n">write</span>
+<span class="kn">import</span> <span class="nn">atomdnn</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+
+<span class="k">def</span> <span class="nf">sorted_alphanumeric</span><span class="p">(</span><span class="n">filenames</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sort file names in alphanumeric order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">convert</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">text</span><span class="p">)</span> <span class="k">if</span> <span class="n">text</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span> <span class="k">else</span> <span class="n">text</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">alphanum_key</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">key</span><span class="p">:</span> <span class="p">[</span> <span class="n">convert</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">re</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;([0-9]+)&#39;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span> <span class="p">]</span> 
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filenames</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">alphanum_key</span><span class="p">)</span>
+
+
+
+<div class="viewcode-block" id="get_filenames"><a class="viewcode-back" href="../../module/descriptor.html#atomdnn.descriptor.get_filenames">[docs]</a><span class="k">def</span> <span class="nf">get_filenames</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span><span class="n">file_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the names of a set of files that match the patten given by file_name. </span>
+<span class="sd">    Return the filenames having the format of &#39;string1*string2&#39;,</span>
+<span class="sd">    in which string1 and string2 can be any strings amd * must be an integer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">true_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span><span class="n">file_name</span><span class="p">))</span>
+    <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">file_name</span><span class="p">:</span>
+        <span class="n">name_mask</span> <span class="o">=</span> <span class="n">file_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">name_mask</span><span class="p">)</span><span class="o">!=</span><span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The file name </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> can only has one *.&#39;</span><span class="o">%</span><span class="n">file_name</span><span class="p">)</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">true_path</span><span class="p">)</span> <span class="c1"># get the files matching the given pattern</span>
+      
+        <span class="c1"># make sure &#39;*&#39; only replace numbers, take out non-related files</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="p">[</span><span class="n">filenames</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">))</span> \
+                     <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">filenames</span><span class="p">[</span><span class="n">i</span><span class="p">])</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">name_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">name_mask</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()]</span>
+        <span class="n">filenames</span> <span class="o">=</span> <span class="n">sorted_alphanumeric</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span> <span class="c1"># sort the files</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s1">&#39;Cannot find any files </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> in </span><span class="si">%s</span><span class="s1">&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">file_name</span><span class="p">,</span><span class="n">file_path</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">filenames</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">true_path</span><span class="p">]</span></div>
+    
+
+    
+<div class="viewcode-block" id="create_lmp_input"><a class="viewcode-back" href="../../module/descriptor.html#atomdnn.descriptor.create_lmp_input">[docs]</a><span class="k">def</span> <span class="nf">create_lmp_input</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span><span class="n">descriptors_path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a lammps input file for computing descriptors and derivatives</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        descritpor (dictionary): the parameter dictionary of the descriptor </span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">infile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="s1">&#39;in.gen_descriptors&#39;</span><span class="p">)</span>
+    <span class="n">lmpinfile</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">infile</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span>    
+    <span class="n">G2_parameters</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;etaG2&#39;</span><span class="p">])):</span>
+        <span class="n">G2_parameters</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;etaG2&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39; &#39;</span>
+        
+    <span class="n">G4_parameters</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;etaG4&#39;</span><span class="p">])):</span>
+        <span class="n">G4_parameters</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;etaG4&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39; &#39;</span>
+        
+    <span class="n">zeta_parameters</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;zeta&#39;</span><span class="p">])):</span>
+        <span class="n">zeta_parameters</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;zeta&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39; &#39;</span>
+        
+    <span class="n">lambda_parameters</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;lambda&#39;</span><span class="p">])):</span>
+        <span class="n">lambda_parameters</span> <span class="o">+=</span> <span class="nb">str</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;lambda&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span><span class="o">+</span><span class="s1">&#39; &#39;</span>
+        
+    <span class="n">compute_fp_line</span> <span class="o">=</span> <span class="s1">&#39;compute 1 all fingerprints $</span><span class="si">{cutoff}</span><span class="s1"> etaG2 &#39;</span> <span class="o">+</span> <span class="n">G2_parameters</span> \
+                       <span class="o">+</span> <span class="s1">&#39;etaG4 &#39;</span> <span class="o">+</span> <span class="n">G4_parameters</span> \
+                       <span class="o">+</span> <span class="s1">&#39;zeta &#39;</span> <span class="o">+</span> <span class="n">zeta_parameters</span> \
+                       <span class="o">+</span> <span class="s1">&#39;lambda &#39;</span> <span class="o">+</span> <span class="n">lambda_parameters</span> <span class="o">+</span> <span class="s1">&#39;end</span><span class="se">\n</span><span class="s1">&#39;</span>
+    
+    <span class="n">compute_der_line</span> <span class="o">=</span> <span class="s1">&#39;compute 2 all derivatives $</span><span class="si">{cutoff}</span><span class="s1"> etaG2 &#39;</span><span class="o">+</span> <span class="n">G2_parameters</span> \
+                       <span class="o">+</span> <span class="s1">&#39;etaG4 &#39;</span> <span class="o">+</span> <span class="n">G4_parameters</span> \
+                       <span class="o">+</span> <span class="s1">&#39;zeta &#39;</span> <span class="o">+</span> <span class="n">zeta_parameters</span> \
+                       <span class="o">+</span> <span class="s1">&#39;lambda &#39;</span> <span class="o">+</span> <span class="n">lambda_parameters</span> <span class="o">+</span> <span class="s1">&#39;end</span><span class="se">\n</span><span class="s1">&#39;</span>
+
+    <span class="n">dump_fp_line</span> <span class="o">=</span>  <span class="s1">&#39;dump dump_fingerprints all custom 1 $</span><span class="si">{fp_filename}</span><span class="s1"> id type c_1[*]</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span> \
+                    <span class="s1">&#39;dump_modify dump_fingerprints sort id format float </span><span class="si">%20.10g</span><span class="se">\n</span><span class="s1">&#39;</span>
+
+    <span class="n">dump_der_line</span> <span class="o">=</span> <span class="s1">&#39;dump dump_primes all local 1 $</span><span class="si">{der_filename}</span><span class="s1"> c_2[*]</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span> \
+                    <span class="s1">&#39;dump_modify dump_primes format float </span><span class="si">%20.10g</span><span class="se">\n</span><span class="s1">&#39;</span>
+
+    
+    <span class="k">if</span> <span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">:</span>
+        <span class="n">compute_line</span> <span class="o">=</span> <span class="n">compute_fp_line</span> <span class="o">+</span> <span class="n">compute_der_line</span>
+        <span class="n">dump_line</span> <span class="o">=</span> <span class="n">dump_fp_line</span> <span class="o">+</span> <span class="n">dump_der_line</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">compute_line</span> <span class="o">=</span> <span class="n">compute_fp_line</span>
+        <span class="n">dump_line</span> <span class="o">=</span> <span class="n">dump_fp_line</span>
+        
+    <span class="n">lmpinfile</span><span class="o">.</span><span class="n">writelines</span><span class="p">(</span><span class="s1">&#39;clear</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;dimension 3</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;boundary p p p</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;units metal</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;atom_style atomic</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;variable cutoff equal &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;cutoff&#39;</span><span class="p">])</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span>
+                         <span class="s1">&#39;read_data $</span><span class="si">{lmpdatafile}</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span>
+                         <span class="s1">&#39;mass * 1.0</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;log $</span><span class="si">{logfile}</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;pair_style zero $</span><span class="si">{cutoff}</span><span class="s1"> nocoeff</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;pair_coeff * * 1.0 1.0</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;neighbor 0.0 bin</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span>
+                          <span class="n">compute_line</span> <span class="o">+</span> 
+                          <span class="n">dump_line</span> <span class="o">+</span>
+                         <span class="s1">&#39;fix NVE all nve</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">+</span>
+                         <span class="s1">&#39;run 0&#39;</span><span class="p">)</span></div>
+
+    
+
+<div class="viewcode-block" id="create_descriptors"><a class="viewcode-back" href="../../module/descriptor.html#atomdnn.descriptor.create_descriptors">[docs]</a><span class="k">def</span> <span class="nf">create_descriptors</span><span class="p">(</span><span class="n">lmpexe</span><span class="p">,</span> <span class="n">elements</span><span class="p">,</span> <span class="n">xyzfile_path</span><span class="p">,</span> <span class="n">xyzfile_name</span><span class="p">,</span> <span class="n">descriptors_path</span><span class="p">,</span> \
+                       <span class="n">descriptor</span><span class="p">,</span> <span class="n">descriptor_filename</span><span class="o">=</span><span class="s1">&#39;dump_fp.*&#39;</span><span class="p">,</span> <span class="n">der_filename</span><span class="o">=</span><span class="s1">&#39;dump_der.*&#39;</span><span class="p">,</span> \
+                       <span class="n">start_file_id</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">image_num</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">skip</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">keep_lmpfiles</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">       lmpexe: lammps executable </span>
+<span class="sd">       xyzfile_path: directory contains a serials of extxyz files of input atomic structures</span>
+<span class="sd">       xyzfile_name: extxyz filename, wildcard * is used for files numerically ordered</span>
+<span class="sd">       descriptors_path: a new directory where descirptors will be generated</span>
+<span class="sd">       descritpor (dictionary): the parameter dictionary of the descriptor</span>
+<span class="sd">       descriptor_filename: default is &#39;dump_fp.*&#39;, numerically ordered</span>
+<span class="sd">       der_filename: default is &#39;dump_der.*&#39;, numerically ordered</span>
+<span class="sd">       start_file_id(int): starting id for descriptor and derivative files</span>
+<span class="sd">       image_num: number of images that will be used, if it&#39;s None then read all files specified by xyzfile_name</span>
+<span class="sd">       skip(int): skip some images</span>
+<span class="sd">       keep_lmpfiles(bool): set to True if want to keep the lammps input and datafiles used for creating descriptors </span>
+<span class="sd">       verbose(bool): set to True if want to print out the extxyz file names used for creating descriptors</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">descriptor_filename</span><span class="p">:</span>
+        <span class="n">fp_name_mask</span> <span class="o">=</span> <span class="n">descriptor_filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fp_name_mask</span><span class="p">)</span><span class="o">!=</span><span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The descriptor_filename can only has one *.&#39;</span><span class="p">)</span>  
+    <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">der_filename</span><span class="p">:</span>
+        <span class="n">der_name_mask</span> <span class="o">=</span> <span class="n">der_filename</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;*&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">der_name_mask</span><span class="p">)</span><span class="o">!=</span><span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The der_filename can only has one *.&#39;</span><span class="p">)</span>
+
+    <span class="n">xyzfiles</span> <span class="o">=</span> <span class="n">get_filenames</span><span class="p">(</span><span class="n">xyzfile_path</span><span class="p">,</span><span class="n">xyzfile_name</span><span class="p">)[</span><span class="n">skip</span><span class="p">:]</span>
+
+    <span class="k">if</span> <span class="n">image_num</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">image_num</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="n">xyzfiles</span><span class="p">):</span>
+        <span class="n">nfiles</span> <span class="o">=</span> <span class="n">image_num</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">nfiles</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">xyzfiles</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">nfiles</span> <span class="o">&gt;</span><span class="mi">1</span> <span class="ow">and</span> <span class="s1">&#39;*&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">descriptor_filename</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Multiple extxyz files found, use * in descriptor_filename.&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">nfiles</span> <span class="o">&gt;</span><span class="mi">1</span> <span class="ow">and</span> <span class="s1">&#39;*&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">der_filename</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Multiple extxyz files found, use * in der_filename.&#39;</span><span class="p">)</span>
+
+    <span class="c1"># check existing files in descriptor directory </span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">))</span><span class="o">&gt;</span><span class="mi">0</span><span class="p">:</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">del_files</span> <span class="o">=</span> <span class="nb">input</span><span class="p">(</span><span class="s1">&#39;There are existing files in </span><span class="si">%s</span><span class="s1">, do you want to first delete the files, y/n? &#39;</span><span class="o">%</span><span class="n">descriptors_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">del_files</span><span class="o">==</span><span class="s1">&#39;y&#39;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">):</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="n">f</span><span class="p">))</span>
+                <span class="k">break</span>
+            <span class="k">elif</span> <span class="n">del_files</span><span class="o">==</span><span class="s1">&#39;n&#39;</span><span class="p">:</span>
+                <span class="k">break</span>
+    
+    <span class="k">if</span> <span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Start creating fingerprints and derivatives for </span><span class="si">%i</span><span class="s1"> files ...&#39;</span><span class="o">%</span> <span class="n">nfiles</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Start creating fingerprints for </span><span class="si">%i</span><span class="s1"> files (no derivatives, set atomdnn.compute_force to True for derivatives) ...&#39;</span><span class="o">%</span> <span class="n">nfiles</span><span class="p">)</span>
+
+    <span class="c1">#os.chdir(descriptors_path) # switch to descriptor directory</span>
+    <span class="n">start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nfiles</span><span class="p">):</span>
+        <span class="n">patom</span> <span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">xyzfiles</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="nb">format</span><span class="o">=</span><span class="s1">&#39;extxyz&#39;</span><span class="p">)</span>
+        
+        <span class="n">create_lmp_input</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span><span class="n">descriptors_path</span><span class="p">)</span> <span class="c1"># create lammps input file named &#39;in.gen_descriptors&#39;</span>
+
+        <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">descriptor_filename</span><span class="p">:</span>
+            <span class="n">fp_fname</span> <span class="o">=</span> <span class="n">fp_name_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="n">start_file_id</span><span class="p">)</span> <span class="o">+</span> <span class="n">fp_name_mask</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fp_fname</span> <span class="o">=</span> <span class="n">descriptor_filename</span>
+        <span class="k">if</span> <span class="s1">&#39;*&#39;</span> <span class="ow">in</span> <span class="n">der_filename</span><span class="p">:</span>
+            <span class="n">der_fname</span> <span class="o">=</span> <span class="n">der_name_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="n">start_file_id</span><span class="p">)</span> <span class="o">+</span> <span class="n">der_name_mask</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">der_fname</span> <span class="o">=</span> <span class="n">der_filename</span>
+
+        <span class="n">lmpdatafile</span> <span class="o">=</span> <span class="s1">&#39;lmpdatafile.&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="n">start_file_id</span><span class="p">)</span>
+        <span class="n">lmpdatafile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="n">lmpdatafile</span><span class="p">)</span>
+        <span class="n">logfile</span> <span class="o">=</span> <span class="s1">&#39;log.&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="n">start_file_id</span><span class="p">)</span>
+        <span class="n">logfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="n">logfile</span><span class="p">)</span>
+
+        <span class="c1"># use specorder to make sure the type of atoms are consistant</span>
+        <span class="n">write</span><span class="p">(</span><span class="n">lmpdatafile</span><span class="p">,</span> <span class="n">patom</span><span class="p">,</span> <span class="n">specorder</span><span class="o">=</span><span class="n">elements</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;lammps-data&#39;</span><span class="p">,</span><span class="n">atom_style</span><span class="o">=</span><span class="s1">&#39;atomic&#39;</span><span class="p">)</span> <span class="c1"># create lammps datafile</span>
+        
+        <span class="c1"># lammps run command</span>
+        <span class="n">fp_pfname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="n">fp_fname</span><span class="p">)</span>
+        <span class="n">der_pfname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="n">der_fname</span><span class="p">)</span>
+        <span class="n">infile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span><span class="s1">&#39;in.gen_descriptors&#39;</span><span class="p">)</span>
+        <span class="n">lmp_cmd</span> <span class="o">=</span> <span class="n">lmpexe</span> <span class="o">+</span> <span class="s1">&#39; -in &#39;</span> <span class="o">+</span> <span class="n">infile</span> \
+                         <span class="o">+</span> <span class="s1">&#39; -var fp_filename &#39;</span> <span class="o">+</span> <span class="n">fp_pfname</span>  \
+                         <span class="o">+</span> <span class="s1">&#39; -var der_filename &#39;</span> <span class="o">+</span> <span class="n">der_pfname</span> \
+                         <span class="o">+</span> <span class="s1">&#39; -var lmpdatafile &#39;</span> <span class="o">+</span> <span class="n">lmpdatafile</span> \
+                         <span class="o">+</span> <span class="s1">&#39; -var logfile &#39;</span> <span class="o">+</span> <span class="n">logfile</span>
+      
+        <span class="n">status</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">system</span><span class="p">(</span><span class="n">lmp_cmd</span><span class="p">)</span> <span class="c1"># run lammps</span>
+        <span class="k">if</span> <span class="n">status</span><span class="o">!=</span><span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;LAMMPS returns error, find error message in jupyter notebook terminal.&#39;</span> <span class="o">+</span>
+                               <span class="s1">&#39;To check problems, set keep_lmpfiles=True in create_descriptors function,&#39;</span> <span class="o">+</span>
+                               <span class="s1">&#39;and then check lammps input and data files in descriptor directory.&#39;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">keep_lmpfiles</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">lmpdatafile</span><span class="p">)</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">logfile</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  file-</span><span class="si">%i</span><span class="s1">: read atoms from </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> and created descriptors in </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> and derivatives in </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1">&#39;</span> \
+                      <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">xyzfiles</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span><span class="n">fp_fname</span><span class="p">,</span><span class="n">der_fname</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;  file-</span><span class="si">%i</span><span class="s1">: read atoms from </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1"> and created descriptors in </span><span class="se">\&#39;</span><span class="si">%s</span><span class="se">\&#39;</span><span class="s1">&#39;</span> \
+                      <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">xyzfiles</span><span class="p">[</span><span class="n">i</span><span class="p">]),</span><span class="n">fp_fname</span><span class="p">))</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">int</span><span class="p">((</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">%</span><span class="mi">10</span><span class="p">)</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;  so far finished for </span><span class="si">%d</span><span class="s1"> images ...&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span><span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">keep_lmpfiles</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">infile</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;log.lammps&#39;</span><span class="p">)</span>
+        
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Finish creating descriptors and derivatives for total </span><span class="si">%i</span><span class="s1"> images.&#39;</span> <span class="o">%</span> <span class="n">nfiles</span><span class="p">,</span><span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;It took </span><span class="si">%.2f</span><span class="s1"> seconds.&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span><span class="o">-</span><span class="n">start_time</span><span class="p">),</span><span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span> <span class="nf">get_num_fingerprints</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span><span class="n">elements</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Compute the total number of fingerprints.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        descritpor(dictionary): parameters that defines the descriptors</span>
+<span class="sd">        elements(list): list of elements</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        total number of fingerprints</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ntypes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;acsf&#39;</span><span class="p">:</span>
+        <span class="n">ntypes_combinations</span> <span class="o">=</span> <span class="n">ntypes</span><span class="o">*</span><span class="p">(</span><span class="n">ntypes</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">;</span>
+        <span class="n">n_etaG2</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;etaG2&#39;</span><span class="p">])</span>
+        <span class="n">n_etaG4</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;etaG4&#39;</span><span class="p">])</span>
+        <span class="n">n_zeta</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;zeta&#39;</span><span class="p">])</span>
+        <span class="n">n_lambda</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;lambda&#39;</span><span class="p">])</span>
+        <span class="n">num_fingerprints</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_etaG2</span><span class="o">*</span><span class="n">ntypes</span> <span class="o">+</span> <span class="n">n_lambda</span><span class="o">*</span><span class="n">n_zeta</span><span class="o">*</span><span class="n">n_etaG4</span><span class="o">*</span><span class="n">ntypes_combinations</span> <span class="o">+</span> <span class="n">ntypes</span><span class="p">);</span>
+
+    <span class="k">return</span> <span class="n">num_fingerprints</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021, Gao-group.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
