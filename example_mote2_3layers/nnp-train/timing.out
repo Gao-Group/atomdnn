@@ -1,0 +1,27 @@
+################################################################################
+# Timing data for training loop.
+################################################################################
+# Col  Name    Description
+################################################################################
+# 1    epoch   Current epoch.
+# 2    train   Time for training.
+# 3    ptrain  Time for training (percentage of loop).
+# 4    error   Time for error calculation.
+# 5    perror  Time for error calculation (percentage of loop).
+# 6    epoch   Time for this epoch.
+# 7    total   Total time for all epochs.
+# 8    Etrain  
+# 9    Eptrain 
+# 10   E_err   
+# 11   Ep_err  
+# 12   E_com   
+# 13   Ep_com  
+# 14   E_upd   
+# 15   Ep_upd  
+# 16   E_log   
+# 17   Ep_log  
+##############################################################################################################################################################################
+#        1           2       3           4       5           6           7           8       9          10      11          12      13          14      15          16      17
+#    epoch       train  ptrain       error  perror       epoch       total      Etrain Eptrain       E_err  Ep_err       E_com  Ep_com       E_upd  Ep_upd       E_log  Ep_log
+##############################################################################################################################################################################
+         1   1.120E-07   0.000   1.648E-04   0.380   4.336E-04   1.592E-03   0.000E+00   0.000   0.000E+00    -nan   0.000E+00    -nan   0.000E+00    -nan   0.000E+00    -nan

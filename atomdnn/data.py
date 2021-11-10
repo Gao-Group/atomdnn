@@ -87,7 +87,7 @@ class Data(object):
             fp_filename = fp_filename[:-2]
         else:
             batch_mode = 0
-            
+
         if not batch_mode:
             image_num = 1
             print("\nReading fingerprints data from LAMMPS dump files %s" % (fp_filename))
@@ -99,16 +99,20 @@ class Data(object):
                 if fd-start_image+1>image_num:
                     break
             if batch_mode:
-                filename = fp_filename + '.' + str(fd-start_image+1)
+                filename = fp_filename + '.' + str(fd-start_image)
             else:
                 filename = fp_filename
+
+            print('filenamee:', filename)
             if os.path.isfile(filename):
                 try:
                     file = open(filename)
                 except OSError:
                     raise OSError('Could not open file %s' % filename)
+                
                 lines = file.readlines()
                 file.close()
+                print('fd:', fd)
                 count_atom = 0
                 self.input_dict['fingerprints'].append([])
                 self.input_dict['atom_type'].append([])
@@ -123,6 +127,7 @@ class Data(object):
                     line = line.split()
                     self.input_dict['atom_type'][fd].append(int(line[1]))
                     self.input_dict['fingerprints'][fd].append([self.str2float(x) for x in line[2:]])
+                    
                 self.natoms_in_fpfiles.append(count_atom)
                 fd += 1
                 if fd-start_image > 0 and int((fd-start_image)%50)==0:
@@ -130,10 +135,8 @@ class Data(object):
             else:
                 break
             
-        if fd==start_image:
-            raise OSError('Could not find the input file.')
-        
-        print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']),flush=True)
+                
+        print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']), flush=True)
         maxnum_atom = max(self.natoms_in_fpfiles)
 
         # pad zeros if the atom number is less than maxnum_atom
@@ -218,9 +221,11 @@ class Data(object):
                 if fd-start_image+1>image_num:
                     break
             if batch_mode:
-                filename = der_filename +'.'+ str(fd-start_image+1)
+                filename = der_filename +'.'+ str(fd-start_image)
             else:
                 filename = der_filename
+
+            print('der_filename:', filename)
             if os.path.isfile(filename):
                 self.input_dict['dGdr'].append([])
                 self.input_dict['neighbor_atom_coord'].append([])
@@ -278,7 +283,7 @@ class Data(object):
 
         
         
-    def read_outputdata(self, xyzfile_path=None, xyzfile_name=None, read_force=True, read_stress=True, image_num=None, append=False):
+    def read_outputdata(self, xyzfile_path=None, xyzfile_name=None, read_force=True, read_stress=True, image_num=None, append=False, verbose=False):
 
         if not append:
             self.output_dict['pe'] = []
@@ -307,20 +312,24 @@ class Data(object):
                 if fd-start_image+1>image_num:
                     break
             if batch_mode:
-                filename = xyzfile_path + '/' + xyzfile_name +'.'+ str(fd-start_image+1)
+                filename = xyzfile_path + '/' + xyzfile_name +'.'+ str(fd-start_image)
             else:
                 filename = xyzfile_path + '/' + xyzfile_name
 
+            if verbose:
+                print('filename:', filename)
+
             if os.path.isfile(filename):
-                patom = read(filename,format='extxyz')
-                pe = patom.get_potential_energy(patom)
+                patom = read(filename, index=':', format='extxyz')[0]
+                pe = patom.get_potential_energy()
                 self.output_dict['pe'].append(pe)
                 if read_force:
                     force = patom.get_forces(patom)
                     self.output_dict['force'].append(force)
                     self.natoms_in_force.append(len(force))
                 if read_stress:
-                    stress = patom.get_stress(patom)
+                    stress = patom.get_stress()
+                    
                     self.output_dict['stress'].append(stress)
                 fd += 1
                 if fd-start_image > 0 and int((fd-start_image)%50)==0:

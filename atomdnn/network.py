@@ -158,27 +158,30 @@ class Network(tf.Module):
         
         atom_pe = tf.zeros([nimages,natoms,1],dtype=self.data_type)
         params_iter = 0
-        nlayer = len(self.arch)+1 # include one linear layer
+        nlayers = len(self.arch) + 1 # include one linear layer
         nelements = len(self.elements)
-        
+        print('nlayers:', nlayers)
         for i in range(nelements):
             type_id = i + 1
-            type_array = tf.ones([nimages,natoms],dtype='int32')*type_id
-            type_mask = tf.cast(tf.math.equal(atom_type,type_array),dtype=self.data_type)
+            type_array = tf.ones([nimages, natoms], dtype='int32')*type_id
+            type_mask = tf.cast(tf.math.equal(atom_type, type_array), dtype=self.data_type)
             type_onehot = tf.linalg.diag(type_mask)
-            fingerprints = tf.matmul(type_onehot,fingerprints)
+            fingerprints_i = tf.matmul(type_onehot, fingerprints)
 
             # first dense layer
-            Z = tf.matmul(fingerprints,self.params[nlayer*2*i]) + self.params[nlayer*2*i+1]
+            params_iter = nlayers*2*i
+            print('first_dense_layer - params_iter:', params_iter)
+            Z = tf.matmul(fingerprints_i, self.params[params_iter]) + self.params[params_iter+1]
             Z = self.tf_activation_function(Z)
-
             # sequential dense layer
-            for j in range(1,nlayer-1):
-                Z = tf.matmul(Z,self.params[nlayer*2*i+j*2]) + self.params[nlayer*2*i+j*2+1]
+            for j in range(1,nlayers-1):
+                print('sequential_dense_layer - params_iter:', params_iter+j*2)
+                Z = tf.matmul(Z,self.params[params_iter+j*2]) + self.params[params_iter+j*2+1]
                 Z = self.tf_activation_function(Z)
-
+                
             # linear layer
-            Z = tf.matmul(Z, self.params[nlayer*2*(i+1)-2]) + self.params[nlayer*2*(i+1)-1]
+            print('linear_layer_idx - params_iter:', nlayers*2*(i+1)-2)
+            Z = tf.matmul(Z, self.params[nlayers*2*(i+1)-2]) + self.params[nlayers*2*(i+1)-1]
 
             # apply the mask
             mask = tf.reshape(type_mask,[nimages,natoms,1])
@@ -190,11 +193,11 @@ class Network(tf.Module):
         
     
     def compute_force_stress (self, dEdG, input_dict):
-                
-        if self.scaling=='std':
-            dEdG = dEdG/self.scaling_factor[1]
-        elif self.scaling=='norm':
-            dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
+        if hasattr(self, 'scaling'):
+            if self.scaling=='std':
+                dEdG = dEdG/self.scaling_factor[1]
+            elif self.scaling=='norm':
+                dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
             
         dGdr = input_dict['dGdr']
         if not tf.is_tensor(dGdr):
@@ -280,11 +283,11 @@ class Network(tf.Module):
             fingerprints = tf.convert_to_tensor(fingerprints)
 
         if not training:
-            
-            if self.scaling == 'std':  # standardize with the mean and deviation
-                fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
-            elif self.scaling == 'norm': # normalize with the minimum and maximum
-                fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
+            if hasattr(self, 'scaling'):
+                if self.scaling == 'std':  # standardize with the mean and deviation
+                    fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
+                elif self.scaling == 'norm': # normalize with the minimum and maximum
+                    fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
                 
         if not compute_force:
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
@@ -299,6 +302,7 @@ class Network(tf.Module):
                 total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
             dEdG = dEdG_tape.gradient(atom_pe, fingerprints)
             force, stress = self.compute_force_stress(dEdG, input_dict)
+            print('atom_pee:', atom_pe)
             if training:
                 return {'pe':total_pe, 'force':force, 'stress':stress}
             else:
@@ -350,7 +354,7 @@ class Network(tf.Module):
         for key in eval_loss:
             print('%15s:  %15.4e' % (key, eval_loss[key]))
         if 'total_loss' in eval_loss:
-            print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value.numpy()) for key, value in self.loss_weights.items()])
+            print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value) for key, value in self.loss_weights.items()])
 
         if return_prediction:
             print('\nThe prediction is returned.')
@@ -387,7 +391,8 @@ class Network(tf.Module):
 
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
             total_loss = loss_dict['pe_loss']
-        elif self.loss_weights['force']!=0 and self.loss_weights['stress']!=0: # pe, force and stress used for training
+        elif 'stress' in self.loss_weights and\
+            self.loss_weights['force']!=0 and self.loss_weights['stress']!=0: # pe, force and stress used for training
             total_loss = loss_dict['pe_loss'] * self.loss_weights['pe'] + loss_dict['force_loss'] * self.loss_weights['force']\
                 + loss_dict['stress_loss'] * self.loss_weights['stress']
             loss_dict['total_loss'] = total_loss 

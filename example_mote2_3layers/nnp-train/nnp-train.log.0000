@@ -1,0 +1,408 @@
+
+*** SETUP: MPI ****************************************************************
+
+Number of processors: 1
+Process 1 of 1 (rank 0): b9b50f9698a1
+*******************************************************************************
+
+*******************************************************************************
+
+WELCOME TO n²p², A SOFTWARE PACKAGE FOR NEURAL NETWORK POTENTIALS!
+------------------------------------------------------------------
+
+n²p² version  (from git): v2.1.4-8-ge3ee6ab
+             (version.h): v2.1.4
+------------------------------------------------------------
+Git branch              : master
+Git revision            : e3ee6abef466d8d313f5b1d4bda421a444d3e4a0
+Compile date/time       : Oct  6 2021 21:40:59
+------------------------------------------------------------
+
+Features/Flags:
+------------------------------------------------------------
+Symmetry function groups     : enabled
+Symmetry function cache      : enabled
+Timing function available    : available
+Asymmetric polynomial SFs    : available
+SF low neighbor number check : enabled
+SF derivative memory layout  : reduced
+MPI explicitly disabled      : no
+------------------------------------------------------------
+
+Please cite the following papers when publishing results obtained with n²p²:
+-------------------------------------------------------------------------------
+ * General citation for n²p² and the LAMMPS interface:
+
+ Singraber, A.; Behler, J.; Dellago, C.
+ Library-Based LAMMPS Implementation of High-Dimensional
+ Neural Network Potentials.
+ J. Chem. Theory Comput. 2019 15 (3), 1827–1840.
+ https://doi.org/10.1021/acs.jctc.8b00770
+-------------------------------------------------------------------------------
+ * Additionally, if you use the NNP training features of n²p²:
+
+ Singraber, A.; Morawietz, T.; Behler, J.; Dellago, C.
+ Parallel Multistream Training of High-Dimensional Neural
+ Network Potentials.
+ J. Chem. Theory Comput. 2019, 15 (5), 3075–3092.
+ https://doi.org/10.1021/acs.jctc.8b01092
+-------------------------------------------------------------------------------
+ * Additionally, if polynomial symmetry functions are used:
+
+ Bircher, M. P.; Singraber, A.; Dellago, C.
+ Improved Description of Atomic Environments Using Low-Cost
+ Polynomial Functions with Compact Support.
+ arXiv:2010.14414 [cond-mat, physics:physics] 2020.
+ https://arxiv.org/abs/2010.14414
+*******************************************************************************
+
+*** SETUP: SETTINGS FILE ******************************************************
+
+Settings file name: input.nn
+Read 102 lines.
+Found 41 lines with keywords.
+This settings file defines a short-range only NNP.
+*******************************************************************************
+
+*** SETUP: NORMALIZATION ******************************************************
+
+Data set normalization is not used.
+*******************************************************************************
+
+*** SETUP: ELEMENT MAP ********************************************************
+
+Number of element strings found: 2
+Element  0: Mo ( 42)
+Element  1: Te ( 52)
+*******************************************************************************
+
+*** SETUP: ELEMENTS ***********************************************************
+
+Number of elements is consistent: 2
+Atomic energy offsets per element:
+Element  0:   0.00000000E+00
+Element  1:   0.00000000E+00
+Energy offsets are automatically subtracted from reference energies.
+*******************************************************************************
+
+*** SETUP: CUTOFF FUNCTIONS ***************************************************
+
+Parameter alpha for inner cutoff: 0.000000
+Inner cutoff = Symmetry function cutoff * alpha
+Equal cutoff function type for all symmetry functions:
+CutoffFunction::CT_COS (1)
+x := (r - rc * alpha) / (rc - rc * alpha)
+f(x) = 1/2 * (cos(pi*x) + 1)
+*******************************************************************************
+
+*** SETUP: SYMMETRY FUNCTIONS *************************************************
+
+Abbreviations:
+--------------
+ind .... Symmetry function index.
+ec ..... Central atom element.
+tp ..... Symmetry function type.
+sbtp ... Symmetry function subtype (e.g. cutoff type).
+e1 ..... Neighbor 1 element.
+e2 ..... Neighbor 2 element.
+eta .... Gaussian width eta.
+rs/rl... Shift distance of Gaussian or left cutoff radius for polynomial.
+angl.... Left cutoff angle for polynomial.
+angr.... Right cutoff angle for polynomial.
+la ..... Angle prefactor lambda.
+zeta ... Angle term exponent zeta.
+rc ..... Cutoff radius / right cutoff radius for polynomial.
+a ...... Free parameter alpha (e.g. cutoff alpha).
+ln ..... Line number in settings file.
+
+Short range atomic symmetry functions element Mo :
+-------------------------------------------------------------------------------------------------
+ ind ec tp sbtp e1 e2       eta      rs/rl         rc   angl   angr la zeta    a    ln
+-------------------------------------------------------------------------------------------------
+   1 Mo  2  ct1 Mo    1.000E+00  0.000E+00  6.500E+00                       0.00    93
+   2 Mo  2  ct1 Te    1.000E+00  0.000E+00  6.500E+00                       0.00    96
+-------------------------------------------------------------------------------------------------
+Short range atomic symmetry functions element Te :
+-------------------------------------------------------------------------------------------------
+ ind ec tp sbtp e1 e2       eta      rs/rl         rc   angl   angr la zeta    a    ln
+-------------------------------------------------------------------------------------------------
+   1 Te  2  ct1 Mo    1.000E+00  0.000E+00  6.500E+00                       0.00    98
+   2 Te  2  ct1 Te    1.000E+00  0.000E+00  6.500E+00                       0.00   101
+-------------------------------------------------------------------------------------------------
+Minimum cutoff radius for element Mo: 6.500000
+Minimum cutoff radius for element Te: 6.500000
+Maximum cutoff radius (global)      : 6.500000
+*******************************************************************************
+
+*** SETUP: SYMMETRY FUNCTION MEMORY *******************************************
+
+Symmetry function derivatives memory table for element Mo :
+-------------------------------------------------------------------------------
+Relevant symmetry functions for neighbors with element:
+- Mo:    1 of    2 ( 50.0 %)
+- Te:    1 of    2 ( 50.0 %)
+-------------------------------------------------------------------------------
+Symmetry function derivatives memory table for element Te :
+-------------------------------------------------------------------------------
+Relevant symmetry functions for neighbors with element:
+- Mo:    1 of    2 ( 50.0 %)
+- Te:    1 of    2 ( 50.0 %)
+-------------------------------------------------------------------------------
+*******************************************************************************
+
+*** SETUP: SYMMETRY FUNCTION CACHE ********************************************
+
+Element Mo: in total 0 caches, used -nan times on average.
+Element Te: in total 0 caches, used -nan times on average.
+*******************************************************************************
+
+*** SETUP: SYMMETRY FUNCTION GROUPS *******************************************
+
+Abbreviations:
+--------------
+ind .... Symmetry function index.
+ec ..... Central atom element.
+tp ..... Symmetry function type.
+sbtp ... Symmetry function subtype (e.g. cutoff type).
+e1 ..... Neighbor 1 element.
+e2 ..... Neighbor 2 element.
+eta .... Gaussian width eta.
+rs/rl... Shift distance of Gaussian or left cutoff radius for polynomial.
+angl.... Left cutoff angle for polynomial.
+angr.... Right cutoff angle for polynomial.
+la ..... Angle prefactor lambda.
+zeta ... Angle term exponent zeta.
+rc ..... Cutoff radius / right cutoff radius for polynomial.
+a ...... Free parameter alpha (e.g. cutoff alpha).
+ln ..... Line number in settings file.
+mi ..... Member index.
+sfi .... Symmetry function index.
+e ...... Recalculate exponential term.
+
+Short range atomic symmetry function groups element Mo :
+----------------------------------------------------------------------------------------------------------
+ ind ec tp sbtp e1 e2       eta      rs/rl         rc   angl   angr la zeta    a    ln   mi  sfi e
+----------------------------------------------------------------------------------------------------------
+   1 Mo  2  ct1 Mo            *          *  6.500E+00                       0.00     *    *    *  
+   -  -  -    -  -    1.000E+00  0.000E+00          -                          -    93    1    1  
+   2 Mo  2  ct1 Te            *          *  6.500E+00                       0.00     *    *    *  
+   -  -  -    -  -    1.000E+00  0.000E+00          -                          -    96    1    2  
+----------------------------------------------------------------------------------------------------------
+Short range atomic symmetry function groups element Te :
+----------------------------------------------------------------------------------------------------------
+ ind ec tp sbtp e1 e2       eta      rs/rl         rc   angl   angr la zeta    a    ln   mi  sfi e
+----------------------------------------------------------------------------------------------------------
+   1 Te  2  ct1 Mo            *          *  6.500E+00                       0.00     *    *    *  
+   -  -  -    -  -    1.000E+00  0.000E+00          -                          -    98    1    1  
+   2 Te  2  ct1 Te            *          *  6.500E+00                       0.00     *    *    *  
+   -  -  -    -  -    1.000E+00  0.000E+00          -                          -   101    1    2  
+----------------------------------------------------------------------------------------------------------
+*******************************************************************************
+
+*** SETUP: NEURAL NETWORKS ****************************************************
+
+Normalize neurons (all elements): 0
+-------------------------------------------------------------------------------
+Atomic short range NN for element Mo :
+Number of weights    :     65
+Number of biases     :     16
+Number of connections:     81
+Architecture        2    5    5    5    1
+-------------------------------------------------------------------------------
+   1   G   t   t   t   l
+   2   G   t   t   t    
+   3       t   t   t    
+   4       t   t   t    
+   5       t   t   t    
+-------------------------------------------------------------------------------
+Atomic short range NN for element Te :
+Number of weights    :     65
+Number of biases     :     16
+Number of connections:     81
+Architecture        2    5    5    5    1
+-------------------------------------------------------------------------------
+   1   G   t   t   t   l
+   2   G   t   t   t    
+   3       t   t   t    
+   4       t   t   t    
+   5       t   t   t    
+-------------------------------------------------------------------------------
+*******************************************************************************
+
+*** SETUP: SYMMETRY FUNCTION SCALING ******************************************
+
+Equal scaling type for all symmetry functions:
+Scaling type::ST_NONE (0)
+Gs = G
+WARNING: No symmetry function scaling!
+Symmetry function scaling statistics from file: scaling.data
+-------------------------------------------------------------------------------
+
+Abbreviations:
+--------------
+ind ..... Symmetry function index.
+min ..... Minimum symmetry function value.
+max ..... Maximum symmetry function value.
+mean .... Mean symmetry function value.
+sigma ... Standard deviation of symmetry function values.
+sf ...... Scaling factor for derivatives.
+Smin .... Desired minimum scaled symmetry function value.
+Smax .... Desired maximum scaled symmetry function value.
+t ....... Scaling type.
+
+Scaling data for symmetry functions element Mo :
+-------------------------------------------------------------------------------
+ ind       min       max      mean     sigma        sf  Smin  Smax t
+-------------------------------------------------------------------------------
+   1  2.62E-04  2.62E-04  2.62E-04  1.55E-08  1.00E+00  0.00  0.00 0
+   2  1.87E-03  1.87E-03  1.87E-03  9.39E-07  1.00E+00  0.00  0.00 0
+-------------------------------------------------------------------------------
+Scaling data for symmetry functions element Te :
+-------------------------------------------------------------------------------
+ ind       min       max      mean     sigma        sf  Smin  Smax t
+-------------------------------------------------------------------------------
+   1  6.25E-04  1.24E-03  9.35E-04  3.13E-04  1.00E+00  0.00  0.00 0
+   2  9.11E-06  1.23E-05  1.07E-05  1.64E-06  1.00E+00  0.00  0.00 0
+-------------------------------------------------------------------------------
+*******************************************************************************
+
+*** SETUP: SYMMETRY FUNCTION STATISTICS ***************************************
+
+Equal symmetry function statistics for all elements.
+Collect min/max/mean/sigma                        : 0
+Collect extrapolation warnings                    : 0
+Write extrapolation warnings immediately to stderr: 0
+Halt on any extrapolation warning                 : 0
+*******************************************************************************
+
+*** SETUP: RANDOM NUMBER GENERATOR ********************************************
+
+Random number generator seed: 1234567
+Seed for rank 0: 1234567
+Seed for global RNG: 1018032531
+*******************************************************************************
+
+*** STRUCTURE DISTRIBUTION ****************************************************
+
+Reading configurations from data file: input.data.
+Total number of structures: 1
+Number of structures per processor: 1
+Distributed 1 structures, 0 bytes (0.00 MiB) transferred.
+Number of local structures: 1
+*******************************************************************************
+
+*** DEFINE TRAINING/TEST SETS *************************************************
+
+Desired test set ratio      : 0.100000
+WARNING: Process 0 has no atoms of element 0 (Mo).
+WARNING: Process 0 has no atoms of element 1 (Te).
+Training/test split of data set for property "energy":
+- Total    patterns : 1
+- Training patterns : 0
+- Test     patterns : 1
+- Test set fraction : 1.000000
+*******************************************************************************
+
+*** WRITE TRAINING/TEST SETS **************************************************
+
+Writing training/test set to files:
+ - train.data
+ - test.data
+*******************************************************************************
+
+*** WEIGHT INITIALIZATION *****************************************************
+
+Setting up short-range neural networks:
+Initial weights selected randomly in interval [-1.000000, 1.000000).
+Weights modified accoring to Glorot Bengio scheme.
+Biases set to zero.
+*******************************************************************************
+
+*** SETUP: TRAINING ***********************************************************
+
+Only energies will used for training.
+Training will act on "short" neural networks.
+Weight update via gradient descent selected: updaterType::UT_GD (0)
+Parallel training (all ranks update) selected: ParallelMode::PM_TRAIN_ALL (1)
+Gradient summation only selected: JacobianMode::JM_SUM (0)
+No Jacobi matrix, gradients of all training candidates are summed up instead.
+Combined updater for all elements selected: UpdateStrategy::US_COMBINED (0)
+Number of weight updaters    : 1
+Total fit parameters         : 162
+Global selection mode settings:
+- Selection mode starting with epoch 0:
+  Random selection of update candidates: SelectionMode::SM_RANDOM (0)
+- RMSE selection trials   : 3
+Selection mode settings specific to property "energy":
+- RMSE selection threshold: 0.00 * RMSE
+-------------------------------------------------------------------------------
+Symmetry function memory is reused (HIGH MEMORY USAGE!).
+Training will be stopped after 1 epochs.
+Property "energy" comparison files will be written every 1 epochs.
+Weight files will be written every 1 epochs.
+Neuron statistics files will be written every 1 epochs.
+Training log with update information will be written to: train-log.out.
+-------------------------------------------------------------------------------
+Update plan for property "energy":
+- Per-task batch size                          : 1
+- Fraction of patterns used per epoch          : 1.0000
+- Updates per epoch                            : 0
+- Patterns used per update (rank   0 / global) :          1 / 1
+----------------------------------------------
+-------------------------------------------------------------------------------
+Allocating memory for energy error vector and Jacobian.
+Updater   0:
+ - Error    size: 1
+ - Jacobian size: 162
+----------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+Combined weight updater:
+-------------------------------------------------------------------------------
+GradientDescentType::DT_ADAM (1)
+sizeState       = 162
+eta             =   1.0000E-03
+beta1           =   9.0000E-01
+beta2           =   9.9900E-01
+epsilon         =   1.0000E-08
+-------------------------------------------------------------------------------
+TIMING Finished setup: 0.01 seconds.
+*******************************************************************************
+
+*** CALCULATE NEIGHBOR LISTS **************************************************
+
+Calculating neighbor lists for all structures.
+Cutoff radius for neighbor lists: 6.500000
+-------------------------------------------------------------------------------
+TIMING Finished neighbor lists: 0.00 seconds.
+*******************************************************************************
+
+*** TRAINING LOOP *************************************************************
+
+The training loop output covers different errors, update and
+timing information. The following quantities are organized
+according to the matrix scheme below:
+-------------------------------------------------------------------
+ep ........ Epoch.
+E_count ... Number of energy updates.
+E_train ... MAE of training energies.
+E_test .... MAE of test     energies.
+E_pt ...... Percentage of time for energy updates w.r.t. to t_train.
+count ..... Total number of updates.
+train ..... Percentage of time for training.
+error ..... Percentage of time for error calculation.
+other ..... Percentage of time for other purposes.
+epoch ..... Total time for this epoch (seconds).
+total ..... Total time for all epochs (seconds).
+-------------------------------------------------------------------
+energy     ep  E_count       E_train        E_test    E_pt
+timing     ep    count  train  error  other      epoch      total
+-------------------------------------------------------------------
+ENERGY      0        0          -NAN   3.23220E+02     0.0
+TIMING      0        0    0.0   28.8   71.2       0.00       0.00
+------
+ENERGY      1        0          -NAN   3.23220E+02     0.0
+TIMING      1        0    0.0   38.0   62.0       0.00       0.00
+-------------------------------------------------------------------------------
+TIMING Training loop finished: 0.00 seconds.
+*******************************************************************************
