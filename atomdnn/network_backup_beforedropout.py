@@ -6,7 +6,7 @@ import os
 import atomdnn
 from atomdnn.data import *
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+import matplotlib
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -22,18 +22,7 @@ else:
 
 
 class Network(tf.Module):
-    """
-    The nueral network is built based on tf.Module.
 
-    Args:
-            elements(python list): list of element in the system, e.g. [C,O,H]
-            num_fingerprints(int): number of fingerprints in dataset
-            arch: network architecture, e.g. [10,10,10], 3 dense layers each with 10 neurons
-            activation_function: any avialiable Tensorflow activation function, e.g. 'relu'
-            weighs_initializer: the way to initialize weights, default one is tf.random.normal
-            bias_initializer: the way to initialize bias, default one is tf.zeros
-            import_dir: the directory of a saved model to be loaded
-    """
     def __init__(self, elements=None, num_fingerprints=None, arch=None, \
                  activation_function=None, weights_initializer=tf.random.normal, bias_initializer=tf.zeros, import_dir=None):
         
@@ -90,10 +79,8 @@ class Network(tf.Module):
         
     def inflate_from_file(self, imported):
         '''
-        Inflate network object from a SavedModel.
-
-        Args:
-            imported: a saved tensorflow neural network model
+        Inflate network object from SavedModel 
+        :param imported_object: Imported object from `tf.saved_model.load(saved_model_export_dir)`
         '''
         self.built = True
         self.arch = imported.saved_arch.numpy()
@@ -113,12 +100,6 @@ class Network(tf.Module):
         self.lr = imported.saved_lr.numpy()
         self.loss_fun = imported.saved_loss_fun.numpy().decode()
 
-        if hasattr(imported, 'dropout'):
-            self.dropout = imported.dropout
-            print('Dropout rate has been set to ', self.dropout.numpy())
-        else:
-            self.dropout = tf.Variable(0., dtype=self.data_type)
-        
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
@@ -140,9 +121,6 @@ class Network(tf.Module):
         
     @tf.function(input_signature=input_signature_dict)    
     def __call__(self, x):
-        """
-        This is called when evaluate the network using C API for LAMMPS.
-        """
         if len(x)==0:
             print('__call__ method - input is empty.')
             return {'pe':None,'force': None, 'stress':None}
@@ -151,9 +129,7 @@ class Network(tf.Module):
             
         
     def _build(self):
-        """
-        Initialize the weigths and biases.
-        """
+  
         # Declare layer-wise weights and biases
         for element in self.elements:
             self.W1 = tf.Variable(
@@ -174,24 +150,16 @@ class Network(tf.Module):
 
     
     def compute_pe (self, fingerprints, atom_type, verbose=False):
-        """
-        Forward pass of the network to compute potential energy. Parallel networks are used for multiple atom types.
-        
-        Args:
-            fingerprints: 3D array *[batch_size,atom_num,fingerprints_num]*
-            atom_type: 2D array *[batch_size, atom_num]*
-
-        Returns:
-            total potential energy and per-atom potential energy
-        """
+        '''
+        Forward pass of the network
+        '''
         nimages = tf.shape(atom_type)[0]
         natoms = tf.shape(atom_type)[1]
         
         atom_pe = tf.zeros([nimages,natoms,1],dtype=self.data_type)
         params_iter = 0
-        nlayers = len(self.arch) + 1 # include one linear layer at the end
+        nlayers = len(self.arch) + 1 # include one linear layer
         nelements = len(self.elements)
-            
         if verbose:
             print('nlayers:', nlayers, '	# inlcuding linear layer')
         for i in range(nelements):
@@ -205,12 +173,7 @@ class Network(tf.Module):
             params_iter = nlayers*2*i
             if verbose:
                 print('    first_dense_layer - params_iter:', params_iter)
-
-            # if dropout, it happens before first dense layer
-            dropped = tf.nn.dropout(fingerprints_i, rate=self.dropout)
-
-            # sequential dense layer
-            Z = tf.matmul(dropped, self.params[params_iter]) + self.params[params_iter+1]
+            Z = tf.matmul(fingerprints_i, self.params[params_iter]) + self.params[params_iter+1]
             Z = self.tf_activation_function(Z)
             # sequential dense layer
             for j in range(1,nlayers-1):
@@ -234,20 +197,11 @@ class Network(tf.Module):
         
     
     def compute_force_stress (self, dEdG, input_dict):
-        """
-        Compute force and stress.
-        
-        Args:
-            dEdG: derivatives of per-atom potential energy w.r.t. descriptors
-            input_dict: input dictionary data
-        
-        Returns: 
-            force per atom and stress tensor
-        """
-        if self.scaling=='std':
-            dEdG = dEdG/self.scaling_factor[1]
-        elif self.scaling=='norm':
-            dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
+        if hasattr(self, 'scaling'):
+            if self.scaling=='std':
+                dEdG = dEdG/self.scaling_factor[1]
+            elif self.scaling=='norm':
+                dEdG = dEdG/(self.scaling_factor[1] - self.scaling_factor[0])
             
         dGdr = input_dict['dGdr']
         if not tf.is_tensor(dGdr):
@@ -289,12 +243,9 @@ class Network(tf.Module):
 
 
 
-    
+    # only used for __call__ method
     def _compute_force_stress (self, dEdG, input_dict):
-        """
-        Only used for __call__ method and C API.
-        The same as compute_force_stress but return force and stress for derivative pairs.
-        """
+
         if self.scaling is not None:
             if tf.math.equal(self.scaling, 'std'):
                 dEdG = dEdG/self.scaling_factor[1]
@@ -326,17 +277,7 @@ class Network(tf.Module):
 
     
     def predict(self, input_dict, compute_force=atomdnn.compute_force, training=False, verbose=False):
-        """
-        Predict energy, force and stress.
 
-        Args:
-            input_dict: input dictionary data
-            compute_force(bool): True to compute force and stress
-            training: True when used during training
-
-        Returns:
-            dictionary: potential energy, force and stress
-        """
         if not self.built:
             self._build()
             self.built = True
@@ -376,12 +317,8 @@ class Network(tf.Module):
 
         
                      
-    
+    # only used for __call__ method
     def _predict(self, input_dict,compute_force=atomdnn.compute_force):
-        """
-        Only used for __call__ method and C API. 
-        Same as :func:`~atomdnn.network.Network.predict`, but returns per-atom potential energy, force and stress for derivative pairs
-        """
 
         fingerprints = input_dict['fingerprints']
 
@@ -405,15 +342,6 @@ class Network(tf.Module):
         
 
     def evaluate(self,dataset,batch_size=None,return_prediction=True,compute_force=atomdnn.compute_force):
-        """
-        Do evaluation on trained model.
-        
-        Args:
-            dataset: tensorflow dataset used for evaluation
-            batch_size: default is total data size
-            return_prediction(bool): True for returning prediction resutls
-            compute_force(bool): True for computing force and stress
-        """
 
         if batch_size is None:
             batch_size = dataset.cardinality().numpy()
@@ -440,37 +368,14 @@ class Network(tf.Module):
             return y_predict
                                                 
 
-    def loss_function (self,true, pred):
-        """
-        Build-in tensorflow loss functions can be used.
-        Customized loss function can be also defined here.
-
-        Args:
-            true (tensorflow tensor): true output data
-            pred (tensorflow tensor): predicted results
-        """
-        if self.loss_fun == 'rmse':
-            tf_loss_fun = tf.keras.losses.get('mse')
-            return tf.sqrt(tf_loss_fun(true,pred))
-        else:
-            tf_loss_fun = tf.keras.losses.get(self.loss_fun)
-            return tf_loss_fun(true, pred)
+    def loss_function (self,true, pred): # customized loss function can be defined here
+        tf_loss_fun = tf.keras.losses.get(self.loss_fun)
+        return tf.sqrt(tf_loss_fun(true,pred))
             
         
         
     def loss(self, true_dict, pred_dict, training=False, validation=False):
-        """
-        Compute losses for energy, force and stress.
-        
-        Args:
-            true_dict(dictionary): dictionary of outputs data
-            pred_dict(dictionary): dictionary of predicted results
-            training(bool): True for loss calculation during training
-            validation(bool): True for loss calculation during validation  
 
-        Returns:
-            if training is true, return total_loss and loss_dict(loss dictionary), otherwise(for evaluation) return loss_dict
-        """
         loss_dict={}
         
         # loss_dict['pe_loss'] = self.loss_function(true_dict['pe'], pred_dict['pe'])
@@ -479,9 +384,7 @@ class Network(tf.Module):
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
             # when evaluation OR train/validation using force OR all losses are requested
             if ((not training and not validation) or ((training or validation) and self.loss_weights['force']!=0)) or self.compute_all_loss:
-                loss_value = tf.reduce_mean(self.loss_function(true_dict['force'], pred_dict['force']))
-                loss_dict['force_loss'] = loss_value
-                # print('    @ggg - loss.shape:', tf.shape(loss_value))
+                loss_dict['force_loss'] = tf.reduce_mean(self.loss_function(true_dict['force'],pred_dict['force']))
                 
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
             # when evaluation OR train/validation using stress OR all losses are requested
@@ -515,16 +418,6 @@ class Network(tf.Module):
 
      
     def train_step(self, input_dict, output_dict, verbose=False):
-        """
-        A single training step.
-
-        Args:
-            input_dict: input dictionary data
-            output_dict: output dictionary data
-
-        Returns:
-            loss dictionary
-        """
         with tf.GradientTape() as tape: # automatically watch all tensorflow variables 
             if self.loss_weights['force']==0 and self.loss_weights['stress']==0 and not self.compute_all_loss:
                 pred_dict = self.predict(input_dict, training=True, compute_force=False)
@@ -538,16 +431,6 @@ class Network(tf.Module):
 
     
     def validation_step(self, input_dict, output_dict):
-        """
-        A single validation step.
- 
-        Args:
-            input_dict: input dictionary data
-            output_dict: output dictionary data
-
-        Returns:
-            loss dictionary
-        """
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0 and not self.compute_all_loss:
             pred_dict = self.predict(input_dict,training=True,compute_force=False)
         else:
@@ -557,9 +440,6 @@ class Network(tf.Module):
     
 
     def compute_scaling_factors(self,train_dataset):
-        """
-        Compute scaling factors using training dataset.
-        """
         self.scaling_factor = []
         fingerprints = get_input_dict(train_dataset)['fingerprints']
         if self.scaling == 'std':
@@ -572,9 +452,6 @@ class Network(tf.Module):
 
         
     def scaling_dataset(self,dataset):
-        """
-        Scaling a dataset with the scaling factors calculated with :func:`~atomdnn.network.Network.compute_scaling_factors`.
-        """
         def map_fun(input_dict,output_dict):
             if self.scaling == 'std':
                 input_dict['fingerprints'] = (input_dict['fingerprints'] - self.scaling_factor[0])/self.scaling_factor[1]
@@ -584,27 +461,8 @@ class Network(tf.Module):
         return dataset.map(map_fun)
 
     
-    def train(self, train_dataset, validation_dataset=None, dropout=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
+    def train(self, train_dataset, validation_dataset=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
               optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False, verbose=False):
-        """
-        Train the neural network.
-
-        Args:
-            train_dataset(tfdataset): dataset used for training
-            validation_dataset(tfdataset): dataset used for validation
-            early_stop(dictionary): condition for stop training, \
-                                    e.g. {'train_loss':[0.01,3]} means stop when train loss is less than 0.01 for 3 times
-            scaling(string): = None, 'std' or 'norm'
-            batch_size: the training batch size
-            epochs: training epochs
-            loss_fun(string): loss function, 'mae', 'mse', 'rmse' and others
-            opimizer(string): any Tensorflow optimizer such as 'Adam'
-            lr(float): learning rate
-            loss_weight(dictionary): weights assigned to loss function, e.g. {'pe':1,'force':1,'stress':0.1}  
-            compute_all_loss(bool): compute loss for force and stress even when they are not used for training
-            shuffle(bool): shuffle training dataset during training
-            append_loss(bool): append loss history 
-        """
 
         if not self.built:            
             self._build()
@@ -647,11 +505,6 @@ class Network(tf.Module):
             batch_size = 30
             print ("batch_size is set to 30 by default.")    
 
-        if dropout:
-            self.dropout = tf.Variable(dropout, dtype=self.data_type)
-        else:
-            self.dropout = tf.Variable(0., dtype=self.data_type)
-            
         if early_stop:
             if 'val_loss' in early_stop and not validation_dataset:
                 raise ValueError('No validation data for early stopping.')
@@ -806,20 +659,13 @@ class Network(tf.Module):
 
         
 
-    def plot_loss(self, start_epoch=1, figsize=(8,5), saveplots=False, folder_id=None, pe_atom_loss_units=None, force_loss_units=None):
-        """
-        Plot the losses.
-        
-        Args:
-            start_epoch: plotting starts from start_epoch 
-            figsize: set the fingersize, e.g. (8.5)
-        """
-
-        mpl.rc('legend', fontsize=15) 
-        mpl.rc('xtick', labelsize=15) 
-        mpl.rc('ytick', labelsize=15) 
-        mpl.rc('axes', labelsize=15) 
-        mpl.rc('figure', titlesize=25)
+    def plot_loss(self, start_epoch=1, figsize=(8,5), saveplots=False, pe_atom_loss_units=None, force_loss_units=None):
+    
+        matplotlib.rc('legend', fontsize=15) 
+        matplotlib.rc('xtick', labelsize=15) 
+        matplotlib.rc('ytick', labelsize=15) 
+        matplotlib.rc('axes', labelsize=15) 
+        matplotlib.rc('figure', titlesize=25)
 
         for key in self.train_loss:
             fig, axs = plt.subplots(1, 1 ,figsize=figsize)
@@ -842,23 +688,12 @@ class Network(tf.Module):
             axs.grid(True)
             if saveplots:
                 print('key:', key)
-                if not isinstance(folder_id, str):
-                    folder_id = str(folder_id)
-                    
-                plt.savefig('plots'+folder_id+'/'+key)
+                plt.savefig('plots/'+key)
             plt.show()
 
 
                                     
 def get_signature(model_dir):
-    """
-    Run shell command 'saved_model_cli show --dir  model_dir  --tag_set serve --signature_def serving_default', 
-    and get the signature of the network from the shell outputs.
-    SavedModel Command Line Interface (CLI) is a Tensorflow tool to inspect a SavedModel.
-
-    Args:
-        model_dir: directory for a saved neural network model
-    """
     stream = os.popen('saved_model_cli show --dir '+ model_dir +' --tag_set serve --signature_def serving_default')
     output = stream.read()
     lines = output.split('\n')
@@ -886,25 +721,12 @@ def get_signature(model_dir):
 
 
 def print_signature(model_dir):
-    """
-    Print the neural network signature.
-
-    Args:
-        model_dir: directory for a saved neural network model
-    """
     stream = os.popen('saved_model_cli show --dir '+ model_dir +' --tag_set serve --signature_def serving_default')
     output = stream.read()
     print(output)
     
    
 def save(obj, model_dir, descriptor=None):
-    """
-    Save a trained model.
-
-    Args:
-        model_dir: directory for the saved neural network model
-        descriptor(dictionary): descriptor parameters, used for LAMMPS prediction
-    """
     tf.saved_model.save(obj, model_dir)
     if descriptor is not None:
         input_tag, input_name, output_tag, output_name = get_signature(model_dir)
@@ -940,12 +762,6 @@ def save(obj, model_dir, descriptor=None):
 
         
 def load(model_dir):
-    """
-    Load a saved model.
-
-    Args:
-        model_dir: directory of a saved neural network model
-    """
     if model_dir:
         return Network(import_dir = model_dir)
     else:

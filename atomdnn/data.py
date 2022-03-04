@@ -6,7 +6,10 @@ import time
 import atomdnn
 import random
 import shutil
-from ase.io import read,write        
+from ase.io import read,write
+from atomdnn.descriptor import get_filenames
+import glob
+from atomdnn import color
 
 # slice dictionary
 def slice_dict (data_dict, start, end):
@@ -24,9 +27,15 @@ def pad(iterable, size, padding=None):
 
     
 class Data(object):
+    """
+    Create Data object, with an option to read inputs and outputs. \
+    Parameters are explained in :func:`~atomdnn.data.Data.read_inputdata`.
+    """
+
     
-    def __init__(self,fp_filename=None, der_filename=None, image_num=None):
-                
+    def __init__(self, descriptors_path=None, fp_filename=None, der_filename=None, image_num=None, \
+                 xyzfile_path=None, xyzfile_name=None, read_der=atomdnn.compute_force):
+
         self.data_type = atomdnn.data_type
         
         if self.data_type == 'float32':
@@ -36,324 +45,397 @@ class Data(object):
         else:
             raise ValueError('data_type has to be \'float32\' or \'float64\'.')
             
-        self.num_images = None # number of fingerprints files
-        self.num_fingerprints = None # number of fingerprints
-        self.num_atoms = None # max number of atoms among all fingerprints files
-        self.natoms_in_fpfiles = None # number of atoms per image in fingerprints files
-        self.num_atoms_in_forcefiles = None # number of atoms per image in force files
-
-        self.num_types = None        
-        self.num_images_der = None # number of derivative files
-        self.num_fingerprints_der = None # number of fingerprints der
-        self.maxnum_blocks = None # max number of blocks among all derivative files
-        self.num_blocks_list = None # number of data block per image
+        self.print_inputinfo_together = False
 
         self.input_dict = {}
         self.output_dict = {}
+        self.num_atoms = None
+        
+        if descriptors_path is not None and fp_filename is not None:
+            self.read_fingerprints_from_lmpdump(descriptors_path,fp_filename,image_num)
+            if read_der and der_filename is not None:
+                self.read_der_from_lmpdump(descriptors_path,der_filename,image_num)
+        if xyzfile_path is not None and xyzfile_name is not None:
+            self.read_outputdata(xyzfile_path,xyzfile_name,image_num)
+
 
         
-        if fp_filename is not None and der_filename is not None:
-            self.read_inputdata(fp_filename,der_filename,image_num)  
-        elif fp_filename is not None:
-            self.read_inputdata(fp_filename,image_num)
-
+    def read_inputdata(self, descriptors_path, fp_filename, der_filename=None, image_num=None, skip=0, append=False, verbose=False,read_der=atomdnn.compute_force):
+        """
+        Read input data from :func:`~atomdnn.data.Data.read_fingerprints_from_lmpdump` and :func:`~atomdnn.data.Data.read_der_from_lmpdump`.
         
-    def read_inputdata(self,fp_filename=None, der_filename=None, image_num=None, append=False, read_der=atomdnn.compute_force):
+        Args:
+            descriptors_path: directory to descriptor files
+            fp_filename: file names for descriptors, use '*' for multiple files order numerically
+            der_filename: file names for derivatives, use '*' for multiple files order numerically
+            image_num: None if read all files given by the fp_filename
+            skip(int): skip some images 
+            append(bool): True if append inputs to already existing data object
+            verbose(bool): True to show all reading file names 
+            read_der(bool): True if read derivatives
 
-        self.read_fingerprints_from_lmpdump(fp_filename,image_num, append)
+        """
+        if append and len(self.input_dict)==0:
+            print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
+            append = False
 
+        self.print_inputinfo_together = True
+        
+        self.read_fingerprints_from_lmpdump(descriptors_path,fp_filename,image_num,skip,append,verbose)
         if read_der:
-            self.read_der_from_lmpdump(der_filename,image_num, append)
+            self.read_der_from_lmpdump(descriptors_path,der_filename,image_num,skip,append,verbose)
 
+        print('\n---------- input dataset information ----------')
+        print('total images = %d' % self.num_images)
+        print('max number of atoms = %d' % self.maxnum_atoms)
+        print('number of fingerprints = %d' % self.num_fingerprints)
+        print('number of atom types = %d' % self.num_types)
+        print('max number of derivative pairs = %d' % self.maxnum_blocks)
+        print('------------------------------------------------')
 
         
-    def read_fingerprints_from_lmpdump(self, fp_filename=None, image_num=None, append=False):
+    def read_fingerprints_from_lmpdump(self, descriptors_path, fp_filename, image_num=None, skip=0, append=False,verbose=False):
+        """
+        Read descriptors(fingerprints), atom_type and volume from the descriptor files created with LAMMPS, and save them into data object.
+        """
+        if append and len(self.input_dict)==0:
+            print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
+            append = False
 
         if not append:
-            self.input_dict['fingerprints'] = []
-            self.input_dict['atom_type'] = []
-            self.input_dict['volume'] = []
-            self.natoms_in_fpfiles = []
-            start_image = 0
-        else:
-            start_image = len(self.natoms_in_fpfiles)
-            
-            
-        fd = start_image # count file
-        maxnum_atom = 0 # max number of atoms among all the images
-            
-        if fp_filename.split('.')[-1] == '*':
-            batch_mode = 1
-            fp_filename = fp_filename[:-2]
-        else:
-            batch_mode = 0
+            self.natoms_list=[]
+            self.ntypes_list=[]
 
-        if not batch_mode:
-            image_num = 1
-            print("\nReading fingerprints data from LAMMPS dump files %s" % (fp_filename))
+        files = get_filenames(descriptors_path,fp_filename)[skip:]
+        
+        if image_num is not None and image_num<len(files):
+            nfiles = image_num
         else:
-            print("\nReading fingerprints data from LAMMPS dump files %s" % (fp_filename+'.i'))
-            
-        while (1):
-            if image_num:
-                if fd-start_image+1>image_num:
-                    break
-            if batch_mode:
-                filename = fp_filename + '.' + str(fd-start_image)
+            nfiles = len(files)
+
+        if nfiles==0:
+            raise ValueError('Cannot find \'%s\' in \'%s\''%(fp_filename,descriptor_path))
+
+        print ("Start reading fingerprints from \'%s\' for total %i files ..."%(fp_filename,nfiles))
+
+        maxnum_atoms = 0 # max number of atoms among all the images
+        # screen all the files, get the number of atoms and check data consistance
+        for i in range(nfiles):
+            f = open(files[i],'r')
+            lines = f.readlines()[9:]
+            f.close()
+            natoms = len(lines)
+            if natoms > maxnum_atoms:
+                maxnum_atoms = natoms
+            self.natoms_list.append(natoms)
+            if i==0:
+                num_fingerprints = len(lines[0].split())-2
+                if append and num_fingerprints != self.num_fingerprints:
+                    raise ValueError("The number of fingerprints not equall to the one in existing dataset.")
             else:
-                filename = fp_filename
-
-            print('filenamee:', filename)
-            if os.path.isfile(filename):
-                try:
-                    file = open(filename)
-                except OSError:
-                    raise OSError('Could not open file %s' % filename)
-                
-                lines = file.readlines()
-                file.close()
-                print('fd:', fd)
-                count_atom = 0
-                self.input_dict['fingerprints'].append([])
-                self.input_dict['atom_type'].append([])
-                self.input_dict['volume'].append([])
-                lx = self.str2float(lines[5].split()[1]) - self.str2float(lines[5].split()[0])
-                ly = self.str2float(lines[6].split()[1]) - self.str2float(lines[6].split()[0])
-                lz = self.str2float(lines[7].split()[1]) - self.str2float(lines[7].split()[0])
-                volume = lx*ly*lz
-                self.input_dict['volume'][fd].append(volume)
-                for line in lines[9:]:
-                    count_atom += 1
-                    line = line.split()
-                    self.input_dict['atom_type'][fd].append(int(line[1]))
-                    self.input_dict['fingerprints'][fd].append([self.str2float(x) for x in line[2:]])
-                    
-                self.natoms_in_fpfiles.append(count_atom)
-                fd += 1
-                if fd-start_image > 0 and int((fd-start_image)%50)==0:
-                    print ('  so far read %d images ...' % fd,flush=True)
+                if num_fingerprints != len(lines[0].split())-2:
+                    raise ValueError("The number of fingerprints in \'%s\'(%i) is different from \'%s\' (%i)."\
+                                     %(os.path.basename(files[0]),(len(lines[0].split())-2),os.path.basename(files[i]),num_fingerprints))
+        if append:
+            if self.maxnum_atoms > maxnum_atoms:
+                maxnum_atoms = self.maxnum_atoms
+                padding = False
             else:
-                break
-            
+                padding = True
                 
-        print('  Finish reading fingerprints from total %i images.\n' % len(self.input_dict['fingerprints']), flush=True)
-        maxnum_atom = max(self.natoms_in_fpfiles)
+        fingerprints = np.zeros([nfiles,maxnum_atoms,num_fingerprints],dtype=self.data_type)
+        atom_type = np.zeros([nfiles,maxnum_atoms],dtype='int32')
+        volume = np.zeros([nfiles,1],dtype=self.data_type)
 
-        # pad zeros if the atom number is less than maxnum_atom
-        for i in range(len(self.input_dict['fingerprints'])):
-            if len(self.input_dict['fingerprints'][i]) < maxnum_atom:
-                print('  Pad image %i with zeros fingerprints.'%(i+1))
-                zeros = [0] * len(self.input_dict['fingerprints'][i][0])
-                self.input_dict['fingerprints'][i] = list(pad(self.input_dict['fingerprints'][i],maxnum_atom,zeros))
+        # read finterprints, atom_type and volumes
+        for i in range(nfiles):
+            f = open(files[i],'r')
+            lines = f.readlines()
+            f.close()
+
+            lx = self.str2float(lines[5].split()[1]) - self.str2float(lines[5].split()[0])
+            ly = self.str2float(lines[6].split()[1]) - self.str2float(lines[6].split()[0])
+            lz = self.str2float(lines[7].split()[1]) - self.str2float(lines[7].split()[0])            
+            volume[i] = [lx*ly*lz]
+            
+            for j,line in enumerate(lines[9:]): # loop inside each file
+                line = line.split()
+                atom_type[i][j] = int(line[1])
+                fingerprints[i][j] = [self.str2float(x) for x in line[2:]]
+            self.ntypes_list.append(max(atom_type[i]))
+            
+            if verbose:
+                print("  file-%i: read fingerprints from \'%s\'."%(i+1,os.path.basename(files[i])))
+            if int((i+1)%50)==0:
+                print ('  so far read %d images ...' % (i+1),flush=True)  
+
+        if not append:
+            self.input_dict['fingerprints'] = fingerprints
+            self.input_dict['atom_type'] = atom_type
+            self.input_dict['volume'] = volume
+            self.maxnum_atoms = maxnum_atoms
+            self.num_fingerprints = num_fingerprints
+        else:
+            if padding: # pad existing data
+                print('Pad existing dataset.')
+                pad_size = maxnum_atoms - self.maxnum_atoms
+                self.input_dict['fingerprints'] = \
+                    np.pad(self.input_dict['fingerprints'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
+                self.input_dict['atom_type'] = \
+                    np.pad(self.input_dict['atom_type'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
+                self.maxnum_atoms = maxnum_atoms
+
+            self.input_dict['fingerprints'] = np.concatenate((self.input_dict['fingerprints'],fingerprints),axis=0)
+            self.input_dict['atom_type'] = np.concatenate((self.input_dict['atom_type'],atom_type),axis=0)
+            self.input_dict['volume'] = np.concatenate((self.input_dict['volume'],volume),axis=0)
+     
+        print('  Finish reading fingerprints from total %i images.\n' % nfiles,flush=True)
         
         self.num_images = np.shape(self.input_dict['fingerprints'])[0]
         self.num_atoms = np.shape(self.input_dict['fingerprints'])[1]
         self.num_fingerprints = np.shape(self.input_dict['fingerprints'])[2]
-        self.num_types = max(self.input_dict['atom_type'][0])
+        self.num_types = max(self.ntypes_list)
 
-        # self.input_dict['fingerprints'] = tf.convert_to_tensor(self.input_dict['fingerprints'],dtype=self.data_type)
-        # self.input_dict['atom_type'] = tf.convert_to_tensor(self.input_dict['atom_type'],dtype='int32')
-        # self.input_dict['volume'] = tf.convert_to_tensor(self.input_dict['volume'],dtype=self.data_type)
+        if not self.print_inputinfo_together:
+            print('total images in dataset = %d' % self.num_images,flush=True)
+            print('max number of atoms in dataset= %d' % self.maxnum_atoms,flush=True)
+            print('number of fingerprints in dataset= %d' % self.num_fingerprints,flush=True)
+            print('type of atoms in dataset= %d' % self.num_types)  
+
         
-        print('  image number = %d' % self.num_images)
-        print('  max number of atom = %d' % self.num_atoms)
-        print('  number of fingerprints = %d' % self.num_fingerprints)
-        print('  type of atoms = %d' % self.num_types)            
 
 
+    def read_der_from_lmpdump(self,descriptor_path, der_filename, image_num=None,skip=0,append=False,verbose=False):
+        """
+        Read derivatives of fingerprints w.r.t. coordinates (dGdr), neibhor_atom_coord, center_atom_id, neighbor_atom_id.        
+        """
 
-                
-    def read_der_from_lmpdump(self,der_filename=None,image_num=None,append=False):
-       
-        # ==============================================================================
-        #
-        # variable used for force and stress calcualtion 
-        #
-        # dGdr: the derivative of fingerprints w.r.t atom coordiantes
-        #
-        # neighbor_atom_coord: 4D array to store the neighbor atom coordinates 
-        #                      e.g. "neighbor_atom_coord[0][1][2][0]" means that: in the first image, 
-        #                      in the second derivative data block, the z coordiate of the neighbor atom. 
-        #                      Note that the last dimension of the array is 1 which is added for matrix 
-        #                      multiplication in neural network force_stress_layer.
-        #
-        # center_atom_id: 2D array to store the center atom ID
-        #                 e.g. "center_atom_id[0][1]=3" means that: in the first image, 
-        #                 in the second derivative data block, the center atom ID is 3. 
-        #                 The center atoms are non ghost atoms.
-        #
-        # neighbor_atom_id: 2D array to store the neighbor atom ID
-        #                   e.g. "neighbor_atom_id[0][1]=5" means that: in the first image, 
-        #                   in the second derivatve data block, the center atom's neigbor atom ID is 5. 
-        #                   Note that the neighbors could be ghost atoms.
-        #
-        #===================================================================================
+        if append and len(self.input_dict)==0:
+            print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
+            append = False
 
         if not append:
-            self.input_dict['dGdr']=[]
-            self.input_dict['neighbor_atom_coord']=[]
-            self.input_dict['center_atom_id']=[]
-            self.input_dict['neighbor_atom_id']=[]
             self.num_blocks_list=[]
-            start_image = 0
-        else:
-            start_image = len(self.input_dict['dGdr'])
 
-        if der_filename.split('.')[-1] == '*':
-            batch_mode = 1
-            der_filename = der_filename[:-2]
-        else:
-            batch_mode = 0
+        files = get_filenames(descriptor_path,der_filename)[skip:]
 
-        if not batch_mode:
-            image_num = 1
-            print("\nReading derivative data from one file %s" % der_filename)
+        if image_num is not None and image_num<len(files):
+            nfiles = image_num
         else:
-            print("\nReading derivative data from a series of files %s" % (der_filename+'.i'))
+            nfiles = len(files)
+        if nfiles==0:
+            raise ValueError('Cannot find \'%s\' in \'%s\''%(der_filename,descriptor_path))
 
-        print('This may take a while for large data set ...')
-        
+        print("\nStart reading derivatives from \'%s\' for total %i files ..."%(der_filename,nfiles))
+        print('  This may take a while for large data set ...')
+       
         start_time = time.time()    
-        fd = start_image # count image
-            
-        while(1):
-            if image_num:
-                if fd-start_image+1>image_num:
-                    break
-            if batch_mode:
-                filename = der_filename +'.'+ str(fd-start_image)
+
+        maxnum_blocks = 0 # max number of block in the reading input dataset
+        
+        # screen all the derivative files, get the number of derivative pairs(blocks) and check data consistance
+        for i in range(nfiles):
+            in_file = open(files[i], 'r')
+            lines = in_file.readlines()[9:]
+            nlines = len(lines)
+            if nlines%3 != 0:
+                raise ValueError('The derivative file \'%s\' has the wrong line number.'%os.path.basename(files[i]))
+            nblocks = int(nlines/3)
+            if nblocks > maxnum_blocks:
+                maxnum_blocks = nblocks
+            self.num_blocks_list.append(nblocks)
+            if i==0:
+                num_fingerprints =  len(lines[0].split())-3
+                if append and num_fingerprints != self.num_fingerprints:
+                    raise ValueError("The number of fingerprints not equall to the one in existing dataset.")
             else:
-                filename = der_filename
-
-            print('der_filename:', filename)
-            if os.path.isfile(filename):
-                self.input_dict['dGdr'].append([])
-                self.input_dict['neighbor_atom_coord'].append([])
-                self.input_dict['center_atom_id'].append([])
-                self.input_dict['neighbor_atom_id'].append([])
-                in_file = open(filename, 'r')
-                lines = in_file.readlines()[9:]
-                in_file.close()
-                lines = [lines[i].split() for i in range(len(lines))]
-                for i in range(0,len(lines),3):
-                    block = lines[i:i+3]
-                    self.input_dict['center_atom_id'][fd].append(int(block[1][0])-1) # center atom id, -1 to help with idexing
-                    self.input_dict['neighbor_atom_id'][fd].append(int(block[1][1])-1) # neighbor atom id, -1 to help with idexing
-                    self.input_dict['neighbor_atom_coord'][fd].append([[self.str2float(row[2])] for row in block[0:]])
-                    self.input_dict['dGdr'][fd].append([[self.str2float(x[i]) for x in block[0:]]for i in range(3,len(block[0]))])  
-                self.num_blocks_list.append(int(len(lines)/3))
-                fd += 1
-                if fd-start_image > 0 and int((fd-start_image)%50)==0:
-                    print ('  so far read %d images ...' % fd,flush=True)
+                if num_fingerprints != len(lines[0].split())-3:
+                    raise ValueError("The number of fingerprints in \'%s\'(%i) is different from \'%s\' (%i)."\
+                                     %(os.path.basename(files[0]),(len(lines[0].split())-3),os.path.basename(files[i]),num_fingerprints))
+        if append:
+            if self.maxnum_blocks > maxnum_blocks:
+                maxnum_blocks = self.maxnum_blocks
+                padding = False # do not pad existing data
             else:
-                break
-        print('  Finish reading dGdr derivatives from total %i images.\n'% len(self.input_dict['dGdr']),flush=True)
-        maxnum_blocks = max(self.num_blocks_list)
+                padding = True # pad existing data
 
-        print('  Pad zeros to derivatives data if needed ...',flush=True)
-        # pad zeros if the blocks is less than maxnum_blocks
-        count_pad = 0
-        for i in range(len(self.input_dict['dGdr'])):
-            if len(self.input_dict['dGdr'][i]) < maxnum_blocks:
-                self.input_dict['center_atom_id'][i] = list(pad(self.input_dict['center_atom_id'][i],maxnum_blocks,0))
-                self.input_dict['neighbor_atom_id'][i] = list(pad(self.input_dict['neighbor_atom_id'][i],maxnum_blocks,-1))
-                zeros = [[0]]*3
-                self.input_dict['neighbor_atom_coord'][i] = list(pad(self.input_dict['neighbor_atom_coord'][i],maxnum_blocks,zeros))
-                zeros = [[0]*3]*len(self.input_dict['dGdr'][i][0])
-                self.input_dict['dGdr'][i] = list(pad(self.input_dict['dGdr'][i],maxnum_blocks,zeros))
-                count_pad += 1
-                if int((count_pad)%50)==0:
-                    print ('  so far paded %d images ...' % count_pad,flush=True)
- 
-        if count_pad ==0:
-            print('  Pading is not needed.')
-        else:
-            print('  Pading finished: %i images derivatives have been padded with zeros.'%count_pad,flush=True)
-        self.num_images_der = np.shape(self.input_dict['dGdr'])[0]
-        self.maxnum_blocks = maxnum_blocks
-        self.num_fingerprints_der = np.shape(self.input_dict['dGdr'])[2]
-        
-        print('\n  image number = %d' % self.num_images_der,flush=True)
-        print('  max number of derivative pairs = %d' % self.maxnum_blocks,flush=True)
-        print('  number of fingerprints = %d' % self.num_fingerprints_der,flush=True)
-        
-        end_time = time.time()
-        print('\n  It took %.2f seconds to read the derivatives data.'%(end_time-start_time),flush=True)
+        dGdr = np.zeros([nfiles,maxnum_blocks,num_fingerprints,3],dtype=self.data_type)
+        neighbor_atom_coord = np.zeros([nfiles,maxnum_blocks,3,1],dtype=self.data_type)
+        center_atom_id = np.zeros([nfiles,maxnum_blocks],dtype='int32')
+        neighbor_atom_id = np.ones([nfiles,maxnum_blocks],dtype='int32')*(-1)
 
+        for i in range(nfiles):
+            in_file = open(files[i], 'r')
+            lines = in_file.readlines()[9:]
+            in_file.close()
+            lines = [lines[j].split() for j in range(len(lines))]
+            ipair = 0
+            for j in range(0,len(lines),3):
+                block = lines[j:j+3]
+                center_atom_id[i][ipair] = int(block[1][0])-1 # center atom id, -1 to help with idexing
+                neighbor_atom_id[i][ipair] = int(block[1][1])-1 # neighbor atom id, -1 to help with idexing
+                neighbor_atom_coord[i][ipair] = np.array([[self.str2float(row[2])] for row in block[0:]])
+                dGdr[i][ipair] = np.array([[self.str2float(x[k]) for x in block[0:]]for k in range(3,len(block[0]))])
+                ipair += 1
+            if verbose:
+                print("  file-%i: read derivatives from \'%s\'."%(i+1,os.path.basename(files[i])))
+            if int((i+1)%50)==0:
+                print ('  so far read %d images ...' % (i+1),flush=True)
+                
+        if not append:
+            self.input_dict['center_atom_id'] = center_atom_id
+            self.input_dict['neighbor_atom_id'] = neighbor_atom_id
+            self.input_dict['neighbor_atom_coord'] = neighbor_atom_coord
+            self.input_dict['dGdr'] = dGdr
+            self.maxnum_blocks = maxnum_blocks
+            self.num_fingerprints = num_fingerprints
+        else: 
+            if padding: # pad existing data
+                print ('  \nPadding existing dataset because number of derivative pairs increased in new data.')
+                pad_size = maxnum_blocks - self.maxnum_blocks 
+                self.input_dict['center_atom_id'] = \
+                    np.pad(self.input_dict['center_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
+                self.input_dict['neighbor_atom_id'] = \
+                    np.pad(self.input_dict['neighbor_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(-1))
+                self.input_dict['neighbor_atom_coord'] = \
+                    np.pad(self.input_dict['neighbor_atom_coord'], ((0,0),(0,pad_size),(0,0),(0,0)),'constant',constant_values=(0))
+                self.input_dict['dGdr'] = \
+                    np.pad(self.input_dict['dGdr'], ((0,0),(0,pad_size),(0,0),(0,0)),'constant',constant_values=(0))
+                self.maxnum_blocks = maxnum_blocks
+                                
+            self.input_dict['center_atom_id'] = np.concatenate((self.input_dict['center_atom_id'],center_atom_id),axis=0)
+            self.input_dict['neighbor_atom_id'] = np.concatenate((self.input_dict['neighbor_atom_id'],neighbor_atom_id),axis=0)
+            self.input_dict['neighbor_atom_coord'] = np.concatenate((self.input_dict['neighbor_atom_coord'],neighbor_atom_coord),axis=0)
+            self.input_dict['dGdr'] = np.concatenate((self.input_dict['dGdr'],dGdr),axis=0)
+
+        print('  Finish reading dGdr derivatives from total %i images.\n'% nfiles,flush=True)
+
+        if not self.print_inputinfo_together:
+            print('total images in dataset = %d' % len(self.input_dict['center_atom_id']),flush=True)
+            print('max number of derivative pairs = %d' % self.maxnum_blocks,flush=True)
+            print('number of fingerprints = %d' % self.num_fingerprints,flush=True)
+        print('  It took %.2f seconds to read the derivatives data.'%(time.time()-start_time),flush=True)
 
         
         
-    def read_outputdata(self, xyzfile_path=None, xyzfile_name=None, read_force=True, read_stress=True, image_num=None, append=False, verbose=False):
+    def read_outputdata(self, xyzfile_path, xyzfile_name, image_num=None, skip=0, append=False, verbose=False, \
+                        read_force=atomdnn.compute_force, read_stress=atomdnn.compute_force): 
+        """
+        Read outputs(energy, force and stress) from extxyz files
+
+        Args:
+            xyzfile_path: directory contains a serials of extxyz files of input atomic structures
+            xyzfile_name: extxyz filename, wildcard * is used for files numerically ordered
+            read_force(bool): make sure extxyz files have force data if it's True 
+            read_stress(bool): make sure extxyz files have stress data if it's True
+            image_num: number of images that will be used, if it's None then read all files specified by xyzfile_name
+            append(bool): append the reading to previous data object
+            verbose(bool): set to True if want to print out the extxyz file names 
+        """
+        if append and len(self.output_dict)==0:
+            print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
+            append = False
 
         if not append:
-            self.output_dict['pe'] = []
-            if read_stress:
-                self.output_dict['stress'] = []
-            if read_force:
-                self.output_dict['force'] = []
-                self.natoms_in_force = []
-            start_image = 0
-        else:
-            start_image = len(self.output_dict['pe'])
+            self.natoms_in_force=[]
+            
+        files = get_filenames(xyzfile_path,xyzfile_name)[skip:] # get filenames that match the patten given in xyzfile_name
         
+        if image_num is not None and image_num<len(files):
+            nfiles = image_num
+        else:
+            nfiles = len(files)
+
+        if nfiles==0:
+            raise ValueError('Cannot find \'%s\' in \'%s\''%(xyzfile_filename,xyzfile_path))
+
         print("Reading outputs from extxyz files ...")
 
-        if xyzfile_name.split('.')[-1] == '*':
-            batch_mode = 1
-            xyzfile_name = xyzfile_name[:-2]
-        else:
-            batch_mode = 0    
-        if not batch_mode:
-            image_num = 1
+        maxnum_atoms = 0
+        for i in range(nfiles):
+            file = open(files[i])
+            natoms = int(file.readlines()[0])
+            file.close()
+            self.natoms_in_force.append(natoms)
+            if natoms > maxnum_atoms:
+                maxnum_atoms = natoms
 
-        fd = start_image # count image
-        while (1):
-            if image_num:
-                if fd-start_image+1>image_num:
-                    break
-            if batch_mode:
-                filename = xyzfile_path + '/' + xyzfile_name +'.'+ str(fd-start_image)
+        if append:
+            if self.maxnum_atoms_output > maxnum_atoms:
+                maxnum_atoms = self.maxnum_atoms_output
+                padding = False
             else:
-                filename = xyzfile_path + '/' + xyzfile_name
+                padding = True
+
+        pe = np.zeros(nfiles, dtype=self.data_type)
+        pe_atom = np.zeros(nfiles, dtype=self.data_type)
+        if read_force:
+            force = np.zeros([nfiles,maxnum_atoms,3],dtype=self.data_type)
+        if read_stress:
+            stress = np.zeros([nfiles,6],dtype=self.data_type)
+
+        for i in range(nfiles):
+            patom = read(files[i], format='extxyz')
+            pe[i] = patom.get_potential_energy()
+            pe_atom[i] = pe[i]/self.num_atoms
+            if read_force:
+                force[i] = patom.get_forces(patom)
+            if read_stress:
+                stress[i] = patom.get_stress(patom)
 
             if verbose:
-                print('filename:', filename)
+                if read_force and read_stress:
+                    print('  file-%i: read potential energy, forces and stress from \'%s\''\
+                          %(i+1, os.path.basename(files[i])))
+                elif read_force:
+                    print('  file-%i: read potential energy and forces from \'%s\''\
+                          %(i+1, os.path.basename(files[i])))
+                elif read_stress:
+                    print('  file-%i: read potential energy and stress from \'%s\''\
+                          %(i+1, os.path.basename(files[i])))
+                else:
+                    print('  file-%i: read potential energy from \'%s\''\
+                          %(i+1, os.path.basename(files[i])))
+            if int((i+1)%50)==0:
+                print ('  so far read %d images ...' % (i+1),flush=True)
 
-            if os.path.isfile(filename):
-                patom = read(filename, index=':', format='extxyz')[0]
-                pe = patom.get_potential_energy()
-                self.output_dict['pe'].append(pe)
-                if read_force:
-                    force = patom.get_forces(patom)
-                    self.output_dict['force'].append(force)
-                    self.natoms_in_force.append(len(force))
-                if read_stress:
-                    stress = patom.get_stress()
-                    
-                    self.output_dict['stress'].append(stress)
-                fd += 1
-                if fd-start_image > 0 and int((fd-start_image)%50)==0:
-                    print ('  so far read %d images ...' % fd,flush=True)
-            else:
-                break
-            
-        print('  Finish reading outputs from total %i images.\n' % len(self.output_dict['pe']),flush=True)
-        if read_force:
-            maxnum_atom = max(self.natoms_in_force)
-
-        # pad zeros if the atom number is less than maxnum_atom
-        if read_force:
-            for i in range(len(self.output_dict['force'])):
-                if len(self.output_dict['force'][i]) < maxnum_atom:
-                    print('  Pad image %i with zeros forces.'%(i+1))
-                    zeros = [0] * 3
-                    self.output_dict['force'][i] = list(pad(self.output_dict['force'][i],maxnum_atom,zeros))
+        if not append:
+            self.output_dict['pe'] = pe
+            self.output_dict['pe/atom'] = pe_atom
+            if read_force:
+                self.output_dict['force'] = force
+            if read_stress:
+                self.output_dict['stress'] = stress
+            self.maxnum_atoms_output = maxnum_atoms
+        else:
+            if padding and read_force:
+                print('Pad existing dataset force since the atom number in new data is increased.')
+                pad_size = maxnum_atoms - self.maxnum_atoms_output
+                self.output_dict['force'] = \
+                    np.pad(self.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
                 
+            self.output_dict['pe'] = np.concatenate((self.output_dict['pe'], pe),axis=0)
+            self.output_dict['pe/atom'] = np.concatenate((self.output_dict['pe/atom'], pe_atom),axis=0)
+            
+            if read_force:
+                self.output_dict['force'] = np.concatenate((self.output_dict['force'],force),axis=0)
+            if read_stress:
+                self.output_dict['stress'] = np.concatenate((self.output_dict['stress'],stress),axis=0)
+                
+        print('  Finish reading outputs from total %i images.\n' % nfiles,flush=True)
 
-                    
+        print('\n---------- output dataset information ------------')
+        print('total images = %d' % len(self.output_dict['pe']))
+        print('max number of atoms = %d' % self.maxnum_atoms_output)
+        if read_force:
+            print('read_force = True')
+        if read_stress:
+            print('read_stress = True')
+        print('---------------------------------------------------')
+
+
     def shuffle(self):
-        zipped = list(zip(*[self.input_dict[keys] for keys in list(self.input_dict.keys())],*[self.output_dict[keys] \
-                                                                                for keys in list(self.output_dict.keys())]))
+        zipped = list(zip(*[self.input_dict[keys] for keys in list(self.input_dict.keys())],*[self.output_dict[keys] for keys in list(self.output_dict.keys())]))
         random.shuffle(zipped)
         unzipped= list(zip(*zipped))
         i=0
@@ -367,66 +449,39 @@ class Data(object):
 
 
         
-        
-    def create_tf_dataset(self, train_pct=None, val_pct=None, test_pct=None, shuffle=False, data_size=None):
-
-        self.check_data() # check the data
-        
-        if not data_size:
-            data_size = self.num_images
-
-        if not train_pct:
-            raise ValueError('Need to set the percentage of data used for tranining.')
-        
-        if not val_pct:
-            val_pct = 0
-            print ("No data are used for validatiaon by default." % val_pct)
-            
-        if not test_pct:
-            test_pct = 0
-            print ("No data are used for test by default." % test_pct)
-
-        if train_pct+val_pct+test_pct>1:
-            raise ValueError('Percentages are not correct.')
-            
-        train_size = int(train_pct * data_size)
-        val_size = int(val_pct * data_size)
-        test_size = int(test_pct * data_size)
-
-        print('Traning data: %d images'% train_size)
-        print('Validation data: %d images'% val_size )
-        print('Test data: %d images'% test_size)
-
-        if not shuffle:
-            print ('Data are not shuffled by default, set shuffle=True if needed.')
-
-        print("Creating tensorflow datasets, this may take more than 10 minites for large dataset ...")
-        start_time = time.time()
-        full_dataset = tf.data.Dataset.from_tensor_slices((self.input_dict, self.output_dict))
-        if shuffle:
-            full_dataset.shuffle(buffer_size= full_dataset.cardinality().numpy())
-        train_dataset = full_dataset.take(train_size)
-        val_dataset = full_dataset.skip(train_size).take(val_size)
-        test_dataset = full_dataset.skip(train_size+val_size).take(test_size)
-        del full_dataset
-        end_time = time.time()
-        print('It took %.3f seconds to create tensorflow datasets' % (end_time-start_time))
-        
-        return train_dataset,val_dataset,test_dataset
-
-
-    
-        
     def slice(self, start=None, end=None):   
         # check data
         self.check_data()            
         input_dict = slice_dict(self.input_dict, start, end)
         output_dict = slice_dict(self.output_dict, start, end)
         return input_dict, output_dict
-    
+        
+
+
+    def convert_data_to_tensor(self):
+        """
+        Convert the input and ouput data to Tensorflow tensors. This can speed up the data manipulation using Tensorflow functions.
+        """
+        self.check_data()
+        print('Conversion may take a while for large datasets...',flush=True)
+        start_time = time.time()
+        for key in self.output_dict:
+            self.output_dict[key] = tf.convert_to_tensor(self.output_dict[key],dtype=self.data_type)
+
+        for key in self.input_dict:
+            if key=='fingerprints' or key=='volume' or key=='dGdr' or key=='neighbor_atom_coord':
+                self.input_dict[key] = tf.convert_to_tensor(self.input_dict[key],dtype=self.data_type)
+            else:
+                self.input_dict[key] = tf.convert_to_tensor(self.input_dict[key],dtype='int32')
+        end_time = time.time()
+        print('It took %.4f second.'%(end_time-start_time),flush=True)
 
         
+
     def check_data(self):
+        """
+        Check consistance of input and output data.
+        """
         if 'fingerprints' in list(self.input_dict.keys()):            
             if 'dGdr' in list(self.input_dict.keys()):
                 if len(self.input_dict['fingerprints']) != len(self.input_dict['dGdr']):
@@ -441,79 +496,89 @@ class Data(object):
             if 'force' in list(self.output_dict.keys()):
                 if self.num_images != len(self.output_dict['force']):
                     raise ValueError("The image numbers of fingerprints files and force files are not consistant.")
-                if self.natoms_in_fpfiles != self.natoms_in_force:
+                if self.natoms_list != self.natoms_in_force:
                     raise ValueError("The atom numbers in fingerprints files and force files are not consistant.")
             if 'stress' in list(self.output_dict.keys()):
                 if self.num_images != len(self.output_dict['stress']):
-                    raise ValueError("The image numbers of fingerprints files and stress files are not consistant.")            
+                    raise ValueError("The image numbers of fingerprints files and stress files are not consistant.")           
         else:
             raise ValueError('No fingerprints in input data.')
-
-
-
-    def convert_data_to_tensor(self):
-        #self.check_data()
-        print('Conversion may take a while for large datasets...',flush=True)
-        start_time = time.time()
-        for key in self.output_dict:
-            self.output_dict[key] = tf.convert_to_tensor(self.output_dict[key],dtype=self.data_type)
-
-        for key in self.input_dict:
-            if key=='fingerprints' or key=='volume' or key=='dGdr' or key=='neighbor_atom_coord':
-                self.input_dict[key] = tf.convert_to_tensor(self.input_dict[key],dtype=self.data_type)
-            else:
-                self.input_dict[key] = tf.convert_to_tensor(self.input_dict[key],dtype='int32')
-        end_time = time.time()
-        print('It took %.4f second.'%(end_time-start_time),flush=True)
 
 
 
 #=================================================================================================================
 # some functions to operate tensorflow dataset
 
+
 def get_input_dict(dataset):
+    """
+    Args:
+        dataset: Tensorflow dataset
+    
+    Returns:
+        dictionary: input dictionary, see :class:`~atomdnn.data.Data` for the structure of the dictionary
+    """
     for x,y in dataset.batch(len(dataset)):
         return x
 
+
+    
 def get_output_dict(dataset):
+    """
+    Args:
+        dataset: Tensorflow dataset
+    
+    Returns:
+        dictionary: output dictionary, see :class:`~atomdnn.data.Data` for the structure of the dictionary
+    """
     for x,y in dataset.batch(len(dataset)):
         return y
 
-# # get the dictionary element from tensorflow dataset
-# def get_element(dataset,key):
-#     if key in ['fingerprints','atom_type','volume','dGdr','center_atom_id','neighbor_atom_id','neighbor_atom_coord']:
-#         element = dataset.map(lambda input_dict, output_dict: input_dict[key])
-#     elif key in ['pe','force','stress']:
-#         element = dataset.map(lambda input_dict, output_dict: output_dict[key])
-#     else:
-#         raise ValueError('Key is not found in the dataset dictionary')
-#     element = [item for item in list(element.as_numpy_iterator())]
-#     return element
+    
 
-
-def get_fingerprints_num (dataset):
+def get_nfp_from_dataset (dataset):
+    """
+    Args:
+        dataset: Tensorflow dataset
+    
+    Returns:
+        number of fingerprints
+    """
     if dataset.element_spec[0]['fingerprints'].shape[1] is not None: 
         return dataset.element_spec[0]['fingerprints'].shape[1]
     else:
         return len(get_input_dict(dataset)['fingerprints'][0][0]) # for tensorflow version below 2.6
+
+
+
+
+def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False, seed=None, data_size=None):
+    """
+    Split the tensorflow dataset into training, validation and test.
     
+    Args:
+        dataset: tensorflow dataset
+        train_pct: the percentage of data used for training
+        val_pct: the percentage of data used for validation
+        test_pct: the percentage of data used for testing
+        shuffle(bool): shuffle the dataset
+        data_size(int): if None, then use all data in the dataset 
 
-def slice_dataset(dataset, start, end):
-    return dataset.skip(start).take(end-start)
+    Returns:
+        tensorflow dataset: training, validation and test dataset
 
-
-def split_dataset(dataset, train_pct=None, val_pct=None, test_pct=None, shuffle=False,data_size=None):
+    """
     if not data_size:
         data_size = dataset.cardinality().numpy()
-    if not train_pct:
-        raise ValueError('Need to set the percentage of data used for tranining.')
-    if not val_pct:
+    if val_pct is None:
         val_pct = 0
-        print ("No data are used for validatiaon by default." % val_pct)
-    if not test_pct:
+    if val_pct == 0:
+        print ("No data are used for validatiaon by default.")
+    if test_pct is None:
         test_pct = 0
-        print ("No data are used for test by default." % test_pct)
-    if train_pct+val_pct+test_pct>1:
+    if test_pct == 0:
+        print ("No data are used for test by default.")
+    if train_pct + val_pct + test_pct > 1:
         raise ValueError('Percentages are not correct.')
     train_size = int(train_pct * data_size)
     val_size = int(val_pct * data_size)
@@ -524,9 +589,33 @@ def split_dataset(dataset, train_pct=None, val_pct=None, test_pct=None, shuffle=
     if not shuffle:
         print ('Data are not shuffled by default, set shuffle=True if needed.')
     if shuffle: # note that: reshuffle_each_iteration has to be False
-        dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(),reshuffle_each_iteration=False)
+        if seed:
+            dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(), reshuffle_each_iteration=False, seed=seed)
+        else:
+            dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(), reshuffle_each_iteration=False)
     train_dataset = dataset.take(train_size)
     val_dataset = dataset.skip(train_size).take(val_size)
     test_dataset = dataset.skip(train_size+val_size).take(test_size)
 
     return train_dataset,val_dataset,test_dataset
+
+
+
+def get_fingerprints_num (dataset):
+    if dataset.element_spec[0]['fingerprints'].shape[1] is not None: 
+        return dataset.element_spec[0]['fingerprints'].shape[1]
+    else:
+        return len(get_input_dict(dataset)['fingerprints'][0][0]) # for tensorflow version below 2.6
+
+
+def slice_dataset(dataset, start, end):
+    """
+    Get a slice of the dataset.
+    Args:
+        dataset: input dataset
+        start: starting index
+        end: ending index
+    Returns:
+        tensorflow dataset
+    """
+    return dataset.skip(start).take(end-start)

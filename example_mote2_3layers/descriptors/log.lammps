@@ -10,7 +10,7 @@ read_data lmpdatafile
   1 by 1 by 1 MPI processor grid
   reading atoms ...
   54 atoms
-  read_data CPU = 0.000499964 secs
+  read_data CPU = 0.000509977 secs
 mass * 1.0
 pair_style zero ${cutoff} nocoeff
 pair_style zero 6.5 nocoeff
@@ -55,7 +55,7 @@ Step Temp E_pair E_mol TotEng Press
        0            0            0            0            0            0 
 Loop time of 1.19209e-06 on 1 procs for 0 steps with 54 atoms
 
-167.8% CPU use with 1 MPI tasks x no OpenMP threads
+251.7% CPU use with 1 MPI tasks x no OpenMP threads
 
 MPI task timing breakdown:
 Section |  min time  |  avg time  |  max time  |%varavg| %total

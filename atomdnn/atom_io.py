@@ -61,12 +61,23 @@ def create_lmp_input(descriptor=None):
 
 
 
-def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=None, lmpexe=None, descriptor=None, descriptor_filename='dump_fp', der_filename='dump_der', image_num=None):
-
+def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=None, lmpexe=None, descriptor=None, descriptor_filename='dump_fp', der_filename='dump_der', image_num=None, fd=None, verbose=False):
+    """
+    fd => counter. Can be initialized to append to fingerprints.
+    """
+    
     from ase.io import read, write
     os.makedirs(descriptors_path, exist_ok=True)
 
-    if xyzfile_name.split('.')[-1] == '*':
+    if verbose:
+        print('xyzfile_name:', xyzfile_name)
+        
+    if ('.' in xyzfile_name and xyzfile_name.split('.')[-1] == '*'):
+        ext_marker = '.' 
+        batch_mode = 1
+        xyzfile_name = xyzfile_name[:-2]        
+    elif ('*' in xyzfile_name):
+        ext_marker = '_'
         batch_mode = 1
         xyzfile_name = xyzfile_name[:-2]
     else:
@@ -75,7 +86,10 @@ def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=No
     if not batch_mode:
         image_num = 1
 
-    fd = 0
+    if fd is None:
+        fd = 0
+
+    print('xyzfile_path:', xyzfile_path, ' xyzfile_name:', xyzfile_name)
     xyzfile_name = xyzfile_path + '/' + xyzfile_name
     
     cwd = os.getcwd()
@@ -83,14 +97,19 @@ def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=No
     start_time = time.time()
     while (1):
         if image_num:
+            print('if image_num:\n\tfd:',fd,' image_num:', image_num)
             if fd > image_num:
                 break
         if batch_mode:
-            filename = xyzfile_name + '.' + str(fd)
+            if verbose:
+                print('    batch_mode: on')
+            filename = xyzfile_name + ext_marker + str(fd)
         else:
+            if verbose:
+                print('    batch_mode: off')
             filename = xyzfile_name
 
-        print('nombreee:', filename)
+        print('    filename::', filename)
         if os.path.isfile(filename):
             patom = read(filename,format='extxyz')
             write(descriptors_path+"/lmpdatafile", patom, format='lammps-data',atom_style='atomic')
