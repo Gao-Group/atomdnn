@@ -5,9 +5,8 @@ import time
 import os
 import atomdnn
 from atomdnn.data import *
-import matplotlib as mpl
-mpl.use('agg')
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -197,14 +196,31 @@ class Network(tf.Module):
         if verbose:
             print('nlayers:', nlayers, '	# inlcuding linear layer')
 
+        print('compute_pe():')
         for i in range(nelements):
             type_id = i + 1
+            print('  type_id:', type_id)
             type_array = tf.ones([nimages, natoms], dtype='int32')*type_id
             type_mask = tf.cast(tf.math.equal(atom_type, type_array), dtype=self.data_type)
             type_onehot = tf.linalg.diag(type_mask)
             fingerprints_i = tf.matmul(type_onehot, fingerprints)
 
-                            
+            print('    type_array:', type_array)
+            print('   type_mask:', type_mask)
+            # for k,mask in enumerate(type_mask.numpy()):
+            #     print('        ', k, mask)
+            # 
+            # print('    type_onehot:')
+            # for k,typ in enumerate(type_onehot):
+            #     print('      ', k, typ)
+            # print('   type_onehot:')
+            # for i,onehot in enumerate(type_onehot):
+            #     print('        ', i, onehot.shape)
+
+            # print('   fprints_i:')
+            # for k,fpts in enumerate(fingerprints_i):
+            #     print('    ', k, fpts)
+                
             # first dense layer
             params_iter = nlayers*2*i
 
@@ -214,11 +230,41 @@ class Network(tf.Module):
             # sequential dense layer
             Z = tf.matmul(dropped, self.params[params_iter]) + self.params[params_iter+1]
             Z = self.tf_activation_function(Z)
-                        
+            # if np.any(np.isnan(fingerprints_i)):
+            #     print('      ', 'NaN values in fingerprints_i!')
+            # else:
+            #     print('      ', 'good values in fingerprints_i')
+            # 
+            # if np.any(np.isnan(self.params[params_iter])):
+            #     print('      ', 'NaN values in self.params[params_iter]!')
+            # else:
+            #     print('      ', 'good values in self.params[params_iter]')
+            #     
+            # if np.any(np.isnan(Z)):
+            #     print('      ', 'NaN values in Z!')
+            # else:
+            #     print('      ', 'good values in Z')
+            
             # sequential dense layer
-            for j in range(1,nlayers-1):    
+            for j in range(1,nlayers-1):
+                if np.any(np.isnan(self.params[params_iter+j*2])):
+                    print('      ', 'NaN values in self.params[params_iter+j*2]')
+                else:
+                    print('      ','good values in self.params[params_iter+j*2]')
+
+                if np.any(np.isnan(self.params[params_iter+j*2+1])):
+                    print('      ','Nan values in self.params[params_iter+j*2+1]!')
+                else:
+                    print('      ','good values in self.params[params_iter+j*2+1]')
+                    
                 Z = tf.matmul(Z,self.params[params_iter+j*2]) + self.params[params_iter+j*2+1]
-                Z = self.tf_activation_function(Z)                
+                Z = self.tf_activation_function(Z)
+
+                if np.any(np.isnan(Z)):
+                    print('        ', 'NaN values in inner Z!')
+                else:
+                    print('        ', 'good values in inner Z')
+                
                 
             Z = tf.matmul(Z, self.params[nlayers*2*(i+1)-2]) + self.params[nlayers*2*(i+1)-1]
 
@@ -226,8 +272,17 @@ class Network(tf.Module):
             mask = tf.reshape(type_mask,[nimages,natoms,1])
                 
             atom_pe += Z * mask
-            
-        total_pe = tf.reshape(tf.math.reduce_sum(atom_pe, axis=1),[nimages])        
+            if np.any(np.isnan(atom_pe)):
+                print('      ', 'NaN values in atom_pe')
+            else:
+                print('      ', 'good values in atom_pe')
+
+        # print('    atom_pe:', atom_pe.shape)
+        # for k,atmpe in enumerate(atom_pe[0:8]):
+        #     print('    ', k, atmpe)
+        
+        total_pe = tf.reshape(tf.math.reduce_sum(atom_pe, axis=1),[nimages])
+        
         return total_pe, atom_pe
         
     
@@ -272,12 +327,31 @@ class Network(tf.Module):
         dEdG_block = tf.gather_nd(dEdG, center_atom_id_reshape, batch_dims=1)     
         dEdG_block = tf.reshape(dEdG_block, [num_image, max_block, 1, self.num_fingerprints])
 
+        if np.any(np.isnan(dEdG_block)):
+            print('      ', 'NaN values in dEdG_block!')
+        else:
+            print('      ', 'good values in dEdG_block')
+        
+        if np.any(np.isnan(dGdr)):
+            print('      ', 'Nan values in dGdr!')
+        else:
+            print('      ', 'good values in dGdr')
+
         
         # compute force       
         force_block = tf.matmul(dEdG_block, dGdr)     
         force_block_reshape = tf.reshape(force_block,[num_image,max_block,3])
-        neighbor_onehot = tf.one_hot(neighbor_atom_id, depth=num_atoms,axis=1, dtype=self.data_type)             
+        neighbor_onehot = tf.one_hot(neighbor_atom_id, depth=num_atoms,axis=1, dtype=self.data_type)     
+        
         force = -tf.matmul(neighbor_onehot,force_block_reshape)
+        print('    force:')
+        for forc in force:
+            print('      ', forc)
+            
+        if np.any(np.isnan(force)):
+            print('      ','Nan values in force!')
+        else:
+            print('      ', 'good values in force')
         
         # compute stress    
         stress_block = tf.reshape(tf.matmul(neighbor_atom_coord,force_block),[num_image,max_block,9])     
@@ -371,6 +445,11 @@ class Network(tf.Module):
                 dEdG_tape.watch(fingerprints)
                 total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'], verbose=verbose)
             dEdG = dEdG_tape.gradient(atom_pe, fingerprints)
+
+            if np.any(np.isnan(dEdG)):
+                print('      ', 'NaN values in dEdG computation!')
+            else:
+                print('      ', 'good values in dEdG computation')
                 
             force, stress = self.compute_force_stress(dEdG, input_dict)
 
@@ -381,6 +460,7 @@ class Network(tf.Module):
             if verbose:
                 print('    atom_pee:', atom_pe)
                 
+            print(60*'-')
             if training:
                 return {'pe':total_pe, 'pe/atom':total_pe/num_atoms, 'force':force, 'stress':stress}
             else:
@@ -463,6 +543,8 @@ class Network(tf.Module):
         """
         if self.loss_fun == 'rmse':
             tf_loss_fun = tf.keras.losses.get('mse')
+            print('loss_value:', tf_loss_fun(true,pred))
+            #return tf.sqrt(tf_loss_fun(true,pred))
             return tf.sqrt(tf.maximum(tf_loss_fun(true,pred), 1e-9))
         else:
             tf_loss_fun = tf.keras.losses.get(self.loss_fun)
@@ -545,7 +627,16 @@ class Network(tf.Module):
                 pred_dict = self.predict(input_dict, training=True, compute_force=True, verbose=verbose)
             total_loss,loss_dict = self.loss(output_dict, pred_dict, training=True)
 
-        grads = tape.gradient(total_loss, self.params)    
+        print('total_loss:',total_loss)
+        print('self.params:')
+        for i,param in enumerate(self.params):
+            print('    ', i, param)
+
+        grads = tape.gradient(total_loss, self.params)
+        print('len(grads):', len(grads))
+        for i,grad in enumerate(grads):
+            print('    ', i, grad)
+        
         self.tf_optimizer.apply_gradients(zip(grads, self.params))
         return loss_dict
 

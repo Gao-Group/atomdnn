@@ -25,6 +25,7 @@ def get_filenames(file_path, file_name):
         - file_name: wildcard - pattern to be searched for inside folder.
     """
     true_path = os.path.join(file_path, file_name)
+    print('true_path:', true_path)
     if '*' in file_name:
         name_mask = file_name.split('*')
         if len(name_mask)!=2:
@@ -195,13 +196,15 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
         logfile = 'log.'+str(i+start_file_id)
         logfile = os.path.join(descriptors_path,logfile)
 
+        print('flacita!!!')
+
         # use specorder to make sure the type of atoms are consistant
         write(lmpdatafile, patom, specorder=elements, format='lammps-data',atom_style='atomic') # create lammps datafile
         
         # lammps run command
-        fp_pfname = os.path.join(descriptors_path,fp_fname)
-        der_pfname = os.path.join(descriptors_path,der_fname)
-        infile = os.path.join(descriptors_path,'in.gen_descriptors')
+        fp_pfname = os.path.join(descriptors_path, fp_fname)
+        der_pfname = os.path.join(descriptors_path, der_fname)
+        infile = os.path.join(descriptors_path, 'in.gen_descriptors')
         lmp_cmd = lmpexe + ' -in ' + infile \
                          + ' -var fp_filename ' + fp_pfname  \
                          + ' -var der_filename ' + der_pfname \
