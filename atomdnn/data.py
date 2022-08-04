@@ -361,11 +361,16 @@ class Data(object):
                 maxnum_atoms = natoms
 
         if append:
-            if self.maxnum_atoms_output > maxnum_atoms:
+            if self.maxnum_atoms_output == maxnum_atoms:
+                pad_prevblock = False
+                pad_nextblock = False
+            elif self.maxnum_atoms_output > maxnum_atoms:
                 maxnum_atoms = self.maxnum_atoms_output
-                padding = False
-            else:
-                padding = True
+                pad_prevblock = False
+                pad_nextblock = True
+            elif self.maxnum_atoms_output < maxnum_atoms:
+                pad_prevblock = True
+                pad_nextblock = False
 
         pe = np.zeros(nfiles, dtype=self.data_type)
         pe_atom = np.zeros(nfiles, dtype=self.data_type)
@@ -377,9 +382,19 @@ class Data(object):
         for i in range(nfiles):
             patom = read(files[i], format='extxyz')
             pe[i] = patom.get_potential_energy()
-            pe_atom[i] = pe[i]/self.num_atoms
+
+            if verbose:
+            	print('i:', i)
+            	print('patom.get_global_number_of_atoms():', patom.get_global_number_of_atoms())
+            	print('self.num_atoms:', self.num_atoms)
+            	print('patom.get_forces(i).shape:', patom.get_forces(patom).shape)
+            	print('force[i].shape:', force[i].shape)
+                
+            pe_atom[i] = pe[i]/patom.get_global_number_of_atoms()
             if read_force:
-                force[i] = patom.get_forces(patom)
+                #force[i] = patom.get_forces(patom)
+                force[i][0:patom.get_global_number_of_atoms()] = patom.get_forces(patom)
+
             if read_stress:
                 stress[i] = patom.get_stress(patom)
 
@@ -408,12 +423,16 @@ class Data(object):
                 self.output_dict['stress'] = stress
             self.maxnum_atoms_output = maxnum_atoms
         else:
-            if padding and read_force:
-                print('Pad existing dataset force since the atom number in new data is increased.')
-                pad_size = maxnum_atoms - self.maxnum_atoms_output
-                self.output_dict['force'] = \
-                    np.pad(self.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
-                
+            pad_size = np.abs(maxnum_atoms - self.maxnum_atoms_output)
+            if read_force:
+                if pad_prevblock:
+                    print('Padding existing dataset forces since the atom number in new dataset is larger.')
+                    self.output_dict['force'] = \
+                        np.pad(self.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
+                elif pad_nextblock:
+                    print('Padding next dataset forces since the atom number in new dataset is lower.')
+                    force = np.pad(force, ((0,0),(0,pad_size),(0,0)), 'constant', constant_values=(0))
+
             self.output_dict['pe'] = np.concatenate((self.output_dict['pe'], pe),axis=0)
             self.output_dict['pe/atom'] = np.concatenate((self.output_dict['pe/atom'], pe_atom),axis=0)
             

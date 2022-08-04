@@ -64,8 +64,7 @@ def create_lmp_input(descriptor=None):
 def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=None, lmpexe=None, descriptor=None, descriptor_filename='dump_fp', der_filename='dump_der', image_num=None, fd=None, verbose=False):
     """
     fd => counter. Can be initialized to append to fingerprints.
-    """
-    
+    """    
     from ase.io import read, write
     os.makedirs(descriptors_path, exist_ok=True)
 
@@ -90,7 +89,7 @@ def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=No
         fd = 0
 
     print('xyzfile_path:', xyzfile_path, ' xyzfile_name:', xyzfile_name)
-    xyzfile_name = xyzfile_path + '/' + xyzfile_name
+    xyzfile_name = os.path.join(xyzfile_path, xyzfile_name)
     
     cwd = os.getcwd()
     print('Start creating fingerprints ...')
@@ -109,9 +108,8 @@ def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=No
                 print('    batch_mode: off')
             filename = xyzfile_name
 
-        print('    filename::', filename)
         if os.path.isfile(filename):
-            patom = read(filename,format='extxyz')
+            patom = read(filename, format='extxyz')
             write(descriptors_path+"/lmpdatafile", patom, format='lammps-data',atom_style='atomic')
             
             os.chdir(descriptors_path)
@@ -123,7 +121,10 @@ def create_descriptors(xyzfile_path=None, xyzfile_name=None, descriptors_path=No
             os.system(lmp_cmd)
             os.remove('lmpdatafile')
             os.chdir(cwd)
-            
+
+            if verbose:
+                print('    filename:', filename)
+
             fd += 1
             if fd > 0 and int(fd%10)==0:
                 print ('  so far finished for %d images ...' % fd,flush=True)
