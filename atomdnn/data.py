@@ -382,6 +382,7 @@ class Data(object):
         for i in range(nfiles):
             patom = read(files[i], format='extxyz')
             pe[i] = patom.get_potential_energy()
+<<<<<<< HEAD
 
             if verbose:
             	print('i:', i)
@@ -394,6 +395,17 @@ class Data(object):
             if read_force:
                 #force[i] = patom.get_forces(patom)
                 force[i][0:patom.get_global_number_of_atoms()] = patom.get_forces(patom)
+=======
+            print('i:', i)
+            print('patom.get_global_number_of_atoms():', patom.get_global_number_of_atoms())
+            print('self.num_atoms:', self.num_atoms)
+            print('patom.get_forces(i).shape:', patom.get_forces(patom).shape)
+            print('force[i].shape:', force[i].shape)
+            pe_atom[i] = pe[i]/self.num_atoms
+            if read_force:
+                force[i] = patom.get_forces(patom)
+                #force[i][0:patom.get_global_number_of_atoms()] = patom.get_forces(patom)
+>>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
 
             if read_stress:
                 stress[i] = patom.get_stress(patom)
