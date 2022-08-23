@@ -6,11 +6,7 @@ import os
 import atomdnn
 from atomdnn.data import *
 import matplotlib as mpl
-<<<<<<< HEAD
 #mpl.use('agg')
-=======
-mpl.use('agg')
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
 import matplotlib.pyplot as plt
 
 if atomdnn.compute_force:
@@ -159,13 +155,9 @@ class Network(tf.Module):
         """
         Initialize the weigths and biases.
         """
-<<<<<<< HEAD
         # initialize dropout layer
         self.dropout = tf.Variable(0., dtype=self.data_type)
-        
-=======
-        print('_build()')
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
+
         # Declare layer-wise weights and biases
         for element in self.elements:
             self.W1 = tf.Variable(
@@ -182,12 +174,6 @@ class Network(tf.Module):
             
             self.params.append(tf.Variable(self.weights_initializer(shape=(self.arch[-1], 1), dtype=self.data_type)))
             self.params.append(tf.Variable(self.bias_initializer([1,], dtype=self.data_type)))
-
-<<<<<<< HEAD
-        self.built = True
-
-=======
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
             
     
     def compute_pe (self, fingerprints, atom_type, verbose=False):
@@ -210,11 +196,7 @@ class Network(tf.Module):
         nelements = len(self.elements)
             
         if verbose:
-<<<<<<< HEAD
             print('nlayers:', nlayers, '    # inlcuding linear layer')
-=======
-            print('nlayers:', nlayers, '	# inlcuding linear layer')
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
 
         for i in range(nelements):
             type_id = i + 1
@@ -343,11 +325,7 @@ class Network(tf.Module):
 
 
     
-<<<<<<< HEAD
     def predict(self, input_dict, compute_force=atomdnn.compute_force, training=False, verbose=False, evaluation=False, debug=False):
-=======
-    def predict(self, input_dict, compute_force=atomdnn.compute_force, training=False, verbose=False, evaluation=False):
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
         """
         Predict energy, force and stress.
 
@@ -366,11 +344,7 @@ class Network(tf.Module):
         predict_start_time = time.time()
         
         fingerprints = input_dict['fingerprints']
-<<<<<<< HEAD
         num_atoms = np.count_nonzero(input_dict['atom_type'], axis=1)
-=======
-        num_atoms = np.shape(input_dict['fingerprints'])[1] 
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
         if not tf.is_tensor(fingerprints):
             fingerprints = tf.convert_to_tensor(fingerprints)
 
@@ -406,12 +380,9 @@ class Network(tf.Module):
                 predict_stop_time = (time.time() - predict_start_time)*1000
                 print('\n    End of prediction, elapsed time: ', time.strftime('%H:%M:%S:{}'.format(predict_stop_time%1000), time.gmtime(predict_stop_time/1000.0)))
 
-<<<<<<< HEAD
-=======
             if verbose:
                 print('    atom_pee:', atom_pe)
-                
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
+
             if training:
                 if debug:
                     print(f'DEBUG1:\ntotal_pe:{total_pe} - num_atoms:{num_atoms}')
@@ -547,11 +518,10 @@ class Network(tf.Module):
             # when evaluation OR train/validation using force OR all losses are requested
             if ((not training and not validation) or ((training or validation) and self.loss_weights['force']!=0)) or self.compute_all_loss:
                 # loss_value = tf.reduce_mean(self.loss_function(true_dict['force'], pred_dict['force']))
-<<<<<<< HEAD
+
                 if verbose:
                     print('force_loss->tf.reduce_mean(self.loss_function(true_force, pred_force))')
-=======
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
+
                 loss_value = tf.reduce_mean(self.loss_function(true_dict['force'], pred_dict['force']))
                 loss_dict['force_loss'] = loss_value
                 
@@ -615,7 +585,6 @@ class Network(tf.Module):
         """
         with tf.GradientTape() as tape: # automatically watch all tensorflow variables 
             if self.loss_weights['force']==0 and self.loss_weights['stress']==0 and not self.compute_all_loss:
-<<<<<<< HEAD
                 pred_dict = self.predict(input_dict, training=True, compute_force=False, verbose=verbose, debug=debug)
             else:
                 pred_dict = self.predict(input_dict, training=True, compute_force=True, verbose=verbose)
@@ -624,14 +593,6 @@ class Network(tf.Module):
         grads = tape.gradient(total_loss, self.params)
 
         lr = self.tf_optimizer.learning_rate
-=======
-                pred_dict = self.predict(input_dict, training=True, compute_force=False, verbose=verbose)
-            else:
-                pred_dict = self.predict(input_dict, training=True, compute_force=True, verbose=verbose)
-            total_loss,loss_dict = self.loss(output_dict, pred_dict, training=True)
-
-        grads = tape.gradient(total_loss, self.params)    
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
         self.tf_optimizer.apply_gradients(zip(grads, self.params))
         return loss_dict
 
@@ -694,15 +655,10 @@ class Network(tf.Module):
         import math
         return self.starting_lr * math.pow(self.decay_power,  np.floor((1+epoch)/self.decay_steps))
     
-<<<<<<< HEAD
     
     def train(self, train_dataset, validation_dataset=None, train_by_pe=False, dropout=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
               optimizer=None, lr=None, decay_lr=False, starting_lr=None, decay_steps=None, decay_power=None, loss_weights=None, compute_all_loss=False,\
               shuffle=True, append_loss=False, descriptors=None, folder_id=None, nepochs_checkpoint=None, save_lossplots_on_checkpoint=True, verbose=False, debug=False):
-=======
-    def train(self, train_dataset, validation_dataset=None, dropout=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False, descriptors=None, folder_id=None, nepochs_checkpoint=None, verbose=False):
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
         """
         Train the neural network.
 
@@ -968,12 +924,10 @@ class Network(tf.Module):
                 if epoch % nepochs_checkpoint == 0:
                     print('    Saving model - nepoch:', epoch)
                     save(self, 'saved_model_'+str(folder_id), descriptors)
-<<<<<<< HEAD
 
                     if save_lossplots_on_checkpoint:
                         self.plot_loss(saveplots=True, folder_id=folder_id, pe_atom_loss_units=f'{loss_fun.upper()} - Potential Energy $[eV/atom]$', force_loss_units=f'{loss_fun.upper()} - Force Norm  $[eV/Å]$')
-=======
->>>>>>> 7fb12f7a7123dce6fa473dba5228fb778d87abb1
+
                     
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
