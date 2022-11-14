@@ -32,13 +32,12 @@ network potentials. It provides:
 A good starting point is the Example.
 
 .. toctree::
-<<<<<<< HEAD
    :glob:
    :caption: Getting Started
    :maxdepth: 1
 
    getstarted/install.rst
-   getstarted/example.rst
+   getstarted/example.ipynb
 
 
 .. toctree::
@@ -71,15 +70,3 @@ A good starting point is the Example.
    about/contact.rst
    about/license.rst
    about/funding.rst
-=======
-   :maxdepth: 2
-   :hidden:
-
-   install.rst
-   example.ipynb
-   data_pipeline.rst
-   energy_calculation.rst
-   force_calculation.rst
-   lammps.rst
-   about.rst
->>>>>>> 474c645b64c75b54ced14856b4b0fb48484ed86e
