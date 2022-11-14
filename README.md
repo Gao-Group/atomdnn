@@ -14,7 +14,7 @@ An online documentation can be found [here](https://gao-group.github.io/atomdnn/
 
 # Authors
 
-This package is developed by [Gao research group](https://www.gao-group.org/) at University of Texas at San Antonio. Contributors include: Wei Gao, Daniel Millan, Daniela Posso and Colton Kubena.
+This package is developed by [Gao research group](https://www.gao-group.org/) at Texas A&M University. Contributors include: Wei Gao, Daniel Millan, Daniela Posso and Colton Kubena.
 
 # License
 
