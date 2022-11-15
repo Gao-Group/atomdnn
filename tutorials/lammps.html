@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LAMMPS interface &mdash; AtomDNN  documentation</title>
@@ -14,7 +14,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -77,8 +79,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>LAMMPS interface</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">LAMMPS interface</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorials/lammps.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -113,7 +115,7 @@
 }
 </style>
 <section id="lammps-interface">
-<h1>LAMMPS interface<a class="headerlink" href="#lammps-interface" title="Permalink to this headline"></a></h1>
+<h1>LAMMPS interface<a class="headerlink" href="#lammps-interface" title="Permalink to this heading"></a></h1>
 <p>A new pair style  <strong>tfdnn</strong> (Tensorflow2 Deep Neural Network) is added to LAMMPS in order to do the predictions with the trained tensorflow model in MD and MS simulations. In this pair style, the prediction is performed with tensorflow C APIs. In order to run the tensorflow APIs in LAMMPS, firstly, one needs to build the tensorflow source code to get tensorflow API libraries (this could be a lengthy process, a guild can be found <a class="reference external" href="https://gist.github.com/kmhofmann/e368a2ebba05f807fa1a90b3bf9a1e03">here</a>). After that, to build LAMMPS, one needs to copy pair_tfdnn.cpp, pair_tfdnn.h and Makefile (all inside atomdnn/lammps) to src in lammps and run the compile.</p>
 <p>Once LAMMPS is built, the trained potential can be used just like any other LAMMPS potentials. A sample lammps input script:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">clear</span>

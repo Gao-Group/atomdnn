@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Welcome to AtomDNN’s documentation! &mdash; AtomDNN  documentation</title>
@@ -14,7 +14,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
@@ -76,8 +78,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
-      <li>Welcome to AtomDNN’s documentation!</li>
+      <li><a href="#" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Welcome to AtomDNN’s documentation!</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -112,30 +114,29 @@
 }
 </style>
 <section id="welcome-to-atomdnn-s-documentation">
-<h1>Welcome to AtomDNN’s documentation!<a class="headerlink" href="#welcome-to-atomdnn-s-documentation" title="Permalink to this headline"></a></h1>
+<h1>Welcome to AtomDNN’s documentation!<a class="headerlink" href="#welcome-to-atomdnn-s-documentation" title="Permalink to this heading"></a></h1>
 <p>AtomDNN is a package for training descriptor-based Behler-Parinello type of neural
 network potentials. It provides:</p>
 <ul class="simple">
 <li><p><strong>Generation of descriptors</strong>: users just need to provide the atomic structures
-saved as extxyz files. we use LAMMPS as a Calculator
-(through an added Compute comand) to compute descritpors and their
-derivatives w.r.t. atom positions (<a class="reference external" href="https://aip.scitation.org/doi/abs/10.1063/1.3553717">ACSF</a> and
-<a class="reference external" href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.87.184115">SOAP</a> are currently supported), while users are free to use any other
+saved as extxyz files. We use LAMMPS as a Calculator
+(through an added Compute comand) to compute descritpors (<a class="reference external" href="https://aip.scitation.org/doi/abs/10.1063/1.3553717">ACSF</a>) and their
+derivatives w.r.t. atom positions, while users are free to use any other
 tools to generate descriptors. Note that the parallelized LAMMPS can save
 computation time since the calculation of the derivatives may be
 time consuming.</p></li>
 <li><p><strong>Potential training</strong>: we use the <a class="reference external" href="https://www.tensorflow.org/api_docs/python/tf/Module">tf.module in Tensorflow2</a> to build
-and train the neurall network. Potential energy, atomic forces and
+and train the neural network. Potential energy, atomic forces and
 stress can be used for training. Any activation functions and loss
 functions supported by Tensorflow can be used. The trained potential is finally saved as a
-tensorflow model. The descritpors parameters are saved in the same
-folder for the predictions with LAMMPS.</p></li>
+tensorflow model.</p></li>
 <li><p><strong>Integration to LAMMPS/ASE</strong>: a new pair style pair_tfdnn is added to
 LAMMPS in order to do the predictions with the trained tensorflow
 model in MD and MS simulations. In this pair style, the prediction is
 performed with tensorflow C APIs. To use the potential in ASE, one
 just needs to use LAMMPS as an extenral Calculator, like any other potentials.</p></li>
 </ul>
+<p>A good starting point is the Example.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>

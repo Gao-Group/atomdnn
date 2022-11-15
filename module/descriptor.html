@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Descriptor &mdash; AtomDNN  documentation</title>
@@ -14,7 +14,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -77,8 +79,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Descriptor</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Descriptor</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/module/descriptor.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -113,51 +115,8 @@
 }
 </style>
 <section id="descriptor">
-<h1>Descriptor<a class="headerlink" href="#descriptor" title="Permalink to this headline"></a></h1>
+<h1>Descriptor<a class="headerlink" href="#descriptor" title="Permalink to this heading"></a></h1>
 <p>These functions are used to read initial atomic structures saved as extxyz files and create descriptors</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="atomdnn.descriptor.create_descriptors">
-<span class="sig-prename descclassname"><span class="pre">atomdnn.descriptor.</span></span><span class="sig-name descname"><span class="pre">create_descriptors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmpexe</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elements</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptor_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dump_fp.*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">der_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dump_der.*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_file_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_lmpfiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/descriptor.html#create_descriptors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.descriptor.create_descriptors" title="Permalink to this definition"></a></dt>
-<dd><p>Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>lmpexe</strong> – lammps executable</p></li>
-<li><p><strong>xyzfile_path</strong> – directory contains a serials of extxyz files of input atomic structures</p></li>
-<li><p><strong>xyzfile_name</strong> – extxyz filename, wildcard * is used for files numerically ordered</p></li>
-<li><p><strong>descriptors_path</strong> – a new directory where descirptors will be generated</p></li>
-<li><p><strong>descritpor</strong> (<em>dictionary</em>) – the parameter dictionary of the descriptor</p></li>
-<li><p><strong>descriptor_filename</strong> – default is ‘dump_fp.*’, numerically ordered</p></li>
-<li><p><strong>der_filename</strong> – default is ‘dump_der.*’, numerically ordered</p></li>
-<li><p><strong>start_file_id</strong> (<em>int</em>) – starting id for descriptor and derivative files</p></li>
-<li><p><strong>image_num</strong> – number of images that will be used, if it’s None then read all files specified by xyzfile_name</p></li>
-<li><p><strong>skip</strong> (<em>int</em>) – skip some images</p></li>
-<li><p><strong>keep_lmpfiles</strong> (<em>bool</em>) – set to True if want to keep the lammps input and datafiles used for creating descriptors</p></li>
-<li><p><strong>verbose</strong> (<em>bool</em>) – set to True if want to print out the extxyz file names used for creating descriptors</p></li>
-</ul>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="atomdnn.descriptor.create_lmp_input">
-<span class="sig-prename descclassname"><span class="pre">atomdnn.descriptor.</span></span><span class="sig-name descname"><span class="pre">create_lmp_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/descriptor.html#create_lmp_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.descriptor.create_lmp_input" title="Permalink to this definition"></a></dt>
-<dd><p>Creates a lammps input file for computing descriptors and derivatives</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>descritpor</strong> (<em>dictionary</em>) – the parameter dictionary of the descriptor</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="atomdnn.descriptor.get_filenames">
-<span class="sig-prename descclassname"><span class="pre">atomdnn.descriptor.</span></span><span class="sig-name descname"><span class="pre">get_filenames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/descriptor.html#get_filenames"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.descriptor.get_filenames" title="Permalink to this definition"></a></dt>
-<dd><p>Get the names of a set of files that match the patten given by file_name.
-Return the filenames having the format of ‘string1*string2’,
-in which string1 and string2 can be any strings amd * must be an integer.</p>
-</dd></dl>
-
 </section>
 
 
