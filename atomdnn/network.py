@@ -149,13 +149,9 @@ class Network(tf.Module):
             
         
     def _build(self):
-<<<<<<< HEAD
         """
         Initialize the weigths and biases.
         """
-=======
-  
->>>>>>> 474c645b64c75b54ced14856b4b0fb48484ed86e
         # Declare layer-wise weights and biases
         for element in self.elements:
             self.W1 = tf.Variable(
@@ -177,7 +173,6 @@ class Network(tf.Module):
     
     def compute_pe (self, fingerprints, atom_type):
         '''
-<<<<<<< HEAD
         Forward pass of the network to compute potential energy. Parallel networks are used for multiple atom types.
         
         Args:
@@ -186,20 +181,14 @@ class Network(tf.Module):
 
         Returns:
             total potential energy and per-atom potential energy
-=======
-        Forward pass of the network
->>>>>>> 474c645b64c75b54ced14856b4b0fb48484ed86e
         '''
         nimages = tf.shape(atom_type)[0]
         natoms = tf.shape(atom_type)[1]
         
         atom_pe = tf.zeros([nimages,natoms,1],dtype=self.data_type)
-<<<<<<< HEAD
+
         nlayer = len(self.arch)+1 # include one linear layer at the end
-=======
-        params_iter = 0
-        nlayer = len(self.arch)+1 # include one linear layer
->>>>>>> 474c645b64c75b54ced14856b4b0fb48484ed86e
+
         nelements = len(self.elements)
         
         for i in range(nelements):
@@ -217,17 +206,11 @@ class Network(tf.Module):
             for j in range(1,nlayer-1):
                 Z = tf.matmul(Z,self.params[nlayer*2*i+j*2]) + self.params[nlayer*2*i+j*2+1]
                 Z = self.tf_activation_function(Z)
-<<<<<<< HEAD
 
             # linear layer
             Z = tf.matmul(Z, self.params[nlayer*2*(i+1)-2]) + self.params[nlayer*2*(i+1)-1]
 
-=======
 
-            # linear layer
-            Z = tf.matmul(Z, self.params[nlayer*2*(i+1)-2]) + self.params[nlayer*2*(i+1)-1]
-
->>>>>>> 474c645b64c75b54ced14856b4b0fb48484ed86e
             # apply the mask
             mask = tf.reshape(type_mask,[nimages,natoms,1])
             atom_pe += Z * mask
