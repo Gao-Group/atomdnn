@@ -34,7 +34,7 @@ class Network(tf.Module):
             import_dir: the directory of a saved model to be loaded
     """
 
-    def __init__(self, elements, num_fingerprints, arch=None, \
+    def __init__(self, elements=None, num_fingerprints=None, arch=None, \
                  activation_function=None, weights_initializer=tf.random.normal, bias_initializer=tf.zeros, import_dir=None):
         """
         Initialize Network object.
