@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Energy calculation &mdash; AtomDNN  documentation</title>
@@ -14,9 +14,7 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
-        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
-        <script src="../_static/sphinx_highlight.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -83,8 +81,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a></li>
-      <li class="breadcrumb-item active">Energy calculation</li>
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Energy calculation</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/tutorials/energy_calculation.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -119,14 +117,14 @@
 }
 </style>
 <section id="energy-calculation">
-<h1>Energy calculation<a class="headerlink" href="#energy-calculation" title="Permalink to this heading"></a></h1>
+<h1>Energy calculation<a class="headerlink" href="#energy-calculation" title="Permalink to this headline"></a></h1>
 <section id="theory">
-<h2>Theory<a class="headerlink" href="#theory" title="Permalink to this heading"></a></h2>
+<h2>Theory<a class="headerlink" href="#theory" title="Permalink to this headline"></a></h2>
 <p>The working principle of descriptor-based neural network potential can be explained in figure. Consider a single element system containing 3 atoms. A descriptor is chosen to map the coordinates of each atom to a feature vector with 4 components (Gij). Then, the vectors are taken as inputs to the same neural network, which is composed by 2 fully connected dense layers (each with 5 neurons) followed by a linear layer at the end. The neural network can be considered as a high dimensional function that is parametrized with weight matrices and bias vectors (which are optimized during training). The equations in Fig.1 demonstrates the mathematical process inside the neural network, where W1, W2 and W3 are the weight matrices of each layer, b1, b2 and b3 are the corresponding biases, and f is the activation function of dense layer. The direct outputs of the neural network are the potential energies of the atoms. In addition, the atomic forces can be calculated by using the gradients of the descriptors (which have to be generated before training). The neural network can be trained by minimizing a loss function (e.g. mean average error) that can be measured by using total potential energy, atomic forces and stress. Once the neural network is trained, it can be used to predict per-atom energy and forces as well as stress of a new atomic system which may have different number of atoms but have to be encoded by the same type of descriptors.</p>
 <a class="reference internal image-reference" href="../_images/NNP.png"><img alt="../_images/NNP.png" src="../_images/NNP.png" style="width: 600px;" /></a>
 </section>
 <section id="implementation">
-<h2>Implementation<a class="headerlink" href="#implementation" title="Permalink to this heading"></a></h2>
+<h2>Implementation<a class="headerlink" href="#implementation" title="Permalink to this headline"></a></h2>
 <p>The neural network could be easily implemented with tensorflow.keras dense layers if one only wants to train the potential with potential energies. However, when adding atomic forces and stress as training variables, it is not convenient to apply the math described in <a class="reference internal" href="force_calculation.html#force-reference-label"><span class="std std-ref">Force and stress calculation</span></a> in Keras packaged layers. Therefore, we use more flexible tf.module to implement this neural network.</p>
 </section>
 </section>
