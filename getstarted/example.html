@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Example &mdash; AtomDNN  documentation</title>
@@ -14,10 +14,12 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
-        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+        <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -86,8 +88,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Example</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Example</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/getstarted/example.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
@@ -207,10 +209,11 @@ div.nboutput.container div.prompt > div {
     }
 }
 
-/* disable scrollbars on prompts */
+/* disable scrollbars and line breaks on prompts */
 div.nbinput.container div.prompt pre,
 div.nboutput.container div.prompt pre {
     overflow: hidden;
+    white-space: pre;
 }
 
 /* input/output area */
@@ -307,11 +310,12 @@ div.nboutput.container div.output_area > div[class^='highlight']{
 }
 
 /* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
-.prompt a.copybtn {
+.prompt .copybtn {
     display: none;
 }
 
 /* Some additional styling taken form the Jupyter notebook CSS */
+.jp-RenderedHTMLCommon table,
 div.rendered_html table {
   border: none;
   border-collapse: collapse;
@@ -320,10 +324,14 @@ div.rendered_html table {
   font-size: 12px;
   table-layout: fixed;
 }
+.jp-RenderedHTMLCommon thead,
 div.rendered_html thead {
   border-bottom: 1px solid black;
   vertical-align: bottom;
 }
+.jp-RenderedHTMLCommon tr,
+.jp-RenderedHTMLCommon th,
+.jp-RenderedHTMLCommon td,
 div.rendered_html tr,
 div.rendered_html th,
 div.rendered_html td {
@@ -335,12 +343,15 @@ div.rendered_html td {
   max-width: none;
   border: none;
 }
+.jp-RenderedHTMLCommon th,
 div.rendered_html th {
   font-weight: bold;
 }
+.jp-RenderedHTMLCommon tbody tr:nth-child(odd),
 div.rendered_html tbody tr:nth-child(odd) {
   background: #f5f5f5;
 }
+.jp-RenderedHTMLCommon tbody tr:hover,
 div.rendered_html tbody tr:hover {
   background: rgba(66, 165, 245, 0.2);
 }
@@ -368,7 +379,7 @@ div.rendered_html tbody tr:hover {
 }
 </style>
 <section id="Example">
-<h1>Example<a class="headerlink" href="#Example" title="Permalink to this headline"></a></h1>
+<h1>Example<a class="headerlink" href="#Example" title="Permalink to this heading"></a></h1>
 <p>This example demonstrates the whole process from initial atomic structure to training, evaluation and prediction. It includes:</p>
 <ol class="arabic simple">
 <li><p>Read input atomic structures (saved as extxyz files) and create descriptors and their derivatives.</p></li>
@@ -382,8 +393,7 @@ div.rendered_html tbody tr:hover {
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">atomdnn</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">atomdnn</span>
 
 <span class="c1"># &#39;float64&#39; is used for reading data and train by default</span>
 <span class="n">atomdnn</span><span class="o">.</span><span class="n">data_type</span> <span class="o">=</span> <span class="s1">&#39;float64&#39;</span>
@@ -409,14 +419,13 @@ div.rendered_html tbody tr:hover {
 </div>
 </div>
 <section id="Create-descriptors">
-<h2>Create descriptors<a class="headerlink" href="#Create-descriptors" title="Permalink to this headline"></a></h2>
+<h2>Create descriptors<a class="headerlink" href="#Create-descriptors" title="Permalink to this heading"></a></h2>
 <p><strong>Read input atomic structures (saved as extxyz files) and create descriptors and their derivatives</strong></p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">descriptor</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;acsf&#39;</span><span class="p">,</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">descriptor</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;acsf&#39;</span><span class="p">,</span>
               <span class="s1">&#39;cutoff&#39;</span><span class="p">:</span> <span class="mf">6.5</span><span class="p">,</span>
               <span class="s1">&#39;etaG2&#39;</span><span class="p">:[</span><span class="mf">0.01</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span>
               <span class="s1">&#39;etaG4&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.01</span><span class="p">],</span>
@@ -454,8 +463,7 @@ total number of fingerprints = 14
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># this will create a serials of files for descriptors and their derivatives inside descriptors_path</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># this will create a serials of files for descriptors and their derivatives inside descriptors_path</span>
 <span class="n">create_descriptors</span><span class="p">(</span><span class="n">lmpexe</span><span class="p">,</span>
                    <span class="n">elements</span><span class="p">,</span>
                    <span class="n">xyzfile_path</span><span class="p">,</span>
@@ -484,14 +492,13 @@ It took 10.55 seconds.
 </div>
 </section>
 <section id="Read-inputs&amp;outputs">
-<h2>Read inputs&amp;outputs<a class="headerlink" href="#Read-inputs&outputs" title="Permalink to this headline"></a></h2>
+<h2>Read inputs&amp;outputs<a class="headerlink" href="#Read-inputs&outputs" title="Permalink to this heading"></a></h2>
 <p><strong>Read inputs and outputs into a Data object</strong></p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># create a Data object</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># create a Data object</span>
 <span class="n">mydata</span> <span class="o">=</span> <span class="n">Data</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -500,8 +507,7 @@ It took 10.55 seconds.
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[5]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># read inputs: descriptors and their derivatives</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># read inputs: descriptors and their derivatives</span>
 <span class="n">mydata</span><span class="o">.</span><span class="n">read_inputdata</span><span class="p">(</span><span class="n">descriptors_path</span><span class="p">,</span> <span class="n">descriptor_filename</span><span class="p">,</span> <span class="n">der_filename</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -536,8 +542,7 @@ max number of derivative pairs = 200
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[6]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># read outputs: potential energy, force and stress from extxyz files</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># read outputs: potential energy, force and stress from extxyz files</span>
 <span class="n">mydata</span><span class="o">.</span><span class="n">read_outputdata</span><span class="p">(</span><span class="n">xyzfile_path</span><span class="p">,</span> <span class="n">xyzfile_name</span><span class="p">)</span>
 </pre></div>
 </div>
@@ -562,14 +567,13 @@ read_stress = True
 </div>
 </section>
 <section id="Create-TFdataset">
-<h2>Create TFdataset<a class="headerlink" href="#Create-TFdataset" title="Permalink to this headline"></a></h2>
+<h2>Create TFdataset<a class="headerlink" href="#Create-TFdataset" title="Permalink to this heading"></a></h2>
 <p><strong>Create tensorflow dataset for training</strong></p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># convert data to tensors</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># convert data to tensors</span>
 <span class="n">mydata</span><span class="o">.</span><span class="n">convert_data_to_tensor</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -587,8 +591,7 @@ It took 0.0046 second.
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># create tensorflow dataset</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># create tensorflow dataset</span>
 <span class="n">tf_dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">((</span><span class="n">mydata</span><span class="o">.</span><span class="n">input_dict</span><span class="p">,</span><span class="n">mydata</span><span class="o">.</span><span class="n">output_dict</span><span class="p">))</span>
 </pre></div>
 </div>
@@ -597,8 +600,7 @@ It took 0.0046 second.
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">dataset_path</span> <span class="o">=</span> <span class="s1">&#39;./example_tfdataset&#39;</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">dataset_path</span> <span class="o">=</span> <span class="s1">&#39;./example_tfdataset&#39;</span>
 
 <span class="c1"># save the dataset</span>
 <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">experimental</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">tf_dataset</span><span class="p">,</span> <span class="n">dataset_path</span><span class="p">)</span>
@@ -612,14 +614,13 @@ It took 0.0046 second.
 <p><strong>Note: The above three steps just need to be done once for one data set, the training only uses the saved tensorflow dataset.</strong></p>
 </section>
 <section id="Training">
-<h2>Training<a class="headerlink" href="#Training" title="Permalink to this headline"></a></h2>
+<h2>Training<a class="headerlink" href="#Training" title="Permalink to this heading"></a></h2>
 <p><strong>Load the dataset and train the model</strong></p>
 <div class="nbinput nblast docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[10]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># load tensorflow dataset, for Tensorflow version lower than 2.6, need to specify element_spec.</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># load tensorflow dataset, for Tensorflow version lower than 2.6, need to specify element_spec.</span>
 
 <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">dataset_path</span> <span class="o">+</span> <span class="s1">&#39;/element_spec&#39;</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">in_</span><span class="p">:</span>
     <span class="n">element_spec</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">in_</span><span class="p">)</span>
@@ -632,8 +633,7 @@ It took 0.0046 second.
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[11]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># split the data to training, validation and testing sets</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># split the data to training, validation and testing sets</span>
 
 <span class="n">train_dataset</span><span class="p">,</span> <span class="n">val_dataset</span><span class="p">,</span> <span class="n">test_dataset</span> <span class="o">=</span> <span class="n">split_dataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span><span class="mf">0.7</span><span class="p">,</span><span class="mf">0.2</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span><span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
@@ -653,8 +653,7 @@ Test data: 5 images
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># Build the network</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Build the network</span>
 <span class="c1"># See section &#39;Training&#39; for detailed description on Network object.</span>
 
 <span class="n">act_fun</span> <span class="o">=</span> <span class="s1">&#39;relu&#39;</span> <span class="c1"># activation function</span>
@@ -669,8 +668,7 @@ Test data: 5 images
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[13]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># Train the model</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Train the model</span>
 
 <span class="n">opt</span> <span class="o">=</span> <span class="s1">&#39;Adam&#39;</span> <span class="c1"># optimizer</span>
 <span class="n">loss_fun</span> <span class="o">=</span> <span class="s1">&#39;mae&#39;</span> <span class="c1"># loss function</span>
@@ -911,8 +909,7 @@ End of training, elapsed time:  00:00:12
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># plot the training loss</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># plot the training loss</span>
 
 <span class="n">model</span><span class="o">.</span><span class="n">plot_loss</span><span class="p">(</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
@@ -950,8 +947,7 @@ End of training, elapsed time:  00:00:12
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[15]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># Evaluate using the first 5 data in test dataset</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Evaluate using the first 5 data in test dataset</span>
 
 <span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="n">return_prediction</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
@@ -974,8 +970,7 @@ The total loss is computed using the loss weights - pe: 1.00 - force: 1.00 - str
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># prediction using the first 5 data in test dataset</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># prediction using the first 5 data in test dataset</span>
 
 <span class="n">input_dict</span> <span class="o">=</span> <span class="n">get_input_dict</span><span class="p">(</span><span class="n">dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
 <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">input_dict</span><span class="p">)</span>
@@ -1033,14 +1028,13 @@ The total loss is computed using the loss weights - pe: 1.00 - force: 1.00 - str
 </div>
 </section>
 <section id="Save/load-model">
-<h2>Save/load model<a class="headerlink" href="#Save/load-model" title="Permalink to this headline"></a></h2>
+<h2>Save/load model<a class="headerlink" href="#Save/load-model" title="Permalink to this heading"></a></h2>
 <p><strong>save the trained model</strong></p>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[17]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="c1"># we re-write the descriptor here to empasize that it should be the same one defined above</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># we re-write the descriptor here to empasize that it should be the same one defined above</span>
 <span class="n">descriptor</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;acsf&#39;</span><span class="p">,</span>
               <span class="s1">&#39;cutoff&#39;</span><span class="p">:</span> <span class="mf">6.5</span><span class="p">,</span>
               <span class="s1">&#39;etaG2&#39;</span><span class="p">:[</span><span class="mf">0.01</span><span class="p">,</span><span class="mf">0.05</span><span class="p">,</span><span class="mf">0.1</span><span class="p">,</span><span class="mf">0.5</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">5</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span>
@@ -1067,8 +1061,7 @@ Network signatures and descriptor are written to example.tfdnn/parameters for LA
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">imported_model</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">save_dir</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imported_model</span> <span class="o">=</span> <span class="n">network</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">save_dir</span><span class="p">)</span>
 
 <span class="c1"># Re-train the model</span>
 <span class="n">loss_weights</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;force&#39;</span> <span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">}</span>
@@ -1311,8 +1304,7 @@ End of training, elapsed time:  00:00:12
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[19]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">model</span><span class="o">.</span><span class="n">plot_loss</span><span class="p">(</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">plot_loss</span><span class="p">(</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -1348,8 +1340,7 @@ End of training, elapsed time:  00:00:12
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">imported_model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="n">return_prediction</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">imported_model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">),</span><span class="n">return_prediction</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -1370,8 +1361,7 @@ The total loss is computed using the loss weights - pe: 1.00 - force: 1.00 - str
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
-<span></span><span class="n">input_dict</span> <span class="o">=</span> <span class="n">get_input_dict</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">input_dict</span> <span class="o">=</span> <span class="n">get_input_dict</span><span class="p">(</span><span class="n">test_dataset</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">))</span>
 <span class="n">imported_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">input_dict</span><span class="p">)</span>
 </pre></div>
 </div>

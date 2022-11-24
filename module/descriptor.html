@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Descriptor &mdash; AtomDNN  documentation</title>
@@ -14,7 +14,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
         <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -52,7 +54,12 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Descriptor</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Descriptor</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#atomdnn.descriptor.create_descriptors"><code class="docutils literal notranslate"><span class="pre">create_descriptors()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#atomdnn.descriptor.create_lmp_input"><code class="docutils literal notranslate"><span class="pre">create_lmp_input()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#atomdnn.descriptor.get_filenames"><code class="docutils literal notranslate"><span class="pre">get_filenames()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="data.html">Data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="network.html">Network</a></li>
 </ul>
@@ -77,8 +84,8 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>Descriptor</li>
+      <li><a href="../index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Descriptor</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/module/descriptor.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -113,14 +120,14 @@
 }
 </style>
 <section id="descriptor">
-<h1>Descriptor<a class="headerlink" href="#descriptor" title="Permalink to this headline"></a></h1>
+<h1>Descriptor<a class="headerlink" href="#descriptor" title="Permalink to this heading"></a></h1>
 <p>These functions are used to read initial atomic structures saved as extxyz files and create descriptors</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="atomdnn.descriptor.create_descriptors">
 <span class="sig-prename descclassname"><span class="pre">atomdnn.descriptor.</span></span><span class="sig-name descname"><span class="pre">create_descriptors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lmpexe</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">elements</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">xyzfile_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptor_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dump_fp.*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">der_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'dump_der.*'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_file_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">skip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_lmpfiles</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">verbose</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/descriptor.html#create_descriptors"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.descriptor.create_descriptors" title="Permalink to this definition"></a></dt>
 <dd><p>Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>lmpexe</strong> – lammps executable</p></li>
 <li><p><strong>xyzfile_path</strong> – directory contains a serials of extxyz files of input atomic structures</p></li>
@@ -144,7 +151,7 @@
 <span class="sig-prename descclassname"><span class="pre">atomdnn.descriptor.</span></span><span class="sig-name descname"><span class="pre">create_lmp_input</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">descriptor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">descriptors_path</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/atomdnn/descriptor.html#create_lmp_input"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#atomdnn.descriptor.create_lmp_input" title="Permalink to this definition"></a></dt>
 <dd><p>Creates a lammps input file for computing descriptors and derivatives</p>
 <dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>descritpor</strong> (<em>dictionary</em>) – the parameter dictionary of the descriptor</p>
 </dd>
 </dl>
