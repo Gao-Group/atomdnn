@@ -7,6 +7,9 @@ import atomdnn
 from atomdnn.data import *
 import matplotlib.pyplot as plt
 import matplotlib
+from atomdnn.descriptor import create_descriptors, get_num_fingerprints
+import shutil
+
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -20,13 +23,18 @@ else:
                          "atom_type": tf.TensorSpec(shape=[None,None], dtype=tf.int32, name="atom_type")}]
 
 
+
+
+
+
+  
 class Network(tf.Module):
     """
     The nueral network is built based on tf.Module.
 
     Args:
             elements(python list): list of element in the system, e.g. [C,O,H]
-            num_fingerprints(int): number of fingerprints in dataset
+            descriptor(dictionary): descriptor parameters
             arch: network architecture, e.g. [10,10,10], 3 dense layers each with 10 neurons
             activation_function: any avialiable Tensorflow activation function, e.g. 'relu'
             weighs_initializer: the way to initialize weights, default one is tf.random.normal
@@ -34,7 +42,7 @@ class Network(tf.Module):
             import_dir: the directory of a saved model to be loaded
     """
 
-    def __init__(self, elements=None, num_fingerprints=None, arch=None, \
+    def __init__(self, elements=None, descriptor=None, arch=None, \
                  activation_function=None, weights_initializer=tf.random.normal, bias_initializer=tf.zeros, import_dir=None):
         """
         Initialize Network object.
@@ -59,16 +67,17 @@ class Network(tf.Module):
                 print ('activation function is set to tanh by default.')
             self.tf_activation_function = tf.keras.activations.get(self.activation_function)
 
-            if num_fingerprints:
-                self.num_fingerprints = num_fingerprints 
+            if descriptor is not None:
+                self.descriptor = descriptor
             else:
-                raise ValueError ('Network has no num_fingerprints input.')
+                raise ValueError ('Network has no descriptor input.')
                             
             if elements is not None:
                 self.elements = elements 
             else:
                 raise ValueError ('Network has no elements input.')
 
+            self.num_fingerprints = get_num_fingerprints(descriptor,elements)
             self.data_type = atomdnn.data_type
             self.weights_initializer = weights_initializer
             self.bias_initializer = bias_initializer
@@ -84,12 +93,15 @@ class Network(tf.Module):
             self.tf_optimizer=None
             self.lr=None
                 
-        self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
-        self.saved_arch = tf.Variable(self.arch)
-        self.saved_activation_function = tf.Variable(self.activation_function)
-        self.saved_data_type = tf.Variable(self.data_type)
-        self.saved_elements = tf.Variable(self.elements)
-
+            self.saved_descriptor = {}
+            for key, value in descriptor.items():
+                self.saved_descriptor[key] = tf.Variable(value)
+            self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
+            self.saved_arch = tf.Variable(self.arch)
+            self.saved_activation_function = tf.Variable(self.activation_function)
+            self.saved_data_type = tf.Variable(self.data_type)
+            self.saved_elements = tf.Variable(self.elements)
+    
         
         
     def inflate_from_file(self, imported):
@@ -102,6 +114,14 @@ class Network(tf.Module):
         self.built = True
         self.arch = imported.saved_arch.numpy()
         self.num_fingerprints = imported.saved_num_fingerprints.numpy()
+
+        self.descriptor = {}
+        for key, value in imported.saved_descriptor.items():
+            value = value.numpy()
+            if isinstance(value, bytes):
+                value = value.decode()
+            self.descriptor[key] = value
+        
 
         if hasattr(imported,'scaling'):
             self.scaling = imported.scaling
@@ -310,17 +330,19 @@ class Network(tf.Module):
         stress_block = tf.reshape(tf.matmul(neighbor_atom_coord,force_block),[num_image,max_block,9])     
         
         return force_block, stress_block
-
-
     
-    def predict(self, input_dict,compute_force=atomdnn.compute_force,training=False):
+
+        
+    
+    def predict(self, input_dict,compute_force=atomdnn.compute_force,pe_peratom=False, training=False):
         """
         Predict energy, force and stress.
 
         Args:
             input_dict: input dictionary data
             compute_force(bool): True to compute force and stress
-            training: True when used during training
+            pe_peratom(bool): True to output per atom potential energy
+            training(bool): True when used during training
 
         Returns:
             dictionary: potential energy, force and stress
@@ -330,6 +352,9 @@ class Network(tf.Module):
             self.built = True
 
         fingerprints = input_dict['fingerprints']
+
+        if self.num_fingerprints!=len(fingerprints[0][0]):
+            raise ValueError('Network and inputdata have different number of fingerprints, check descriptor parameters.')
         
         if not tf.is_tensor(fingerprints):
             fingerprints = tf.convert_to_tensor(fingerprints)
@@ -356,9 +381,28 @@ class Network(tf.Module):
             if training:
                 return {'pe':total_pe, 'force':force, 'stress':stress}
             else:
-                return {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
+                if not pe_peratom:
+                    return {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
+                else:
+                    return {'pe':total_pe.numpy(), 'pe_peratom':atom_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
 
-        
+
+
+                
+    def inference(self, filename, format, **kwargs):
+        """
+        Predict potential energy, force and stress directly from one atomic structure input file. This function first computes descriptors and then call predict function.
+
+        Arg:
+            filename: name of the atomic structure input file
+            format: 'lammp-data','extxyz','vasp' etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read 
+            kwargs: used to pass optional file styles
+        """
+        atomdnn_data = create_descriptors(self.elements,filename,self.descriptor,format,descriptors_path='./descriptor_temp',descriptor_filename='dump_fp.temp', der_filename='dump_der.temp',silent=True,**kwargs)
+        shutil.rmtree('./descriptor_temp')
+        print(self.predict(atomdnn_data.get_input_dict(), pe_peratom=True))
+
+
                      
    
     def _predict(self, input_dict,compute_force=atomdnn.compute_force):
@@ -861,7 +905,7 @@ def print_signature(model_dir):
     print(output)
     
    
-def save(obj, model_dir, descriptor=None):
+def save(obj, model_dir):
     """
     Save a trained model.
 
@@ -870,36 +914,36 @@ def save(obj, model_dir, descriptor=None):
         descriptor(dictionary): descriptor parameters, used for LAMMPS prediction
     """
     tf.saved_model.save(obj, model_dir)
-    if descriptor is not None:
-        input_tag, input_name, output_tag, output_name = get_signature(model_dir)
-        file = open(model_dir+'/parameters','w')
-        
-        file.write('%-20s ' % 'element')
-        file.write('  '.join(j for j in obj.elements))
-        file.write('\n\n')
-        
-        file.write('%-20s %d\n' % ('input',len(input_tag)))
-        for i in range(len(input_tag)):
-            file.write('%-20s %-20s\n' % (input_tag[i],input_name[i]))
-        file.write('\n')
-        
-        file.write('%-20s %d\n' % ('output',len(output_tag)))
-        for i in range(len(output_tag)):
-            file.write('%-20s %-20s\n' % (output_tag[i],output_name[i]))
-        file.write('\n')
 
-        file.write('%-20s %f\n' % ('cutoff',descriptor['cutoff']))
-        file.write('\n')
+    input_tag, input_name, output_tag, output_name = get_signature(model_dir)
+    file = open(model_dir+'/parameters','w')
+    
+    file.write('%-20s ' % 'element')
+    file.write('  '.join(j for j in obj.elements))
+    file.write('\n\n')
 
-        file.write('%-20s %s  %d\n' % ('descriptor',descriptor['name'], len(descriptor)-2))    
-        for i in range(2,len(descriptor)):
-            key  = list(descriptor.keys())[i]
-            file.write('%-20s '% key)
-            file.write('  '.join(str(j) for j in descriptor[key]))
-            file.write('\n')
-            
-        file.close()
-        print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
+    file.write('%-20s %d\n' % ('input',len(input_tag)))
+    for i in range(len(input_tag)):
+        file.write('%-20s %-20s\n' % (input_tag[i],input_name[i]))
+    file.write('\n')
+        
+    file.write('%-20s %d\n' % ('output',len(output_tag)))
+    for i in range(len(output_tag)):
+        file.write('%-20s %-20s\n' % (output_tag[i],output_name[i]))
+    file.write('\n')
+
+    file.write('%-20s %f\n' % ('cutoff',obj.descriptor['cutoff']))
+    file.write('\n')
+
+    file.write('%-20s %s  %d\n' % ('descriptor',obj.descriptor['name'], len(obj.descriptor)-2))    
+    for i in range(2,len(obj.descriptor)):
+        key  = list(obj.descriptor.keys())[i]
+        file.write('%-20s '% key)
+        file.write('  '.join(str(j) for j in obj.descriptor[key]))
+        file.write('\n')
+        
+    file.close()
+    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
     
 
         

@@ -4,6 +4,8 @@ from ase.io import read,write
 import atomdnn
 import re
 import glob
+import shutil
+import random
 
 def sorted_alphanumeric(filenames):
     """
@@ -37,7 +39,7 @@ def get_filenames(file_path,file_name):
         return filenames
     else:
         return [true_path]
-    
+
 
     
 def create_lmp_input(descriptor,descriptors_path):
@@ -109,31 +111,39 @@ def create_lmp_input(descriptor,descriptors_path):
 
     
 
-def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors_path, \
-                       descriptor, descriptor_filename='dump_fp.*', der_filename='dump_der.*', \
-                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, verbose=False):
+def create_descriptors(elements, xyzfiles, descriptor, \
+                       format='extxyz', descriptors_path=None, descriptor_filename='dump_fp.*', der_filename='dump_der.*', \
+                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, create_data = True, verbose=False, silent=False, **kwargs):
     
     """
     Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.
 
     Args:
-       lmpexe: lammps executable 
-       xyzfile_path: directory contains a serials of extxyz files of input atomic structures
-       xyzfile_name: extxyz filename, wildcard * is used for files numerically ordered
-       descriptors_path: a new directory where descirptors will be generated
+       elements: a list of elements, e.g. ['C','O','H'], make sure the sequence is consistant 
+       xyzfiles: a serials of extxyz files of input atomic structures, wildcard * is used for files numerically ordered
        descritpor (dictionary): the parameter dictionary of the descriptor
+       format: 'lammp-data','extxyz','vasp' etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read. 'extxyz' is recommanded.
+       descriptors_path: a new directory where descirptors will be generated, default is './descriptors'
        descriptor_filename: default is 'dump_fp.*', numerically ordered
        der_filename: default is 'dump_der.*', numerically ordered
        start_file_id(int): starting id for descriptor and derivative files
        image_num: number of images that will be used, if it's None then read all files specified by xyzfile_name
        skip(int): skip some images
-       keep_lmpfiles(bool): set to True if want to keep the lammps input and datafiles used for creating descriptors 
+       keep_lmpfiles(bool): set to True if want to keep the lammps input and datafiles used for creating descriptors
+       create_data(bool): set to True if want to create Data object using the generated descriptors
        verbose(bool): set to True if want to print out the extxyz file names used for creating descriptors
-
+       kwargs: used to pass optional file styles
     """
-    
-    os.makedirs(descriptors_path, exist_ok=True)
 
+    if descriptors_path is None:
+        descriptors_path = str(hash(random.random()))
+
+    os.makedirs(descriptors_path, exist_ok=True)
+    
+
+    if not isinstance(descriptor, dict):
+        raise TypeError("descriptor shoud be given as a dictionary")
+    
     if '*' in descriptor_filename:
         fp_name_mask = descriptor_filename.split('*')
         if len(fp_name_mask)!=2:
@@ -143,12 +153,15 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
         if len(der_name_mask)!=2:
             raise ValueError('The der_filename can only has one *.')
 
-    xyzfiles = get_filenames(xyzfile_path,xyzfile_name)[skip:]
+    xyzfile_path = os.path.dirname(os.path.abspath(xyzfiles))
+    xyzfile_name = os.path.basename(os.path.abspath(xyzfiles))
+        
+    xyzfile_names = get_filenames(xyzfile_path,xyzfile_name)[skip:]
 
-    if image_num is not None and image_num<len(xyzfiles):
+    if image_num is not None and image_num<len(xyzfile_names):
         nfiles = image_num
     else:
-        nfiles = len(xyzfiles)
+        nfiles = len(xyzfile_names)
 
     if nfiles >1 and '*' not in descriptor_filename:
         raise ValueError('Multiple extxyz files found, use * in descriptor_filename.')
@@ -166,15 +179,17 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
             elif del_files=='n':
                 break
     
-    if atomdnn.compute_force:
-        print('Start creating fingerprints and derivatives for %i files ...'% nfiles)
-    else:
-        print('Start creating fingerprints for %i files (no derivatives, set atomdnn.compute_force to True for derivatives) ...'% nfiles)
+    if atomdnn.compute_force and silent==False:
+        print('Start creating fingerprints and derivatives for %i files named \'%s\' ...'% (nfiles,descriptor_filename))
+    elif silent==False:
+        print('Start creating fingerprints for %i files named \'%s\' (no derivatives, set atomdnn.compute_force to True for derivatives) ...'% (nfiles,descriptor_filename))
 
     #os.chdir(descriptors_path) # switch to descriptor directory
     start_time = time.time()
     for i in range(nfiles):
-        patom = read(xyzfiles[i],format='extxyz')
+
+        if format!='lammps-data':
+            patom = read(xyzfile_names[i],format=format,**kwargs)
         
         create_lmp_input(descriptor,descriptors_path) # create lammps input file named 'in.gen_descriptors'
 
@@ -192,18 +207,22 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
         logfile = 'log.'+str(i+start_file_id)
         logfile = os.path.join(descriptors_path,logfile)
 
-        # use specorder to make sure the type of atoms are consistant
-        write(lmpdatafile, patom, specorder=elements, format='lammps-data',atom_style='atomic') # create lammps datafile
+
+        if format=='lammps-data':
+            shutil.copyfile(xyzfile_names[i],lmpdatafile)
+        else:
+            # use specorder to make sure the type of atoms are consistant
+            write(lmpdatafile, patom, specorder=elements, format='lammps-data',atom_style='atomic') # create lammps datafile
         
         # lammps run command
         fp_pfname = os.path.join(descriptors_path,fp_fname)
         der_pfname = os.path.join(descriptors_path,der_fname)
         infile = os.path.join(descriptors_path,'in.gen_descriptors')
-        lmp_cmd = lmpexe + ' -in ' + infile \
-                         + ' -var fp_filename ' + fp_pfname  \
-                         + ' -var der_filename ' + der_pfname \
-                         + ' -var lmpdatafile ' + lmpdatafile \
-                         + ' -var logfile ' + logfile
+        lmp_cmd = os.environ['lmpexe']  + ' -in ' + infile \
+                          + ' -var fp_filename ' + fp_pfname  \
+                          + ' -var der_filename ' + der_pfname \
+                          + ' -var lmpdatafile ' + lmpdatafile \
+                          + ' -var logfile ' + logfile
       
         status = os.system(lmp_cmd) # run lammps
         if status!=0:
@@ -215,23 +234,36 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
             os.remove(lmpdatafile)
             os.remove(logfile)
 
-        if verbose:
+        if verbose and silent==False:
             if atomdnn.compute_force:
                 print('  file-%i: read atoms from \'%s\' and created descriptors in \'%s\' and derivatives in \'%s\'' \
-                      % (i+1,os.path.basename(xyzfiles[i]),fp_fname,der_fname))
+                      % (i+1,os.path.basename(xyzfile_names[i]),fp_fname,der_fname))
             else:
                 print('  file-%i: read atoms from \'%s\' and created descriptors in \'%s\'' \
-                      % (i+1,os.path.basename(xyzfiles[i]),fp_fname))
-        if i > 0 and int((i+1)%10)==0:
+                      % (i+1,os.path.basename(xyzfile_names[i]),fp_fname))
+        if i > 0 and int((i+1)%10)==0 and silent==False:
             print ('  so far finished for %d images ...' % (i+1),flush=True)
 
     if not keep_lmpfiles:
         os.remove(infile)
         os.remove('log.lammps')
-        
-    print('Finish creating descriptors and derivatives for total %i images.' % nfiles,flush=True)
-    print('It took %.2f seconds.'%(time.time()-start_time),flush=True)
 
+    if silent==False:
+        print('It took %.2f seconds.'%(time.time()-start_time),flush=True)
+        if atomdnn.compute_force:
+            print('The fingerprints files \'%s\' and derivatives files \'%s\' are saved in folder \'%s\'.'%(descriptor_filename,der_filename,descriptors_path))
+        else:
+            print('The fingerprints files \'%s\' are saved in folder \'%s\'.'%(descriptor_filename,descriptors_path))
+    if create_data is True:
+        if silent is False:
+            print('\nUsing the generated descriptors to create and return an AtomDNN Data object.')
+
+        from atomdnn.data import Data
+        # create a Data object using the generated descriptors        
+        atomdnn_data = Data(descriptors_path,descriptor_filename, der_filename, xyzfile_path, xyzfile_name,format,image_num,skip,verbose,silent,**kwargs)
+
+        return atomdnn_data
+    
 
 
 def get_num_fingerprints(descriptor,elements):

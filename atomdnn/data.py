@@ -33,8 +33,9 @@ class Data(object):
     """
 
     
-    def __init__(self, descriptors_path=None, fp_filename=None, der_filename=None, image_num=None, \
-                 xyzfile_path=None, xyzfile_name=None, read_der=atomdnn.compute_force):
+    def __init__(self, descriptors_path=None, fp_filename=None, der_filename=None, \
+                 xyzfile_path=None, xyzfile_name=None, format='extxyz',image_num=None, skip=0, \
+                 verbose=False, silent=False, read_der=atomdnn.compute_force,**kwargs):
 
         self.data_type = atomdnn.data_type
         
@@ -47,19 +48,19 @@ class Data(object):
             
         self.print_inputinfo_together = False
 
+
         self.input_dict = {}
         self.output_dict = {}
         
         if descriptors_path is not None and fp_filename is not None:
-            self.read_fingerprints_from_lmpdump(descriptors_path,fp_filename,image_num)
-            if read_der and der_filename is not None:
-                self.read_der_from_lmpdump(descriptors_path,der_filename,image_num)
+            self.read_inputdata(descriptors_path,fp_filename,der_filename,verbose=verbose,silent=silent,read_der=read_der)
+            
         if xyzfile_path is not None and xyzfile_name is not None:
-            self.read_outputdata(xyzfile_path,xyzfile_name,image_num)
+            self.read_outputdata(xyzfile_path,xyzfile_name,format,image_num,skip,verbose=verbose,silent=silent,**kwargs)
 
 
         
-    def read_inputdata(self,descriptors_path, fp_filename, der_filename=None, image_num=None, skip=0, append=False, verbose=False,read_der=atomdnn.compute_force):
+    def read_inputdata(self,descriptors_path, fp_filename, der_filename=None, image_num=None, skip=0, append=False, verbose=False, silent=False, read_der=atomdnn.compute_force):
         """
         Read input data from :func:`~atomdnn.data.Data.read_fingerprints_from_lmpdump` and :func:`~atomdnn.data.Data.read_der_from_lmpdump`.
         
@@ -81,19 +82,19 @@ class Data(object):
         self.print_inputinfo_together = True
         
         self.read_fingerprints_from_lmpdump(descriptors_path,fp_filename,image_num,skip,append,verbose)
-        if read_der:
+        if der_filename is not None and read_der:
             self.read_der_from_lmpdump(descriptors_path,der_filename,image_num,skip,append,verbose)
 
-        print('\n---------- input dataset information ----------')
-        print('total images = %d' % self.num_images)
-        print('max number of atoms = %d' % self.maxnum_atoms)
-        print('number of fingerprints = %d' % self.num_fingerprints)
-        print('number of atom types = %d' % self.num_types)
-        print('max number of derivative pairs = %d' % self.maxnum_blocks)
-        print('------------------------------------------------')
+        if silent is False:
+            print('\ntotal images = %d' % self.num_images)
+            print('max number of atoms = %d' % self.maxnum_atoms)
+            print('number of fingerprints = %d' % self.num_fingerprints)
+            print('number of atom types = %d' % self.num_types)
+            print('max number of derivative pairs = %d' % self.maxnum_blocks)
+
 
         
-    def read_fingerprints_from_lmpdump(self, descriptors_path, fp_filename, image_num=None, skip=0, append=False,verbose=False):
+    def read_fingerprints_from_lmpdump(self, descriptors_path, fp_filename, image_num=None, skip=0, append=False,verbose=False,silent=False):
         """
         Read descriptors(fingerprints), atom_type and volume from the descriptor files created with LAMMPS, and save them into data object.
         """
@@ -115,7 +116,8 @@ class Data(object):
         if nfiles==0:
             raise ValueError('Cannot find \'%s\' in \'%s\''%(fp_filename,descriptor_path))
 
-        print ("Start reading fingerprints from \'%s\' for total %i files ..."%(fp_filename,nfiles))
+        if silent is False:
+            print ("\nReading fingerprints from \'%s\' for total %i files ..."%(fp_filename,nfiles))
 
         maxnum_atoms = 0 # max number of atoms among all the images
         # screen all the files, get the number of atoms and check data consistance
@@ -163,9 +165,9 @@ class Data(object):
                 fingerprints[i][j] = [self.str2float(x) for x in line[2:]]
             self.ntypes_list.append(max(atom_type[i]))
             
-            if verbose:
+            if verbose and silent is False:
                 print("  file-%i: read fingerprints from \'%s\'."%(i+1,os.path.basename(files[i])))
-            if int((i+1)%50)==0:
+            if int((i+1)%50)==0 and silent is False:
                 print ('  so far read %d images ...' % (i+1),flush=True)  
 
         if not append:
@@ -176,7 +178,8 @@ class Data(object):
             self.num_fingerprints = num_fingerprints
         else:
             if padding: # pad existing data
-                print('Pad existing dataset.')
+                if silent is False:
+                    print('Pad existing dataset.')
                 pad_size = maxnum_atoms - self.maxnum_atoms
                 self.input_dict['fingerprints'] = \
                     np.pad(self.input_dict['fingerprints'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
@@ -187,12 +190,13 @@ class Data(object):
             self.input_dict['fingerprints'] = np.concatenate((self.input_dict['fingerprints'],fingerprints),axis=0)
             self.input_dict['atom_type'] = np.concatenate((self.input_dict['atom_type'],atom_type),axis=0)
             self.input_dict['volume'] = np.concatenate((self.input_dict['volume'],volume),axis=0)
-     
-        print('  Finish reading fingerprints from total %i images.\n' % nfiles,flush=True)
+
+        #if silent is False:
+        #    print('  Finish reading fingerprints from total %i images.' % nfiles,flush=True)
         self.num_images = len(self.input_dict['fingerprints'])
         self.num_types = max(self.ntypes_list)
 
-        if not self.print_inputinfo_together:
+        if not self.print_inputinfo_together and silent is False:
             print('total images in dataset = %d' % self.num_images,flush=True)
             print('max number of atoms in dataset= %d' % self.maxnum_atoms,flush=True)
             print('number of fingerprints in dataset= %d' % self.num_fingerprints,flush=True)
@@ -201,7 +205,7 @@ class Data(object):
         
 
 
-    def read_der_from_lmpdump(self,descriptor_path, der_filename, image_num=None,skip=0,append=False,verbose=False):
+    def read_der_from_lmpdump(self,descriptor_path, der_filename, image_num=None,skip=0,append=False,verbose=False, silent=False):
         """
         Read derivatives of fingerprints w.r.t. coordinates (dGdr), neibhor_atom_coord, center_atom_id, neighbor_atom_id.        
         """
@@ -222,8 +226,9 @@ class Data(object):
         if nfiles==0:
             raise ValueError('Cannot find \'%s\' in \'%s\''%(der_filename,descriptor_path))
 
-        print("\nStart reading derivatives from \'%s\' for total %i files ..."%(der_filename,nfiles))
-        print('  This may take a while for large data set ...')
+        if silent is False:
+            print("\nReading derivatives from \'%s\' for total %i files (may take a while for large data set) ..."%(der_filename,nfiles))
+
         
         start_time = time.time()    
 
@@ -273,9 +278,9 @@ class Data(object):
                 neighbor_atom_coord[i][ipair] = np.array([[self.str2float(row[2])] for row in block[0:]])
                 dGdr[i][ipair] = np.array([[self.str2float(x[k]) for x in block[0:]]for k in range(3,len(block[0]))])
                 ipair += 1
-            if verbose:
+            if verbose and silent is False:
                 print("  file-%i: read derivatives from \'%s\'."%(i+1,os.path.basename(files[i])))
-            if int((i+1)%50)==0:
+            if int((i+1)%50)==0 and silent is False:
                 print ('  so far read %d images ...' % (i+1),flush=True)
                 
         if not append:
@@ -287,7 +292,8 @@ class Data(object):
             self.num_fingerprints = num_fingerprints
         else: 
             if padding: # pad existing data
-                print ('  \nPadding existing dataset because number of derivative pairs increased in new data.')
+                if silent is False:
+                    print ('  \nPadding existing dataset because number of derivative pairs increased in new data.')
                 pad_size = maxnum_blocks - self.maxnum_blocks 
                 self.input_dict['center_atom_id'] = \
                     np.pad(self.input_dict['center_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
@@ -304,29 +310,33 @@ class Data(object):
             self.input_dict['neighbor_atom_coord'] = np.concatenate((self.input_dict['neighbor_atom_coord'],neighbor_atom_coord),axis=0)
             self.input_dict['dGdr'] = np.concatenate((self.input_dict['dGdr'],dGdr),axis=0)
 
-        print('  Finish reading dGdr derivatives from total %i images.\n'% nfiles,flush=True)
+        #if silent is False:
+        #    print('  Finish reading derivatives from total %i images.'% nfiles,flush=True)
 
-        if not self.print_inputinfo_together:
-            print('total images in dataset = %d' % len(self.input_dict['center_atom_id']),flush=True)
-            print('max number of derivative pairs = %d' % self.maxnum_blocks,flush=True)
-            print('number of fingerprints = %d' % self.num_fingerprints,flush=True)
-        print('  It took %.2f seconds to read the derivatives data.'%(time.time()-start_time),flush=True)
+        if not self.print_inputinfo_together and silent is False:
+            #print('total images in dataset = %d' % len(self.input_dict['center_atom_id']),flush=True)
+            print('  max number of derivative pairs = %d' % self.maxnum_blocks,flush=True)
+            #print('number of fingerprints = %d' % self.num_fingerprints,flush=True)
+        if verbose and silent is False:
+            print('  It took %.2f seconds to read the derivatives data.'%(time.time()-start_time),flush=True)
 
         
         
-    def read_outputdata(self, xyzfile_path, xyzfile_name, image_num=None, skip=0, append=False, verbose=False, \
-                        read_force=atomdnn.compute_force, read_stress=atomdnn.compute_force): 
+    def read_outputdata(self, xyzfile_path, xyzfile_name, format='extxyz',image_num=None, skip=0, append=False, verbose=False, silent=False,\
+                        read_force=atomdnn.compute_force, read_stress=atomdnn.compute_force, **kwargs): 
         """
         Read outputs(energy, force and stress) from extxyz files
 
         Args:
-            xyzfile_path: directory contains a serials of extxyz files of input atomic structures
-            xyzfile_name: extxyz filename, wildcard * is used for files numerically ordered
+            xyzfile_path: directory contains a serials of input atomic structures
+            xyzfile_name: atomic structure filename, wildcard * is used for files numerically ordered
+            format: 'lammp-data','extxyz','vasp' etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read. 'extxyz' is recommanded.
             read_force(bool): make sure extxyz files have force data if it's True 
             read_stress(bool): make sure extxyz files have stress data if it's True
             image_num: number of images that will be used, if it's None then read all files specified by xyzfile_name
             append(bool): append the reading to previous data object
-            verbose(bool): set to True if want to print out the extxyz file names 
+            verbose(bool): set to True if want to print out the extxyz file names
+            kwargs: used to pass optional file styles 
         """
         if append and len(self.output_dict)==0:
             print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
@@ -345,13 +355,10 @@ class Data(object):
         if nfiles==0:
             raise ValueError('Cannot find \'%s\' in \'%s\''%(xyzfile_filename,xyzfile_path))
 
-        print("Reading outputs from extxyz files ...")
-
         maxnum_atoms = 0
         for i in range(nfiles):
-            file = open(files[i])
-            natoms = int(file.readlines()[0])
-            file.close()
+            patom = read(files[i],format=format,**kwargs)
+            natoms = patom.get_global_number_of_atoms()
             self.natoms_in_force.append(natoms)
             if natoms > maxnum_atoms:
                 maxnum_atoms = natoms
@@ -369,28 +376,45 @@ class Data(object):
         if read_stress:
             stress = np.zeros([nfiles,6],dtype=self.data_type)
 
+        if silent is False:    
+            print('\nReading outputs from \'%s\' ...' % xyzfile_name, flush=True)    
         for i in range(nfiles):
-            patom = read(files[i],format='extxyz')
-            pe[i] = patom.get_potential_energy(patom)
+            patom = read(files[i],format=format,**kwargs)
+            try:
+                pe[i] = patom.get_potential_energy(patom)
+            except:
+                if silent is False:
+                    print('  There is no potential energy in \'%s\'.'%files[i], flush=True)
+                return 
             if read_force:
-                force[i] = patom.get_forces(patom)
+                try:
+                    force[i] = patom.get_forces(patom)
+                except:
+                    if silent is False:
+                        print('  There is no atomic forces in \'%s\'.'%files[i], flush=True)
+                    return
             if read_stress:
-                stress[i] = patom.get_stress(patom)
-
-            if verbose:
+                try:
+                    stress[i] = patom.get_stress(patom)
+                except:
+                    if silent is False:
+                        print('  There is no stress in \'%s\'.'%files[i], flush=True)
+                    return
+            
+            if verbose and silent is False:
                 if read_force and read_stress:
-                    print('  file-%i: read potential energy, forces and stress from \'%s\''\
+                    print('  file-%i: read output potential energy, forces and stress from \'%s\''\
                           %(i+1, os.path.basename(files[i])))
                 elif read_force:
-                    print('  file-%i: read potential energy and forces from \'%s\''\
+                    print('  file-%i: read output potential energy and forces from \'%s\''\
                           %(i+1, os.path.basename(files[i])))
                 elif read_stress:
-                    print('  file-%i: read potential energy and stress from \'%s\''\
+                    print('  file-%i: read output potential energy and stress from \'%s\''\
                           %(i+1, os.path.basename(files[i])))
                 else:
-                    print('  file-%i: read potential energy from \'%s\''\
+                    print('  file-%i: read output potential energy from \'%s\''\
                           %(i+1, os.path.basename(files[i])))
-            if int((i+1)%50)==0:
+            if int((i+1)%50)==0 and silent is False:
                 print ('  so far read %d images ...' % (i+1),flush=True)
 
         if not append:
@@ -402,7 +426,8 @@ class Data(object):
             self.maxnum_atoms_output = maxnum_atoms
         else:
             if padding and read_force:
-                print('Pad existing dataset force since the atom number in new data is increased.')
+                if silent is False:
+                    print('Pad existing dataset force since the atom number in new data is increased.')
                 pad_size = maxnum_atoms - self.maxnum_atoms_output
                 self.output_dict['force'] = \
                     np.pad(self.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
@@ -412,22 +437,19 @@ class Data(object):
                 self.output_dict['force'] = np.concatenate((self.output_dict['force'],force),axis=0)
             if read_stress:
                 self.output_dict['stress'] = np.concatenate((self.output_dict['stress'],stress),axis=0)
-                
-        print('  Finish reading outputs from total %i images.\n' % nfiles,flush=True)
 
-        print('\n---------- output dataset information ------------')
-        print('total images = %d' % len(self.output_dict['pe']))
-        print('max number of atoms = %d' % self.maxnum_atoms_output)
-        if read_force:
-            print('read_force = True')
-        if read_stress:
-            print('read_stress = True')
-        print('---------------------------------------------------')
+        #if silent is False:
+            #print('  Finish reading outputs from total %i images.\n' % nfiles,flush=True)
+            #print('total images = %d' % len(self.output_dict['pe']))
+           # print('max number of atoms = %d' % self.maxnum_atoms_output)
+        #if silent is False:
+        #    print('---------------------------------------------------')
 
-
-        
                     
     def shuffle(self):
+        """
+        Shuffle the data.
+        """
         zipped = list(zip(*[self.input_dict[keys] for keys in list(self.input_dict.keys())],*[self.output_dict[keys] \
                                                                                 for keys in list(self.output_dict.keys())]))
         random.shuffle(zipped)
@@ -444,13 +466,38 @@ class Data(object):
 
         
     def slice(self, start=None, end=None):   
-        # check data
+        """
+        Slice the data between image start and image end, and return both the input and output dictionaries. Index starts from 1
+        """
         self.check_data()            
-        input_dict = slice_dict(self.input_dict, start, end)
-        output_dict = slice_dict(self.output_dict, start, end)
+        input_dict = slice_dict(self.input_dict, start-1, end-1)
+        output_dict = slice_dict(self.output_dict, start-1, end-1)
         return input_dict, output_dict
-        
 
+    def get_input_dict(self,start=None, end=None):
+        """
+        Return the input dictionaries from image start to image end. Index starts from 1. If end is not privided, return only one dictionary of image start.
+        """
+        if start==None:
+            start=0
+            return slice_dict(self.input_dict, 0, 1)
+        if end==None:
+            return slice_dict(self.input_dict, start-1, start)
+        else:
+            return slice_dict(self.input_dict, start-1, end-1)
+        
+    def get_output_dict(self,start=None, end=None):
+        """
+        Return the output dictionaries from image start to image end. Index starts from 1. If end is not privided, return only one dictionary of image start.
+        """
+        if start==None:
+            start = 0
+            return slice_dict(self.output_dict, 0, 1)
+        if end==None:
+            return slice_dict(self.output_dict, start-1, start)
+        else:
+            return slice_dict(self.output_dict, start-1, end-1)
+        
 
     def convert_data_to_tensor(self):
         """
@@ -499,6 +546,70 @@ class Data(object):
             raise ValueError('No fingerprints in input data.')
 
 
+
+
+    def append(self,apdata,read_force=atomdnn.compute_force,read_stress=atomdnn.compute_force):
+        """
+        Append one dataset with a second dataset.
+        """
+
+        # append fingerprints and output data
+        pad_size = np.absolute(self.maxnum_atoms - apdata.maxnum_atoms)
+        if self.maxnum_atoms < apdata.maxnum_atoms:
+            self.input_dict['fingerprints'] = \
+                np.pad(self.input_dict['fingerprints'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
+            self.input_dict['atom_type'] = \
+                np.pad(self.input_dict['atom_type'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
+            if read_force:
+                self.output_dict['force'] = \
+                    np.pad(self.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
+            self.maxnum_atoms = apdata.maxnum_atoms
+        elif self.maxnum_atoms > apdata.maxnum_atoms:
+            apdata.input_dict['fingerprints'] = \
+                np.pad(apdata.input_dict['fingerprints'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
+            apdata.input_dict['atom_type'] = \
+                np.pad(apdata.input_dict['atom_type'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
+            if read_force:
+                apdata.output_dict['force'] = \
+                    np.pad(apdata.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
+            apdata.maxnum_atoms = self.maxnum_atoms
+        self.input_dict['fingerprints'] = np.concatenate((self.input_dict['fingerprints'],apdata.input_dict['fingerprints']),axis=0)
+        self.input_dict['atom_type'] = np.concatenate((self.input_dict['atom_type'],apdata.input_dict['atom_type']),axis=0)
+        self.input_dict['volume'] = np.concatenate((self.input_dict['volume'],apdata.input_dict['volume']),axis=0)
+        self.output_dict['pe'] = np.concatenate((self.output_dict['pe'],apdata.output_dict['pe']),axis=0)
+        if read_force:
+            self.output_dict['force'] = np.concatenate((self.output_dict['force'],apdata.output_dict['force']),axis=0)
+        if read_stress:
+            self.output_dict['stress'] = np.concatenate((self.output_dict['stress'],apdata.output_dict['stress']),axis=0)
+        
+        # append derivatives data
+        pad_size = np.absolute(self.maxnum_blocks - apdata.maxnum_blocks)
+        if self.maxnum_blocks < apdata.maxnum_blocks:
+            self.input_dict['center_atom_id'] = \
+                np.pad(self.input_dict['center_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
+            self.input_dict['neighbor_atom_id'] = \
+                np.pad(self.input_dict['neighbor_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(-1))
+            self.input_dict['neighbor_atom_coord'] = \
+                np.pad(self.input_dict['neighbor_atom_coord'], ((0,0),(0,pad_size),(0,0),(0,0)),'constant',constant_values=(0))
+            self.input_dict['dGdr'] = \
+                np.pad(self.input_dict['dGdr'], ((0,0),(0,pad_size),(0,0),(0,0)),'constant',constant_values=(0))
+            self.maxnum_blocks = apdata.maxnum_blocks
+        elif self.maxnum_blocks > apdata.maxnum_blocks:
+            apdata.input_dict['center_atom_id'] = \
+                np.pad(apdata.input_dict['center_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(0))
+            apdata.input_dict['neighbor_atom_id'] = \
+                np.pad(apdata.input_dict['neighbor_atom_id'], ((0,0),(0,pad_size)),'constant',constant_values=(-1))
+            apdata.input_dict['neighbor_atom_coord'] = \
+                np.pad(apdata.input_dict['neighbor_atom_coord'], ((0,0),(0,pad_size),(0,0),(0,0)),'constant',constant_values=(0))
+            apdata.input_dict['dGdr'] = \
+                np.pad(apdata.input_dict['dGdr'], ((0,0),(0,pad_size),(0,0),(0,0)),'constant',constant_values=(0))
+            apdata.maxnum_blocks = self.maxnum_blocks
+            
+        self.input_dict['center_atom_id'] = np.concatenate((self.input_dict['center_atom_id'],apdata.input_dict['center_atom_id']),axis=0)
+        self.input_dict['neighbor_atom_id'] = np.concatenate((self.input_dict['neighbor_atom_id'],apdata.input_dict['neighbor_atom_id']),axis=0)
+        self.input_dict['neighbor_atom_coord'] = np.concatenate((self.input_dict['neighbor_atom_coord'],apdata.input_dict['neighbor_atom_coord']),axis=0)
+        self.input_dict['dGdr'] = np.concatenate((self.input_dict['dGdr'],apdata.input_dict['dGdr']),axis=0)
+    
 
 #=================================================================================================================
 # some functions to operate tensorflow dataset
@@ -603,4 +714,9 @@ def slice_dataset(dataset, start, end):
         tensorflow dataset
     """
     return dataset.skip(start).take(end-start)
+
+
+
+
+
 
