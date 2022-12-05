@@ -136,7 +136,7 @@ class Network(tf.Module):
            
         self.lr = imported.saved_lr.numpy()
         self.loss_fun = imported.saved_loss_fun.numpy().decode()
-
+        
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
@@ -479,7 +479,7 @@ class Network(tf.Module):
         """
         if self.loss_fun == 'rmse':
             tf_loss_fun = tf.keras.losses.get('mse')
-            return tf.sqrt(tf_loss_fun(true,pred))
+            return tf.sqrt(tf.maximum(tf_loss_fun(true,pred), 1e-9))
         else:
             tf_loss_fun = tf.keras.losses.get(self.loss_fun)
             return tf_loss_fun(true, pred)
@@ -825,34 +825,94 @@ class Network(tf.Module):
         
         
 
-    def plot_loss(self,start_epoch=1,figsize=(8,5)):
+    def plot_loss(self,start_epoch=1,saveplot=True,**kwargs):
         """
         Plot the losses.
         
         Args:
             start_epoch: plotting starts from start_epoch 
             figsize: set the fingersize, e.g. (8.5)
+            saveplot(bool): if true, save the plots to "plot_loss" folder  
+            kwargs: optional parameters for figures, default values are:
+                    figfolder = './loss_figures', the folder name for saving figures 
+                    figsize = (8,5)
+                    linewidth = [1,1] for train and validation loss plot
+                    color =['blue','darkgreen'] 
+                    label = ['train loss','validation loss']
+                    linestyle = ['-','-']
+                    markersize = [5,5] 
+                    xlabel = 'epoch'
+                    ylabel = {'pe':'loss(eV)', 'force':'loss(eV/A),'stress':'loss(GPa)'}         
+                    format = 'pdf'
         """
-    
+
+        if 'figfolder' in kwargs.keys():
+            figfolder = kwargs['figfolder']
+        else:
+            figfolder = './loss_figures'
+        if 'figsize' in kwargs.keys():
+            figsize = kwargs['figsize']
+        else:
+            figsize = (8,5)
+        if 'linewidth' in kwargs.keys():
+            linewidth = kwargs['linewidth']
+        else:
+            linewidth = [1,1]
+        if 'color' in kwargs.keys():
+            color = kwargs['color']
+        else:
+            color = ['blue','darkgreen']
+        if 'label' in kwargs.keys():
+            label = kwargs['label']
+        else:
+            label =['train loss','validation loss']
+        if 'linestyle' in kwargs.keys():
+            linestyle = kwargs['linestyle']
+        else:
+            linestyle = ['-','-']
+        if 'markersize' in kwargs.keys():
+            markersize = kwargs['markersize']
+        else:
+            markersize = [5,5]
+        if 'xlabel' in kwargs.keys():
+            xlabel = kwargs['xlabel']
+        else:
+            xlabel = 'epoch'
+        if 'ylabel' in kwargs.keys():
+            ylabel = kwargs['ylabel']
+        else:
+            ylabel = {'pe_loss':'pe loss (eV)', 'force_loss':'force loss (eV/'+r'$\AA$'+')','stress_loss':'stress loss (GPa)','total_loss':'total loss'}
+        if 'format' in kwargs.keys():
+            format = kwargs['format']
+        else:
+            format = 'pdf'
+        
+        
         matplotlib.rc('legend', fontsize=15) 
         matplotlib.rc('xtick', labelsize=15) 
         matplotlib.rc('ytick', labelsize=15) 
         matplotlib.rc('axes', labelsize=15) 
         matplotlib.rc('figure', titlesize=25)
-
+        
         for key in self.train_loss:
             fig, axs = plt.subplots(1, 1 ,figsize=figsize)
-            epoch = np.arange(start_epoch,len(self.train_loss[key])+1)
-            axs.plot(epoch,self.train_loss[key][start_epoch-1:],'-', markersize=5, \
-                     fillstyle='none', linewidth=1, color= 'blue', label='train_loss')
+            end_epoch = len(self.train_loss[key])
+            epoch = np.arange(start_epoch,end_epoch+1)
+            axs.plot(epoch,self.train_loss[key][start_epoch-1:],linestyle[0], markersize=markersize[0], \
+                     fillstyle='none', linewidth=linewidth[0], color= color[0], label=label[0])
             
             if hasattr(self,'val_loss'):
-                axs.plot(epoch,self.val_loss[key][start_epoch-1:],'-', markersize=5, \
-                         fillstyle='none', linewidth=1, color= 'darkgreen', label='val_loss')
-            axs.set_xlabel('epoch')
-            axs.set_ylabel('loss')
+                axs.plot(epoch,self.val_loss[key][start_epoch-1:],linestyle[1], markersize=markersize[1], \
+                         fillstyle='none', linewidth=linewidth[1], color=color[1], label=label[1])
+            axs.set_xlabel(xlabel)
+            axs.set_ylabel(ylabel[key])
             plt.legend(loc='upper right',frameon=True,borderaxespad=1)
             fig.suptitle(key)
+            if not os.path.isdir(figfolder):
+                os.mkdir(figfolder)
+            figname = key +'_at_epoch_'+str(end_epoch)+'.'+format
+            if saveplot:
+                fig.savefig(os.path.join(figfolder,figname),bbox_inches = 'tight',format=format, dpi=500)
             plt.show()
 
 
