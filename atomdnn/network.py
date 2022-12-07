@@ -608,8 +608,10 @@ class Network(tf.Module):
             return input_dict,output_dict
         return dataset.map(map_fun)
 
+
     
-    def train(self, train_dataset, validation_dataset=None, early_stop=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
+    
+    def train(self, train_dataset, validation_dataset=None, early_stop=None, nepochs_checkpoint=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
               optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
         """
         Train the neural network.
@@ -818,20 +820,27 @@ class Network(tf.Module):
                     if early_stop_repeats == early_stop['val_loss'][1]:
                         print('\nTraining is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
                         break
-                
+
+
+            if nepochs_checkpoint:
+                if (epoch+1) % nepochs_checkpoint ==0:
+                    save(self, 'saved_model_at_epoch'+str(epoch+1))
+                    self.plot_loss(saveplot=True)
+
+                    
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
         
         
 
-    def plot_loss(self,start_epoch=1,saveplot=True,**kwargs):
+    def plot_loss(self,start_epoch=1,saveplot=False,**kwargs):
         """
         Plot the losses.
         
         Args:
             start_epoch: plotting starts from start_epoch 
-            figsize: set the fingersize, e.g. (8.5)
+            figsize: set the fingersize, e.g. (8,4)
             saveplot(bool): if true, save the plots to "plot_loss" folder  
             kwargs: optional parameters for figures, default values are:
                     figfolder = './loss_figures', the folder name for saving figures 
@@ -853,7 +862,7 @@ class Network(tf.Module):
         if 'figsize' in kwargs.keys():
             figsize = kwargs['figsize']
         else:
-            figsize = (8,5)
+            figsize = (8,4)
         if 'linewidth' in kwargs.keys():
             linewidth = kwargs['linewidth']
         else:
@@ -892,7 +901,7 @@ class Network(tf.Module):
         matplotlib.rc('xtick', labelsize=15) 
         matplotlib.rc('ytick', labelsize=15) 
         matplotlib.rc('axes', labelsize=15) 
-        matplotlib.rc('figure', titlesize=25)
+        matplotlib.rc('figure', titlesize=15)
         
         for key in self.train_loss:
             fig, axs = plt.subplots(1, 1 ,figsize=figsize)
@@ -910,7 +919,7 @@ class Network(tf.Module):
             fig.suptitle(key)
             if not os.path.isdir(figfolder):
                 os.mkdir(figfolder)
-            figname = key +'_at_epoch_'+str(end_epoch)+'.'+format
+            figname = key +'_at_epoch_'+str(end_epoch+1)+'.'+format
             if saveplot:
                 fig.savefig(os.path.join(figfolder,figname),bbox_inches = 'tight',format=format, dpi=500)
             plt.show()
@@ -1003,7 +1012,7 @@ def save(obj, model_dir):
         file.write('\n')
         
     file.close()
-    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
+#    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
     
 
         
