@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from atomdnn.descriptor import create_descriptors, get_num_fingerprints
 import shutil
-
+import math
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -120,8 +120,7 @@ class Network(tf.Module):
             value = value.numpy()
             if isinstance(value, bytes):
                 value = value.decode()
-            self.descriptor[key] = value
-        
+            self.descriptor[key] = value            
 
         if hasattr(imported,'scaling'):
             self.scaling = imported.scaling
@@ -134,11 +133,19 @@ class Network(tf.Module):
         self.data_type = imported.saved_data_type.numpy().decode()
         self.elements = [imported.saved_elements.numpy()[i].decode() for i in range(imported.saved_elements.shape[0])]
            
-        self.lr = imported.saved_lr.numpy()
+        
         self.loss_fun = imported.saved_loss_fun.numpy().decode()
         
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
+
+
+        if hasattr(imported,'saved_decay'):
+            self.lr_history = self.saved_lr_history.numpy()
+            self.lr = self.lr_history[-1]        
+        else:
+            self.lr = imported.saved_lr.numpy()
+
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
 
         self.train_loss = imported.train_loss
@@ -538,6 +545,12 @@ class Network(tf.Module):
 
 
 
+    def decay_lr(self,epoch):
+        self.lr = self.decay['initial_lr'] * math.pow(self.decay['decay_rate'],np.floor((1+epoch)/self.decay['decay_steps']))
+        K.set_value(self.tf_optimizer.learning_rate, self.lr)
+        self.lr_history.append(self.lr)
+        
+
      
     def train_step(self, input_dict, output_dict):
         """
@@ -612,7 +625,7 @@ class Network(tf.Module):
     
     
     def train(self, train_dataset, validation_dataset=None, early_stop=None, nepochs_checkpoint=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
+              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
         """
         Train the neural network.
 
@@ -626,7 +639,8 @@ class Network(tf.Module):
             epochs: training epochs
             loss_fun(string): loss function, 'mae', 'mse', 'rmse' and others
             opimizer(string): any Tensorflow optimizer such as 'Adam'
-            lr(float): learning rate
+            lr(float): learning rate, it is ignored if decay is provided
+            decay(dictionary): parameters for exponentialDecay, keys are: 'initial_lr','decay_steps' and 'decay_rate'
             loss_weight(dictionary): weights assigned to loss function, e.g. {'pe':1,'force':1,'stress':0.1}  
             compute_all_loss(bool): compute loss for force and stress even when they are not used for training
             shuffle(bool): shuffle training dataset during training
@@ -636,13 +650,7 @@ class Network(tf.Module):
         if not self.built:            
             self._build()
             self.built = True
-            
-        if lr:
-            self.lr = lr
-        elif not self.lr: 
-            self.lr = 0.01
-            print ("learning rate is set to 0.01 by default.")            
-                
+                        
         if scaling:
             if scaling != 'std' and scaling != 'norm':
                 raise ValueError('Scaling needs to be \'std\' (standardization) or \'norm\'(normalization).')
@@ -650,15 +658,33 @@ class Network(tf.Module):
                 self.scaling = tf.Variable(scaling)
         else:
             self.scaling = None
+
             
+        if decay:
+            for key in {'initial_lr','decay_steps','decay_rate'}:
+                if decay.get(key)==None:
+                    raise ValueError(key + ' is not in decay.')
+            self.decay = decay
+            if not hasattr(self,'lr_histroy'):
+                self.lr_history = []
+            self.lr = decay['initial_lr']
+            print("Initial learning rate is set to %.3f."%self.lr)
+        else:
+            if lr:
+                self.lr = lr
+                print ("Learning rate is set to %.3f."%self.lr)
+            elif not hasattr(self,'lr'): 
+                self.lr = 0.01
+                print ("Learning rate is set to 0.01 by default.")                        
         if optimizer:
             self.optimizer = optimizer
             self.tf_optimizer = tf.keras.optimizers.get(optimizer)
             K.set_value(self.tf_optimizer.learning_rate, self.lr)
-        elif not self.optimizer and not self.tf_optimizer:
+        elif not hasattr(self,'optimizer') and not hasattr(self,'tf_optimizer'):
             self.optimizer = 'Adam'
-            self.tf_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr) 
+            self.tf_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
             print ("optimizer is set to Adam by default.")
+    
             
         if loss_fun:
             self.loss_fun = loss_fun
@@ -733,9 +759,16 @@ class Network(tf.Module):
 
         # convert to tf.variable so that they can be saved to network
         self.saved_optimizer = tf.Variable(self.optimizer)
-        self.saved_lr = tf.Variable(self.lr)
         self.saved_loss_fun = tf.Variable(self.loss_fun)
-                                                    
+        if decay:
+            self.saved_decay = {}
+            for key, value in decay.items():
+                self.saved_decay[key] = tf.Variable(value)
+            self.saved_lr_history = tf.Variable(self.lr_history)
+        else:
+            self.saved_lr = tf.Variable(self.lr)
+
+        # normalize or starndardize input data    
         if self.scaling:
             self.compute_scaling_factors(train_dataset)
             print('Scaling factors are computed using training dataset.')
@@ -745,18 +778,19 @@ class Network(tf.Module):
                 validation_dataset = self.scaling_dataset(validation_dataset)
                 print('Validation dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'))
 
+                
         if shuffle:
             train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
             print('Training dataset will be shuffled during training.')
-            
+   
         train_start_time = time.time()
         early_stop_repeats = 0
+        
+        # start training
         for epoch in range(epochs):
-
-            epoch_start_time = time.time()                
-            
-            # Iterate over the batches of the training dataset.
-            for step, (input_dict, output_dict) in enumerate(train_dataset.batch(batch_size)):
+            epoch_start_time = time.time()
+            # iterate over the batches of the training dataset, step traces batch
+            for step, (input_dict, output_dict) in enumerate(train_dataset.batch(batch_size)):                    
                 batch_loss = self.train_step(input_dict, output_dict)
                 if step==0:
                     train_epoch_loss = batch_loss
@@ -783,10 +817,8 @@ class Network(tf.Module):
                     
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
-
             
             print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
-
             print('     training_loss   ',*["- %s: %5.3f" % (key,value) for key,value in train_epoch_loss.items()])
             if validation_dataset:
                 print('     validation_loss ',*["- %s: %5.3f" % (key,value) for key,value in val_epoch_loss.items()])
@@ -821,13 +853,16 @@ class Network(tf.Module):
                         print('\nTraining is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
                         break
 
-
             if nepochs_checkpoint:
                 if (epoch+1) % nepochs_checkpoint ==0:
                     save(self, 'saved_model_at_epoch'+str(epoch+1))
                     self.plot_loss(saveplot=True)
 
-                    
+            if decay:
+                if (epoch+1) % decay['decay_steps']==0 and (epoch+1)<epochs:
+                    self.decay_lr(epoch)
+                    print('\nLearning rate is decreased to %.3f'% self.lr)
+
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
