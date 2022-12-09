@@ -16,7 +16,7 @@ Once LAMMPS is built, the trained potential can be used just like any other LAMM
   read_data lmpdata
   mass 1 12
 
-  pair_style   tfdnn
+  pair_style   tfdnn C
   pair_coeff   * * example.tfdnn
 
   fix NVE all nve
