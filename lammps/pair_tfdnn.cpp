@@ -420,16 +420,15 @@ void PairTFDNN::init_style()
     error->all(FLERR,"Pair style tfdnn requires newton pair on");
 
   // Initialise neighbor list, including neighbors of ghosts
-  int irequest_full = neighbor->request(this);
+  int irequest_full = neighbor->request(this, instance_me);
   neighbor->requests[irequest_full]->id = 1;
   neighbor->requests[irequest_full]->half = 0;
   neighbor->requests[irequest_full]->full = 1;
   // neighbor->requests[irequest_full]->ghost = 1;
-  neighbor->requests[irequest_full]->occasional = 1;
+  //neighbor->requests[irequest_full]->occasional = 1;
   
   // create tensorflow model
   create_tensorflow_model();
-  
 }
 
 /* ----------------------------------------------------------------------
@@ -524,6 +523,7 @@ void PairTFDNN::compute_fingerprints()
   if (inum > fp_nrows) {
     memory->sfree(fingerprints);
     memory->sfree(atom_elements);
+    printf("\n================> reallocate memory ==================\n");
     fp_nrows = inum;
     fingerprints = (float_type *) memory->smalloc(fp_nrows*n_fpt*sizeof(float_type),"PairTFDNN:fingerprints");
     atom_elements = (int *) memory->smalloc(fp_nrows * sizeof(int),"PairTFDNN:atom_elements");
@@ -839,6 +839,7 @@ void PairTFDNN::compute_derivatives()
       count++;
     } 
   }
+  num_der_pairs = count; // update number of pairs to get rid of the influence of neighbor bin
 }
 
 
@@ -904,7 +905,7 @@ void PairTFDNN::compute(int eflag, int vflag)
 
   if(TF_GetCode(Status) != TF_OK)
     error->all(FLERR,"Failed TF_SessionRun.");
-    
+   
 
   void* buff;
   float_type* model_output;

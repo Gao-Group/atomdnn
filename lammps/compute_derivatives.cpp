@@ -74,7 +74,10 @@ ComputeDerivatives::ComputeDerivatives(LAMMPS *lmp, int narg, char **arg) :
     }
   }
 
-  if (g4_1 && g4_2 && g4_3 == 1)  g4_flag = 1;
+  if (g4_1 && g4_2 && g4_3 == 1)
+      g4_flag = 1;
+  else
+      g4_flag = 0;
 
   int ntypes = atom->ntypes;
   int ntypes_combinations = ntypes*(ntypes+1)/2;
@@ -348,6 +351,7 @@ void ComputeDerivatives::compute_derivatives()
       count++;
     } 
   }
+  size_local_rows = 3 * count; // update number of rows/pairs to get rid of the influence of neighbor bin
 }
 
 void ComputeDerivatives::reallocate(int n)
