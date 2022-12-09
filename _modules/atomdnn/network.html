@@ -97,6 +97,9 @@
 <span class="kn">from</span> <span class="nn">atomdnn.data</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 <span class="kn">import</span> <span class="nn">matplotlib</span>
+<span class="kn">from</span> <span class="nn">atomdnn.descriptor</span> <span class="kn">import</span> <span class="n">create_descriptors</span><span class="p">,</span> <span class="n">get_num_fingerprints</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">math</span>
 
 <span class="k">if</span> <span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">:</span>
     <span class="n">input_signature_dict</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;fingerprints&quot;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">atomdnn</span><span class="o">.</span><span class="n">data_type</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;fingerprints&quot;</span><span class="p">),</span>
@@ -110,13 +113,18 @@
                          <span class="s2">&quot;atom_type&quot;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">TensorSpec</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span><span class="kc">None</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;atom_type&quot;</span><span class="p">)}]</span>
 
 
+
+
+
+
+  
 <div class="viewcode-block" id="Network"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network">[docs]</a><span class="k">class</span> <span class="nc">Network</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    The nueral network is built based on tf.Module.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">            elements(python list): list of element in the system, e.g. [C,O,H]</span>
-<span class="sd">            num_fingerprints(int): number of fingerprints in dataset</span>
+<span class="sd">            descriptor(dictionary): descriptor parameters</span>
 <span class="sd">            arch: network architecture, e.g. [10,10,10], 3 dense layers each with 10 neurons</span>
 <span class="sd">            activation_function: any avialiable Tensorflow activation function, e.g. &#39;relu&#39;</span>
 <span class="sd">            weighs_initializer: the way to initialize weights, default one is tf.random.normal</span>
@@ -124,7 +132,7 @@
 <span class="sd">            import_dir: the directory of a saved model to be loaded</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">num_fingerprints</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> \
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">descriptor</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">arch</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> \
                  <span class="n">activation_function</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">weights_initializer</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">,</span> <span class="n">bias_initializer</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">zeros</span><span class="p">,</span> <span class="n">import_dir</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize Network object.</span>
@@ -149,16 +157,17 @@
                 <span class="nb">print</span> <span class="p">(</span><span class="s1">&#39;activation function is set to tanh by default.&#39;</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tf_activation_function</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">activations</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activation_function</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">num_fingerprints</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">num_fingerprints</span> <span class="o">=</span> <span class="n">num_fingerprints</span> 
+            <span class="k">if</span> <span class="n">descriptor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">descriptor</span> <span class="o">=</span> <span class="n">descriptor</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span> <span class="p">(</span><span class="s1">&#39;Network has no num_fingerprints input.&#39;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span> <span class="p">(</span><span class="s1">&#39;Network has no descriptor input.&#39;</span><span class="p">)</span>
                             
             <span class="k">if</span> <span class="n">elements</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="n">elements</span> 
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span> <span class="p">(</span><span class="s1">&#39;Network has no elements input.&#39;</span><span class="p">)</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_fingerprints</span> <span class="o">=</span> <span class="n">get_num_fingerprints</span><span class="p">(</span><span class="n">descriptor</span><span class="p">,</span><span class="n">elements</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_type</span> <span class="o">=</span> <span class="n">atomdnn</span><span class="o">.</span><span class="n">data_type</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">weights_initializer</span> <span class="o">=</span> <span class="n">weights_initializer</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">bias_initializer</span> <span class="o">=</span> <span class="n">bias_initializer</span>
@@ -174,12 +183,15 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span><span class="o">=</span><span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="o">=</span><span class="kc">None</span>
                 
-        <span class="bp">self</span><span class="o">.</span><span class="n">saved_num_fingerprints</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_fingerprints</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">saved_arch</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">arch</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">saved_activation_function</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activation_function</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">saved_data_type</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_type</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">saved_elements</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
-
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_descriptor</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">saved_descriptor</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_num_fingerprints</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_fingerprints</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_arch</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">arch</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_activation_function</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">activation_function</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_data_type</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_type</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_elements</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">)</span>
+    
         
         
 <div class="viewcode-block" id="Network.inflate_from_file"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.inflate_from_file">[docs]</a>    <span class="k">def</span> <span class="nf">inflate_from_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">imported</span><span class="p">):</span>
@@ -193,6 +205,13 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">arch</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_arch</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_fingerprints</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_num_fingerprints</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
+        <span class="bp">self</span><span class="o">.</span><span class="n">descriptor</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_descriptor</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">descriptor</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>            
+
         <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">imported</span><span class="p">,</span><span class="s1">&#39;scaling&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">scaling</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">scaling_factor</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">scaling_factor</span>
@@ -204,11 +223,19 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">data_type</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_data_type</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">elements</span> <span class="o">=</span> <span class="p">[</span><span class="n">imported</span><span class="o">.</span><span class="n">saved_elements</span><span class="o">.</span><span class="n">numpy</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">imported</span><span class="o">.</span><span class="n">saved_elements</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
            
-        <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_lr</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        
         <span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_loss_fun</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
-
+        
         <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_optimizer</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">)</span>
+
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">imported</span><span class="p">,</span><span class="s1">&#39;saved_decay&#39;</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lr_history</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">saved_lr_history</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr_history</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">saved_lr</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+
         <span class="n">K</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">train_loss</span> <span class="o">=</span> <span class="n">imported</span><span class="o">.</span><span class="n">train_loss</span>
@@ -400,17 +427,19 @@
         <span class="n">stress_block</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">neighbor_atom_coord</span><span class="p">,</span><span class="n">force_block</span><span class="p">),[</span><span class="n">num_image</span><span class="p">,</span><span class="n">max_block</span><span class="p">,</span><span class="mi">9</span><span class="p">])</span>     
         
         <span class="k">return</span> <span class="n">force_block</span><span class="p">,</span> <span class="n">stress_block</span>
-
-
     
-<div class="viewcode-block" id="Network.predict"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dict</span><span class="p">,</span><span class="n">compute_force</span><span class="o">=</span><span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">,</span><span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+
+        
+    
+<div class="viewcode-block" id="Network.predict"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dict</span><span class="p">,</span><span class="n">compute_force</span><span class="o">=</span><span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">,</span><span class="n">pe_peratom</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Predict energy, force and stress.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            input_dict: input dictionary data</span>
 <span class="sd">            compute_force(bool): True to compute force and stress</span>
-<span class="sd">            training: True when used during training</span>
+<span class="sd">            pe_peratom(bool): True to output per atom potential energy</span>
+<span class="sd">            training(bool): True when used during training</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            dictionary: potential energy, force and stress</span>
@@ -420,6 +449,9 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">built</span> <span class="o">=</span> <span class="kc">True</span>
 
         <span class="n">fingerprints</span> <span class="o">=</span> <span class="n">input_dict</span><span class="p">[</span><span class="s1">&#39;fingerprints&#39;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_fingerprints</span><span class="o">!=</span><span class="nb">len</span><span class="p">(</span><span class="n">fingerprints</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Network and inputdata have different number of fingerprints, check descriptor parameters.&#39;</span><span class="p">)</span>
         
         <span class="k">if</span> <span class="ow">not</span> <span class="n">tf</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">fingerprints</span><span class="p">):</span>
             <span class="n">fingerprints</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">convert_to_tensor</span><span class="p">(</span><span class="n">fingerprints</span><span class="p">)</span>
@@ -446,9 +478,28 @@
             <span class="k">if</span> <span class="n">training</span><span class="p">:</span>
                 <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span><span class="p">:</span><span class="n">total_pe</span><span class="p">,</span> <span class="s1">&#39;force&#39;</span><span class="p">:</span><span class="n">force</span><span class="p">,</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span><span class="n">stress</span><span class="p">}</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span><span class="p">:</span><span class="n">total_pe</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;force&#39;</span><span class="p">:</span><span class="n">force</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span><span class="n">stress</span><span class="o">.</span><span class="n">numpy</span><span class="p">()}</span></div>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">pe_peratom</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span><span class="p">:</span><span class="n">total_pe</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;force&#39;</span><span class="p">:</span><span class="n">force</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span><span class="n">stress</span><span class="o">.</span><span class="n">numpy</span><span class="p">()}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;pe&#39;</span><span class="p">:</span><span class="n">total_pe</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;pe_peratom&#39;</span><span class="p">:</span><span class="n">atom_pe</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;force&#39;</span><span class="p">:</span><span class="n">force</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="s1">&#39;stress&#39;</span><span class="p">:</span><span class="n">stress</span><span class="o">.</span><span class="n">numpy</span><span class="p">()}</span></div>
 
-        
+
+
+                
+<div class="viewcode-block" id="Network.inference"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.inference">[docs]</a>    <span class="k">def</span> <span class="nf">inference</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="nb">format</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predict potential energy, force and stress directly from one atomic structure input file. This function first computes descriptors and then call predict function.</span>
+
+<span class="sd">        Arg:</span>
+<span class="sd">            filename: name of the atomic structure input file</span>
+<span class="sd">            format: &#39;lammp-data&#39;,&#39;extxyz&#39;,&#39;vasp&#39; etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read </span>
+<span class="sd">            kwargs: used to pass optional file styles</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">atomdnn_data</span> <span class="o">=</span> <span class="n">create_descriptors</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">elements</span><span class="p">,</span><span class="n">filename</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">descriptor</span><span class="p">,</span><span class="nb">format</span><span class="p">,</span><span class="n">descriptors_path</span><span class="o">=</span><span class="s1">&#39;./descriptor_temp&#39;</span><span class="p">,</span><span class="n">descriptor_filename</span><span class="o">=</span><span class="s1">&#39;dump_fp.temp&#39;</span><span class="p">,</span> <span class="n">der_filename</span><span class="o">=</span><span class="s1">&#39;dump_der.temp&#39;</span><span class="p">,</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s1">&#39;./descriptor_temp&#39;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">atomdnn_data</span><span class="o">.</span><span class="n">get_input_dict</span><span class="p">(),</span> <span class="n">pe_peratom</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span></div>
+
+
                      
    
     <span class="k">def</span> <span class="nf">_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dict</span><span class="p">,</span><span class="n">compute_force</span><span class="o">=</span><span class="n">atomdnn</span><span class="o">.</span><span class="n">compute_force</span><span class="p">):</span>
@@ -525,7 +576,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span> <span class="o">==</span> <span class="s1">&#39;rmse&#39;</span><span class="p">:</span>
             <span class="n">tf_loss_fun</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;mse&#39;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">tf_loss_fun</span><span class="p">(</span><span class="n">true</span><span class="p">,</span><span class="n">pred</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">tf_loss_fun</span><span class="p">(</span><span class="n">true</span><span class="p">,</span><span class="n">pred</span><span class="p">),</span> <span class="mf">1e-9</span><span class="p">))</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">tf_loss_fun</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">losses</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">tf_loss_fun</span><span class="p">(</span><span class="n">true</span><span class="p">,</span> <span class="n">pred</span><span class="p">)</span></div>
@@ -583,6 +634,12 @@
             <span class="k">return</span> <span class="n">loss_dict</span></div>
 
 
+
+    <span class="k">def</span> <span class="nf">decay_lr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">epoch</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">[</span><span class="s1">&#39;initial_lr&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">[</span><span class="s1">&#39;decay_rate&#39;</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">floor</span><span class="p">((</span><span class="mi">1</span><span class="o">+</span><span class="n">epoch</span><span class="p">)</span><span class="o">/</span><span class="bp">self</span><span class="o">.</span><span class="n">decay</span><span class="p">[</span><span class="s1">&#39;decay_steps&#39;</span><span class="p">]))</span>
+        <span class="n">K</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lr_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+        
 
      
 <div class="viewcode-block" id="Network.train_step"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.train_step">[docs]</a>    <span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dict</span><span class="p">,</span> <span class="n">output_dict</span><span class="p">):</span>
@@ -654,9 +711,11 @@
             <span class="k">return</span> <span class="n">input_dict</span><span class="p">,</span><span class="n">output_dict</span>
         <span class="k">return</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">map_fun</span><span class="p">)</span></div>
 
+
     
-<div class="viewcode-block" id="Network.train"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.train">[docs]</a>    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">validation_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scaling</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_fun</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> \
-              <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute_all_loss</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">append_loss</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    
+<div class="viewcode-block" id="Network.train"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.train">[docs]</a>    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train_dataset</span><span class="p">,</span> <span class="n">validation_dataset</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">early_stop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">nepochs_checkpoint</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">scaling</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">epochs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_fun</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> \
+              <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">decay</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">loss_weights</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">compute_all_loss</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">append_loss</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Train the neural network.</span>
 
@@ -670,7 +729,8 @@
 <span class="sd">            epochs: training epochs</span>
 <span class="sd">            loss_fun(string): loss function, &#39;mae&#39;, &#39;mse&#39;, &#39;rmse&#39; and others</span>
 <span class="sd">            opimizer(string): any Tensorflow optimizer such as &#39;Adam&#39;</span>
-<span class="sd">            lr(float): learning rate</span>
+<span class="sd">            lr(float): learning rate, it is ignored if decay is provided</span>
+<span class="sd">            decay(dictionary): parameters for exponentialDecay, keys are: &#39;initial_lr&#39;,&#39;decay_steps&#39; and &#39;decay_rate&#39;</span>
 <span class="sd">            loss_weight(dictionary): weights assigned to loss function, e.g. {&#39;pe&#39;:1,&#39;force&#39;:1,&#39;stress&#39;:0.1}  </span>
 <span class="sd">            compute_all_loss(bool): compute loss for force and stress even when they are not used for training</span>
 <span class="sd">            shuffle(bool): shuffle training dataset during training</span>
@@ -680,13 +740,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">built</span><span class="p">:</span>            
             <span class="bp">self</span><span class="o">.</span><span class="n">_build</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">built</span> <span class="o">=</span> <span class="kc">True</span>
-            
-        <span class="k">if</span> <span class="n">lr</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">lr</span>
-        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">:</span> 
-            <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="mf">0.01</span>
-            <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;learning rate is set to 0.01 by default.&quot;</span><span class="p">)</span>            
-                
+                        
         <span class="k">if</span> <span class="n">scaling</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">scaling</span> <span class="o">!=</span> <span class="s1">&#39;std&#39;</span> <span class="ow">and</span> <span class="n">scaling</span> <span class="o">!=</span> <span class="s1">&#39;norm&#39;</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Scaling needs to be </span><span class="se">\&#39;</span><span class="s1">std</span><span class="se">\&#39;</span><span class="s1"> (standardization) or </span><span class="se">\&#39;</span><span class="s1">norm</span><span class="se">\&#39;</span><span class="s1">(normalization).&#39;</span><span class="p">)</span>
@@ -694,15 +748,33 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">scaling</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span> <span class="o">=</span> <span class="kc">None</span>
+
             
+        <span class="k">if</span> <span class="n">decay</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">{</span><span class="s1">&#39;initial_lr&#39;</span><span class="p">,</span><span class="s1">&#39;decay_steps&#39;</span><span class="p">,</span><span class="s1">&#39;decay_rate&#39;</span><span class="p">}:</span>
+                <span class="k">if</span> <span class="n">decay</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">==</span><span class="kc">None</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">key</span> <span class="o">+</span> <span class="s1">&#39; is not in decay.&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">decay</span> <span class="o">=</span> <span class="n">decay</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s1">&#39;lr_histroy&#39;</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lr_history</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">decay</span><span class="p">[</span><span class="s1">&#39;initial_lr&#39;</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Initial learning rate is set to </span><span class="si">%.3f</span><span class="s2">.&quot;</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">lr</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="n">lr</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Learning rate is set to </span><span class="si">%.3f</span><span class="s2">.&quot;</span><span class="o">%</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s1">&#39;lr&#39;</span><span class="p">):</span> 
+                <span class="bp">self</span><span class="o">.</span><span class="n">lr</span> <span class="o">=</span> <span class="mf">0.01</span>
+                <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;Learning rate is set to 0.01 by default.&quot;</span><span class="p">)</span>                        
         <span class="k">if</span> <span class="n">optimizer</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">optimizer</span><span class="p">)</span>
             <span class="n">K</span><span class="o">.</span><span class="n">set_value</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s1">&#39;optimizer&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s1">&#39;tf_optimizer&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="s1">&#39;Adam&#39;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span> 
+            <span class="bp">self</span><span class="o">.</span><span class="n">tf_optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">keras</span><span class="o">.</span><span class="n">optimizers</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
             <span class="nb">print</span> <span class="p">(</span><span class="s2">&quot;optimizer is set to Adam by default.&quot;</span><span class="p">)</span>
+    
             
         <span class="k">if</span> <span class="n">loss_fun</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span> <span class="o">=</span> <span class="n">loss_fun</span>
@@ -777,9 +849,16 @@
 
         <span class="c1"># convert to tf.variable so that they can be saved to network</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">saved_optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">saved_lr</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">saved_loss_fun</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fun</span><span class="p">)</span>
-                                                    
+        <span class="k">if</span> <span class="n">decay</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_decay</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">decay</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">saved_decay</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_lr_history</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr_history</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">saved_lr</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Variable</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+
+        <span class="c1"># normalize or starndardize input data    </span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">compute_scaling_factors</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Scaling factors are computed using training dataset.&#39;</span><span class="p">)</span>
@@ -789,18 +868,19 @@
                 <span class="n">validation_dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaling_dataset</span><span class="p">(</span><span class="n">validation_dataset</span><span class="p">)</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Validation dataset are </span><span class="si">%s</span><span class="s1">.&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;standardized&#39;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span> <span class="o">==</span><span class="s1">&#39;std&#39;</span> <span class="k">else</span> <span class="s1">&#39;normalized&#39;</span><span class="p">))</span>
 
+                
         <span class="k">if</span> <span class="n">shuffle</span><span class="p">:</span>
             <span class="n">train_dataset</span> <span class="o">=</span> <span class="n">train_dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">buffer_size</span><span class="o">=</span><span class="n">train_dataset</span><span class="o">.</span><span class="n">cardinality</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
             <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Training dataset will be shuffled during training.&#39;</span><span class="p">)</span>
-            
+   
         <span class="n">train_start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
         <span class="n">early_stop_repeats</span> <span class="o">=</span> <span class="mi">0</span>
+        
+        <span class="c1"># start training</span>
         <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
-
-            <span class="n">epoch_start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>                
-            
-            <span class="c1"># Iterate over the batches of the training dataset.</span>
-            <span class="k">for</span> <span class="n">step</span><span class="p">,</span> <span class="p">(</span><span class="n">input_dict</span><span class="p">,</span> <span class="n">output_dict</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">train_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)):</span>
+            <span class="n">epoch_start_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+            <span class="c1"># iterate over the batches of the training dataset, step traces batch</span>
+            <span class="k">for</span> <span class="n">step</span><span class="p">,</span> <span class="p">(</span><span class="n">input_dict</span><span class="p">,</span> <span class="n">output_dict</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">train_dataset</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)):</span>                    
                 <span class="n">batch_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_step</span><span class="p">(</span><span class="n">input_dict</span><span class="p">,</span> <span class="n">output_dict</span><span class="p">)</span>
                 <span class="k">if</span> <span class="n">step</span><span class="o">==</span><span class="mi">0</span><span class="p">:</span>
                     <span class="n">train_epoch_loss</span> <span class="o">=</span> <span class="n">batch_loss</span>
@@ -827,10 +907,8 @@
                     
             <span class="n">epoch_end_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
             <span class="n">time_per_epoch</span> <span class="o">=</span> <span class="p">(</span><span class="n">epoch_end_time</span> <span class="o">-</span> <span class="n">epoch_start_time</span><span class="p">)</span>
-
             
             <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">===&gt; Epoch </span><span class="si">%i</span><span class="s1">/</span><span class="si">%i</span><span class="s1"> - </span><span class="si">%.3f</span><span class="s1">s/epoch&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">epochs</span><span class="p">,</span> <span class="n">time_per_epoch</span><span class="p">))</span>
-
             <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;     training_loss   &#39;</span><span class="p">,</span><span class="o">*</span><span class="p">[</span><span class="s2">&quot;- </span><span class="si">%s</span><span class="s2">: </span><span class="si">%5.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">value</span> <span class="ow">in</span> <span class="n">train_epoch_loss</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
             <span class="k">if</span> <span class="n">validation_dataset</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;     validation_loss &#39;</span><span class="p">,</span><span class="o">*</span><span class="p">[</span><span class="s2">&quot;- </span><span class="si">%s</span><span class="s2">: </span><span class="si">%5.3f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span><span class="n">value</span> <span class="ow">in</span> <span class="n">val_epoch_loss</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
@@ -864,41 +942,111 @@
                     <span class="k">if</span> <span class="n">early_stop_repeats</span> <span class="o">==</span> <span class="n">early_stop</span><span class="p">[</span><span class="s1">&#39;val_loss&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]:</span>
                         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Training is stopped when val_loss &lt;= </span><span class="si">%.3f</span><span class="s1"> for </span><span class="si">%i</span><span class="s1"> time.&#39;</span><span class="o">%</span><span class="p">(</span><span class="n">early_stop</span><span class="p">[</span><span class="s1">&#39;val_loss&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span><span class="n">early_stop</span><span class="p">[</span><span class="s1">&#39;val_loss&#39;</span><span class="p">][</span><span class="mi">1</span><span class="p">]))</span>
                         <span class="k">break</span>
-                
+
+            <span class="k">if</span> <span class="n">nepochs_checkpoint</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">nepochs_checkpoint</span> <span class="o">==</span><span class="mi">0</span><span class="p">:</span>
+                    <span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;saved_model_at_epoch&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">))</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">plot_loss</span><span class="p">(</span><span class="n">saveplot</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">decay</span><span class="p">:</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">decay</span><span class="p">[</span><span class="s1">&#39;decay_steps&#39;</span><span class="p">]</span><span class="o">==</span><span class="mi">0</span> <span class="ow">and</span> <span class="p">(</span><span class="n">epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">&lt;</span><span class="n">epochs</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">decay_lr</span><span class="p">(</span><span class="n">epoch</span><span class="p">)</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">Learning rate is decreased to </span><span class="si">%.3f</span><span class="s1">&#39;</span><span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+
         <span class="n">elapsed_time</span> <span class="o">=</span> <span class="p">(</span><span class="n">epoch_end_time</span> <span class="o">-</span> <span class="n">train_start_time</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">End of training, elapsed time: &#39;</span><span class="p">,</span><span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M:%S&quot;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">(</span><span class="n">elapsed_time</span><span class="p">)))</span></div>
 
         
         
 
-<div class="viewcode-block" id="Network.plot_loss"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.plot_loss">[docs]</a>    <span class="k">def</span> <span class="nf">plot_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">5</span><span class="p">)):</span>
+<div class="viewcode-block" id="Network.plot_loss"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.Network.plot_loss">[docs]</a>    <span class="k">def</span> <span class="nf">plot_loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">start_epoch</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span><span class="n">saveplot</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Plot the losses.</span>
 <span class="sd">        </span>
 <span class="sd">        Args:</span>
 <span class="sd">            start_epoch: plotting starts from start_epoch </span>
-<span class="sd">            figsize: set the fingersize, e.g. (8.5)</span>
+<span class="sd">            figsize: set the fingersize, e.g. (8,4)</span>
+<span class="sd">            saveplot(bool): if true, save the plots to &quot;plot_loss&quot; folder  </span>
+<span class="sd">            kwargs: optional parameters for figures, default values are:</span>
+<span class="sd">                    figfolder = &#39;./loss_figures&#39;, the folder name for saving figures </span>
+<span class="sd">                    figsize = (8,5)</span>
+<span class="sd">                    linewidth = [1,1] for train and validation loss plot</span>
+<span class="sd">                    color =[&#39;blue&#39;,&#39;darkgreen&#39;] </span>
+<span class="sd">                    label = [&#39;train loss&#39;,&#39;validation loss&#39;]</span>
+<span class="sd">                    linestyle = [&#39;-&#39;,&#39;-&#39;]</span>
+<span class="sd">                    markersize = [5,5] </span>
+<span class="sd">                    xlabel = &#39;epoch&#39;</span>
+<span class="sd">                    ylabel = {&#39;pe&#39;:&#39;loss(eV)&#39;, &#39;force&#39;:&#39;loss(eV/A),&#39;stress&#39;:&#39;loss(GPa)&#39;}         </span>
+<span class="sd">                    format = &#39;pdf&#39;</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-    
+
+        <span class="k">if</span> <span class="s1">&#39;figfolder&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">figfolder</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;figfolder&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">figfolder</span> <span class="o">=</span> <span class="s1">&#39;./loss_figures&#39;</span>
+        <span class="k">if</span> <span class="s1">&#39;figsize&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">figsize</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;figsize&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">figsize</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span><span class="mi">4</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">&#39;linewidth&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">linewidth</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;linewidth&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">linewidth</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;color&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">color</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span><span class="s1">&#39;darkgreen&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;label&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">label</span> <span class="o">=</span><span class="p">[</span><span class="s1">&#39;train loss&#39;</span><span class="p">,</span><span class="s1">&#39;validation loss&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;linestyle&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">linestyle</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;linestyle&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">linestyle</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;-&#39;</span><span class="p">,</span><span class="s1">&#39;-&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;markersize&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">markersize</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;markersize&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">markersize</span> <span class="o">=</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span><span class="mi">5</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s1">&#39;xlabel&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">xlabel</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;xlabel&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">xlabel</span> <span class="o">=</span> <span class="s1">&#39;epoch&#39;</span>
+        <span class="k">if</span> <span class="s1">&#39;ylabel&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">ylabel</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;ylabel&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">ylabel</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;pe_loss&#39;</span><span class="p">:</span><span class="s1">&#39;pe loss (eV)&#39;</span><span class="p">,</span> <span class="s1">&#39;force_loss&#39;</span><span class="p">:</span><span class="s1">&#39;force loss (eV/&#39;</span><span class="o">+</span><span class="sa">r</span><span class="s1">&#39;$\AA$&#39;</span><span class="o">+</span><span class="s1">&#39;)&#39;</span><span class="p">,</span><span class="s1">&#39;stress_loss&#39;</span><span class="p">:</span><span class="s1">&#39;stress loss (GPa)&#39;</span><span class="p">,</span><span class="s1">&#39;total_loss&#39;</span><span class="p">:</span><span class="s1">&#39;total loss&#39;</span><span class="p">}</span>
+        <span class="k">if</span> <span class="s1">&#39;format&#39;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="nb">format</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;format&#39;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">format</span> <span class="o">=</span> <span class="s1">&#39;pdf&#39;</span>
+        
+        
         <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;legend&#39;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span> 
         <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;xtick&#39;</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span> 
         <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;ytick&#39;</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span> 
         <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;axes&#39;</span><span class="p">,</span> <span class="n">labelsize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span> 
-        <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;figure&#39;</span><span class="p">,</span> <span class="n">titlesize</span><span class="o">=</span><span class="mi">25</span><span class="p">)</span>
-
+        <span class="n">matplotlib</span><span class="o">.</span><span class="n">rc</span><span class="p">(</span><span class="s1">&#39;figure&#39;</span><span class="p">,</span> <span class="n">titlesize</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+        
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_loss</span><span class="p">:</span>
             <span class="n">fig</span><span class="p">,</span> <span class="n">axs</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span> <span class="p">,</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
-            <span class="n">epoch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">start_epoch</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_loss</span><span class="p">[</span><span class="n">key</span><span class="p">])</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">train_loss</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">start_epoch</span><span class="o">-</span><span class="mi">1</span><span class="p">:],</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> \
-                     <span class="n">fillstyle</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span> <span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;train_loss&#39;</span><span class="p">)</span>
+            <span class="n">end_epoch</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_loss</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+            <span class="n">epoch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">start_epoch</span><span class="p">,</span><span class="n">end_epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">train_loss</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">start_epoch</span><span class="o">-</span><span class="mi">1</span><span class="p">:],</span><span class="n">linestyle</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">markersize</span><span class="o">=</span><span class="n">markersize</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> \
+                     <span class="n">fillstyle</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span> <span class="n">color</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="s1">&#39;val_loss&#39;</span><span class="p">):</span>
-                <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">val_loss</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">start_epoch</span><span class="o">-</span><span class="mi">1</span><span class="p">:],</span><span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="n">markersize</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> \
-                         <span class="n">fillstyle</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span> <span class="s1">&#39;darkgreen&#39;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">)</span>
-            <span class="n">axs</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;epoch&#39;</span><span class="p">)</span>
-            <span class="n">axs</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;loss&#39;</span><span class="p">)</span>
+                <span class="n">axs</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">epoch</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">val_loss</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="n">start_epoch</span><span class="o">-</span><span class="mi">1</span><span class="p">:],</span><span class="n">linestyle</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">markersize</span><span class="o">=</span><span class="n">markersize</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> \
+                         <span class="n">fillstyle</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="n">linewidth</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">axs</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="n">xlabel</span><span class="p">)</span>
+            <span class="n">axs</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="n">ylabel</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
             <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="s1">&#39;upper right&#39;</span><span class="p">,</span><span class="n">frameon</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span><span class="n">borderaxespad</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">fig</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">figfolder</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">figfolder</span><span class="p">)</span>
+            <span class="n">figname</span> <span class="o">=</span> <span class="n">key</span> <span class="o">+</span><span class="s1">&#39;_at_epoch_&#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">end_epoch</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span><span class="o">+</span><span class="s1">&#39;.&#39;</span><span class="o">+</span><span class="nb">format</span>
+            <span class="k">if</span> <span class="n">saveplot</span><span class="p">:</span>
+                <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">figfolder</span><span class="p">,</span><span class="n">figname</span><span class="p">),</span><span class="n">bbox_inches</span> <span class="o">=</span> <span class="s1">&#39;tight&#39;</span><span class="p">,</span><span class="nb">format</span><span class="o">=</span><span class="nb">format</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
             <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></div></div>
 
 
@@ -951,7 +1099,7 @@
     <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span></div>
     
    
-<div class="viewcode-block" id="save"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.save">[docs]</a><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">,</span> <span class="n">descriptor</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<div class="viewcode-block" id="save"><a class="viewcode-back" href="../../module/network.html#atomdnn.network.save">[docs]</a><span class="k">def</span> <span class="nf">save</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Save a trained model.</span>
 
@@ -960,36 +1108,36 @@
 <span class="sd">        descriptor(dictionary): descriptor parameters, used for LAMMPS prediction</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">tf</span><span class="o">.</span><span class="n">saved_model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">model_dir</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">descriptor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">input_tag</span><span class="p">,</span> <span class="n">input_name</span><span class="p">,</span> <span class="n">output_tag</span><span class="p">,</span> <span class="n">output_name</span> <span class="o">=</span> <span class="n">get_signature</span><span class="p">(</span><span class="n">model_dir</span><span class="p">)</span>
-        <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">model_dir</span><span class="o">+</span><span class="s1">&#39;/parameters&#39;</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span>
-        
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="s1">&#39;element&#39;</span><span class="p">)</span>
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;  &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">elements</span><span class="p">))</span>
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">)</span>
-        
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)))</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)):</span>
-            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%-20s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">input_tag</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">input_name</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
-        
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;output&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">output_tag</span><span class="p">)))</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">output_tag</span><span class="p">)):</span>
-            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%-20s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">output_tag</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">output_name</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
 
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%f</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;cutoff&#39;</span><span class="p">,</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;cutoff&#39;</span><span class="p">]))</span>
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="n">input_tag</span><span class="p">,</span> <span class="n">input_name</span><span class="p">,</span> <span class="n">output_tag</span><span class="p">,</span> <span class="n">output_name</span> <span class="o">=</span> <span class="n">get_signature</span><span class="p">(</span><span class="n">model_dir</span><span class="p">)</span>
+    <span class="n">file</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="n">model_dir</span><span class="o">+</span><span class="s1">&#39;/parameters&#39;</span><span class="p">,</span><span class="s1">&#39;w&#39;</span><span class="p">)</span>
+    
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> &#39;</span> <span class="o">%</span> <span class="s1">&#39;element&#39;</span><span class="p">)</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;  &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">elements</span><span class="p">))</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">)</span>
 
-        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">  </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;descriptor&#39;</span><span class="p">,</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>    
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">descriptor</span><span class="p">)):</span>
-            <span class="n">key</span>  <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">descriptor</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> &#39;</span><span class="o">%</span> <span class="n">key</span><span class="p">)</span>
-            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;  &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">descriptor</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
-            <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
-            
-        <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Network signatures and descriptor are written to </span><span class="si">%s</span><span class="s1"> for LAMMPS simulation.&#39;</span><span class="o">%</span> <span class="p">(</span><span class="n">model_dir</span><span class="o">+</span><span class="s1">&#39;/parameters&#39;</span><span class="p">))</span></div>
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;input&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_tag</span><span class="p">)):</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%-20s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">input_tag</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">input_name</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;output&#39;</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">output_tag</span><span class="p">)))</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">output_tag</span><span class="p">)):</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%-20s</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">output_tag</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">output_name</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%f</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;cutoff&#39;</span><span class="p">,</span><span class="n">obj</span><span class="o">.</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;cutoff&#39;</span><span class="p">]))</span>
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> </span><span class="si">%s</span><span class="s1">  </span><span class="si">%d</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s1">&#39;descriptor&#39;</span><span class="p">,</span><span class="n">obj</span><span class="o">.</span><span class="n">descriptor</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">descriptor</span><span class="p">)</span><span class="o">-</span><span class="mi">2</span><span class="p">))</span>    
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="nb">len</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">descriptor</span><span class="p">)):</span>
+        <span class="n">key</span>  <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">descriptor</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%-20s</span><span class="s1"> &#39;</span><span class="o">%</span> <span class="n">key</span><span class="p">)</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;  &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">j</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">descriptor</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+        <span class="n">file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+        
+    <span class="n">file</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+<span class="c1">#    print(&#39;Network signatures and descriptor are written to %s for LAMMPS simulation.&#39;% (model_dir+&#39;/parameters&#39;))</span>
     
 
         
