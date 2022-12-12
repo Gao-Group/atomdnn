@@ -7,6 +7,7 @@ import atomdnn
 from atomdnn.data import *
 import matplotlib.pyplot as plt
 import matplotlib
+from matplotlib.ticker import MaxNLocator
 from atomdnn.descriptor import create_descriptors, get_num_fingerprints
 import shutil
 import math
@@ -22,11 +23,8 @@ else:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
                          "atom_type": tf.TensorSpec(shape=[None,None], dtype=tf.int32, name="atom_type")}]
 
-
-
-
-
-
+    
+            
   
 class Network(tf.Module):
     """
@@ -341,7 +339,7 @@ class Network(tf.Module):
 
         
     
-    def predict(self, input_dict,compute_force=atomdnn.compute_force,pe_peratom=False, training=False):
+    def predict(self, input_dict,compute_force=atomdnn.compute_force,pe_peratom=False, training=False,save_to_file=None):
         """
         Predict energy, force and stress.
 
@@ -389,12 +387,11 @@ class Network(tf.Module):
                 return {'pe':total_pe, 'force':force, 'stress':stress}
             else:
                 if not pe_peratom:
-                    return {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
+                    return  {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
                 else:
-                    return {'pe':total_pe.numpy(), 'pe_peratom':atom_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
+                    return  {'pe':total_pe.numpy(), 'pe_peratom':atom_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
 
-
-
+                
                 
     def inference(self, filename, format, **kwargs):
         """
@@ -405,11 +402,11 @@ class Network(tf.Module):
             format: 'lammp-data','extxyz','vasp' etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read 
             kwargs: used to pass optional file styles
         """
-        atomdnn_data = create_descriptors(self.elements,filename,self.descriptor,format,descriptors_path='./descriptor_temp',descriptor_filename='dump_fp.temp', der_filename='dump_der.temp',silent=True,**kwargs)
-        shutil.rmtree('./descriptor_temp')
-        print(self.predict(atomdnn_data.get_input_dict(), pe_peratom=True))
+        atomdnn_data = create_descriptors(self.elements,filename,self.descriptor,format,silent=True,remove_descriptors_folder=True,**kwargs)
 
+        outputs = self.predict(atomdnn_data.get_input_dict())
 
+        return outputs
                      
    
     def _predict(self, input_dict,compute_force=atomdnn.compute_force):
@@ -625,7 +622,7 @@ class Network(tf.Module):
     
     
     def train(self, train_dataset, validation_dataset=None, early_stop=None, nepochs_checkpoint=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False):
+              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False, output_freq=1):
         """
         Train the neural network.
 
@@ -818,10 +815,12 @@ class Network(tf.Module):
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
             
-            print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
-            print('     training_loss   ',*["- %s: %5.3f" % (key,value) for key,value in train_epoch_loss.items()])
+            if (epoch+1)%output_freq == 0:
+                print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
+                print('     training_loss   ',*["- %s: %5.3f" % (key,value) for key,value in train_epoch_loss.items()])
             if validation_dataset:
-                print('     validation_loss ',*["- %s: %5.3f" % (key,value) for key,value in val_epoch_loss.items()])
+                if (epoch+1)%output_freq == 0:
+                    print('     validation_loss ',*["- %s: %5.3f" % (key,value) for key,value in val_epoch_loss.items()])
 
             if early_stop:
                 if 'train_loss' in early_stop:
@@ -897,7 +896,7 @@ class Network(tf.Module):
         if 'figsize' in kwargs.keys():
             figsize = kwargs['figsize']
         else:
-            figsize = (8,4)
+            figsize = (15,10)
         if 'linewidth' in kwargs.keys():
             linewidth = kwargs['linewidth']
         else:
@@ -936,28 +935,40 @@ class Network(tf.Module):
         matplotlib.rc('xtick', labelsize=15) 
         matplotlib.rc('ytick', labelsize=15) 
         matplotlib.rc('axes', labelsize=15) 
-        matplotlib.rc('figure', titlesize=15)
-        
+        matplotlib.rc('axes', titlesize=15)
+
+
+        fig, axs = plt.subplots(2, 2 ,figsize=figsize)
+        fig.tight_layout(pad=5.0)
+
+        i=0
+        j=0
         for key in self.train_loss:
-            fig, axs = plt.subplots(1, 1 ,figsize=figsize)
             end_epoch = len(self.train_loss[key])
             epoch = np.arange(start_epoch,end_epoch+1)
-            axs.plot(epoch,self.train_loss[key][start_epoch-1:],linestyle[0], markersize=markersize[0], \
+            axs[i][j].plot(epoch,self.train_loss[key][start_epoch-1:],linestyle[0], markersize=markersize[0], \
                      fillstyle='none', linewidth=linewidth[0], color= color[0], label=label[0])
-            
+                
             if hasattr(self,'val_loss'):
-                axs.plot(epoch,self.val_loss[key][start_epoch-1:],linestyle[1], markersize=markersize[1], \
+                axs[i][j].plot(epoch,self.val_loss[key][start_epoch-1:],linestyle[1], markersize=markersize[1], \
                          fillstyle='none', linewidth=linewidth[1], color=color[1], label=label[1])
-            axs.set_xlabel(xlabel)
-            axs.set_ylabel(ylabel[key])
-            plt.legend(loc='upper right',frameon=True,borderaxespad=1)
-            fig.suptitle(key)
-            if not os.path.isdir(figfolder):
-                os.mkdir(figfolder)
-            figname = key +'_at_epoch_'+str(end_epoch+1)+'.'+format
-            if saveplot:
-                fig.savefig(os.path.join(figfolder,figname),bbox_inches = 'tight',format=format, dpi=500)
-            plt.show()
+            axs[i][j].set_xlabel(xlabel)
+            axs[i][j].set_ylabel(ylabel[key])
+            axs[i][j].set_yscale('log')
+            axs[i][j].legend(loc='upper right',frameon=True,borderaxespad=1)
+            #axs[i][j].title.set_text(key)
+            axs[i][j].xaxis.set_major_locator(MaxNLocator(integer=True))
+            j = j+1
+            if j>1:
+                i=1
+                j=0
+                
+        if not os.path.isdir(figfolder):
+            os.mkdir(figfolder)
+        figname = 'loss_at_epoch_'+str(end_epoch+1)+'.'+format
+        if saveplot:
+            fig.savefig(os.path.join(figfolder,figname),bbox_inches = 'tight',format=format, dpi=500)
+        plt.show()
 
 
             
@@ -1008,7 +1019,8 @@ def print_signature(model_dir):
     output = stream.read()
     print(output)
     
-   
+
+    
 def save(obj, model_dir):
     """
     Save a trained model.
@@ -1062,4 +1074,71 @@ def load(model_dir):
         return Network(import_dir = model_dir)
     else:
         raise ValueError('Load function has no model directory.')
+
+
+def print_output(output_dict):
+    num_images = output_dict['pe'].shape[0]
+    for i in range(num_images):
+        print ('-----------------------------------------------------------------------------')
+        print ('image %i: potential energy = %.3f'%(i+1,output_dict['pe'][i]))
+        stress_str = ('stress_xx','stress_yy','stress_zz','stress_xy','stress_yz','stress_xz')
+        stress_value = (output_dict['stress'][i][0],output_dict['stress'][i][4],output_dict['stress'][i][8],\
+                        output_dict['stress'][i][1],output_dict['stress'][i][3],output_dict['stress'][i][2])
+        msg_str = '%-12s %-12s %-12s %-12s %-12s %-12s' % stress_str
+        msg_value ='%-12.4e %-12.4e %-12.4e %-12.4e %-12.4e %-12.4e' % stress_value
+        print(msg_str)
+        print(msg_value)
+        if 'pe_peratom' in output_dict.keys():
+            force_str = ('atom_id', 'fx','fy','fz', 'pe/atom')
+            msg_str = '%-12s %-12s %-12s %-12s %-12s' % force_str
+        else:
+            force_str = ('atom_id', 'fx','fy','fz')
+            msg_str = '%-12s %-12s %-12s %-12s' % force_str
+        print(msg_str)
+        num_atoms = output_dict['force'].shape[1]
+        for j in range(num_atoms):
+            if 'pe_peratom' in output_dict.keys():
+                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2], output_dict['pe_peratom'][i][j])
+                msg_value = '%-12d %-12.4e %-12.4e %-12.4e %-12.4e' % force_value
+            else:
+                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2])
+                msg_value = '%-12d %-12.4e %-12.4e %-12.4e' % force_value
+            print(msg_value)
+
+
+
+def save_output(output_dict,filename):
+    f = open(filename, 'w')
+    num_images = output_dict['pe'].shape[0]
+    for i in range(num_images):
+        f.write('-----------------------------------------------------------------------------\n')
+        f.write('image %i: potential energy = %.3f\n'%(i+1,output_dict['pe'][i]))
+        stress_str = ('stress_xx','stress_yy','stress_zz','stress_xy','stress_yz','stress_xz')
+        stress_value = (output_dict['stress'][i][0],output_dict['stress'][i][4],output_dict['stress'][i][8],\
+                        output_dict['stress'][i][1],output_dict['stress'][i][3],output_dict['stress'][i][2])
+        msg_str = '%-12s %-12s %-12s %-12s %-12s %-12s\n' % stress_str
+        msg_value ='%-12.4e %-12.4e %-12.4e %-12.4e %-12.4e %-12.4e\n' % stress_value
+        f.write(msg_str)
+        f.write(msg_value)
+        if 'pe_peratom' in output_dict.keys():
+            force_str = ('atom_id', 'fx','fy','fz', 'pe/atom')
+            msg_str = '%-12s %-12s %-12s %-12s %-12s\n' % force_str
+        else:
+            force_str = ('atom_id', 'fx','fy','fz')
+            msg_str = '%-12s %-12s %-12s %-12s\n' % force_str
+        f.write(msg_str)
+        num_atoms = output_dict['force'].shape[1]
+        for j in range(num_atoms):
+            if 'pe_peratom' in output_dict.keys():
+                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2], output_dict['pe_peratom'][i][j])
+                msg_value = '%-12d %-12.4e %-12.4e %-12.4e %-12.4e\n' % force_value
+            else:
+                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2])
+                msg_value = '%-12d %-12.4e %-12.4e %-12.4e\n' % force_value
+            f.write(msg_value)
+    f.close()
+
+
+    
+
 
