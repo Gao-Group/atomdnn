@@ -81,9 +81,9 @@ class Data(object):
 
         self.print_inputinfo_together = True
         
-        self.read_fingerprints_from_lmpdump(descriptors_path,fp_filename,image_num,skip,append,verbose)
+        self.read_fingerprints_from_lmpdump(descriptors_path,fp_filename,image_num,skip,append,verbose,silent)
         if der_filename is not None and read_der:
-            self.read_der_from_lmpdump(descriptors_path,der_filename,image_num,skip,append,verbose)
+            self.read_der_from_lmpdump(descriptors_path,der_filename,image_num,skip,append,verbose,silent)
 
         if silent is False:
             print('\ntotal images = %d' % self.num_images)
@@ -478,25 +478,25 @@ class Data(object):
         """
         Return the input dictionaries from image start to image end. Index starts from 1. If end is not privided, return only one dictionary of image start.
         """
-        if start==None:
+        if start==None and end==None:
             start=0
             return slice_dict(self.input_dict, 0, 1)
         if end==None:
             return slice_dict(self.input_dict, start-1, start)
         else:
-            return slice_dict(self.input_dict, start-1, end-1)
+            return slice_dict(self.input_dict, start-1, end)
         
     def get_output_dict(self,start=None, end=None):
         """
         Return the output dictionaries from image start to image end. Index starts from 1. If end is not privided, return only one dictionary of image start.
         """
-        if start==None:
+        if start==None and end==None:
             start = 0
             return slice_dict(self.output_dict, 0, 1)
         if end==None:
             return slice_dict(self.output_dict, start-1, start)
         else:
-            return slice_dict(self.output_dict, start-1, end-1)
+            return slice_dict(self.output_dict, start-1, end)
         
 
     def convert_data_to_tensor(self):
