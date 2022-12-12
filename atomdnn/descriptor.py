@@ -113,7 +113,7 @@ def create_lmp_input(descriptor,descriptors_path):
 
 def create_descriptors(elements, xyzfiles, descriptor, \
                        format='extxyz', descriptors_path=None, descriptor_filename='dump_fp.*', der_filename='dump_der.*', \
-                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, create_data = True, verbose=False, silent=False, **kwargs):
+                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, create_data = True, verbose=False, silent=False, remove_descriptors_folder=False,**kwargs):
     
     """
     Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.
@@ -131,6 +131,7 @@ def create_descriptors(elements, xyzfiles, descriptor, \
        skip(int): skip some images
        keep_lmpfiles(bool): set to True if want to keep the lammps input and datafiles used for creating descriptors
        create_data(bool): set to True if want to create Data object using the generated descriptors
+       remove_descriptors_folder(bool): True to remove the folder used to store fingerprints and derivatives 
        verbose(bool): set to True if want to print out the extxyz file names used for creating descriptors
        kwargs: used to pass optional file styles
     """
@@ -261,7 +262,8 @@ def create_descriptors(elements, xyzfiles, descriptor, \
         from atomdnn.data import Data
         # create a Data object using the generated descriptors        
         atomdnn_data = Data(descriptors_path,descriptor_filename, der_filename, xyzfile_path, xyzfile_name,format,image_num,skip,verbose,silent,**kwargs)
-
+        if remove_descriptors_folder:
+            shutil.rmtree(descriptors_path)
         return atomdnn_data
     
 
