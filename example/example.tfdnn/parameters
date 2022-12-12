@@ -16,7 +16,7 @@ stress               StatefulPartitionedCall:2
 cutoff               6.500000
 
 descriptor           acsf  4
-etaG2                0.01  0.05  0.1  0.5  1  5  10
+etaG2                0.01  0.1  1  5  10
 etaG4                0.01
-zeta                 0.08  0.2  1.0  5.0  10.0  50.0  100.0
+zeta                 0.08  1.0  10.0  100.0
 lambda               1.0  -1.0
