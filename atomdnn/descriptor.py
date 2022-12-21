@@ -223,6 +223,7 @@ def create_descriptors(elements, xyzfiles, descriptor, \
                           + ' -var fp_filename ' + fp_pfname  \
                           + ' -var der_filename ' + der_pfname \
                           + ' -var lmpdatafile ' + lmpdatafile \
+                          + ' -screen none' \
                           + ' -var logfile ' + logfile
       
         status = os.system(lmp_cmd) # run lammps
