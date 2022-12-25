@@ -380,22 +380,26 @@ class Data(object):
             print('\nReading outputs from \'%s\' ...' % xyzfile_name, flush=True)    
         for i in range(nfiles):
             patom = read(files[i],format=format,**kwargs)
+            pad_size = maxnum_atoms - patom.get_global_number_of_atoms()
             try:
-                pe[i] = patom.get_potential_energy(patom)
+                pe[i] = patom.get_potential_energy()
             except:
                 if silent is False:
                     print('  There is no potential energy in \'%s\'.'%files[i], flush=True)
                 return 
             if read_force:
                 try:
-                    force[i] = patom.get_forces(patom)
+                    f = patom.get_forces()
+                    if pad_size>0:
+                        f = np.pad(f, ((0,pad_size),(0,0)),'constant',constant_values=(0))
+                    force[i] = f
                 except:
                     if silent is False:
                         print('  There is no atomic forces in \'%s\'.'%files[i], flush=True)
                     return
             if read_stress:
                 try:
-                    stress[i] = patom.get_stress(patom)
+                    stress[i] = patom.get_stress()
                 except:
                     if silent is False:
                         print('  There is no stress in \'%s\'.'%files[i], flush=True)
