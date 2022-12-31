@@ -51,33 +51,43 @@ def create_lmp_input(descriptor,descriptors_path):
 
     """
     infile = os.path.join(descriptors_path,'in.gen_descriptors')
-    lmpinfile = open(infile,'w')    
-    G2_parameters = ''
-    for i in range(len(descriptor['etaG2'])):
-        G2_parameters += str(descriptor['etaG2'][i])+' '
-        
-    G4_parameters = ''
-    for i in range(len(descriptor['etaG4'])):
-        G4_parameters += str(descriptor['etaG4'][i])+' '
-        
-    zeta_parameters = ''
-    for i in range(len(descriptor['zeta'])):
-        zeta_parameters += str(descriptor['zeta'][i])+' '
-        
-    lambda_parameters = ''
-    for i in range(len(descriptor['lambda'])):
-        lambda_parameters += str(descriptor['lambda'][i])+' '
-        
-    compute_fp_line = 'compute 1 all fingerprints ${cutoff} etaG2 ' + G2_parameters \
-                       + 'etaG4 ' + G4_parameters \
-                       + 'zeta ' + zeta_parameters \
-                       + 'lambda ' + lambda_parameters + 'end\n'
-    
-    compute_der_line = 'compute 2 all derivatives ${cutoff} etaG2 '+ G2_parameters \
-                       + 'etaG4 ' + G4_parameters \
-                       + 'zeta ' + zeta_parameters \
-                       + 'lambda ' + lambda_parameters + 'end\n'
+    lmpinfile = open(infile,'w')
 
+
+    if 'etaG2' in descriptor:
+        etaG2_parameters = ''
+        for i in range(len(descriptor['etaG2'])):
+            etaG2_parameters += str(descriptor['etaG2'][i])+' '
+        etaG2_line = 'etaG2 ' + etaG2_parameters + ' '
+    else:
+        etaG2_line = ''
+    
+    if 'etaG4' in descriptor:
+        etaG4_parameters = ''
+        for i in range(len(descriptor['etaG4'])):
+            etaG4_parameters += str(descriptor['etaG4'][i])+' '
+        etaG4_line = 'etaG4 ' + etaG4_parameters + ' '
+    else:
+        etaG4_line = '' 
+    if 'zeta' in descriptor:    
+        zeta_parameters = ''
+        for i in range(len(descriptor['zeta'])):
+            zeta_parameters += str(descriptor['zeta'][i])+' '
+        zeta_line = 'zeta ' + zeta_parameters + ' '
+    else:
+        zeta_line = ''
+    if 'lambda' in descriptor:
+        lambda_parameters = ''
+        for i in range(len(descriptor['lambda'])):
+            lambda_parameters += str(descriptor['lambda'][i])+' '
+        lambda_line = 'lambda ' + lambda_parameters + ' '
+    else:
+        lambda_line = ''
+            
+    compute_fp_line = 'compute 1 all fingerprints ${cutoff} ' + etaG2_line + etaG4_line + zeta_line + lambda_line + 'end\n'
+    
+    compute_der_line = 'compute 2 all derivatives ${cutoff} ' + etaG2_line + etaG4_line + zeta_line + lambda_line + 'end\n'
+    
     dump_fp_line =  'dump dump_fingerprints all custom 1 ${fp_filename} id type c_1[*]\n'+ \
                     'dump_modify dump_fingerprints sort id format float %20.10g\n'
 
@@ -262,7 +272,7 @@ def create_descriptors(elements, xyzfiles, descriptor, \
 
         from atomdnn.data import Data
         # create a Data object using the generated descriptors        
-        atomdnn_data = Data(descriptors_path,descriptor_filename, der_filename, xyzfile_path, xyzfile_name,format,image_num,skip,verbose,silent,**kwargs)
+        atomdnn_data = Data(descriptors_path,descriptor_filename, der_filename, xyzfiles,format,image_num,skip,verbose,silent,**kwargs)
         if remove_descriptors_folder:
             shutil.rmtree(descriptors_path)
         return atomdnn_data
@@ -285,10 +295,19 @@ def get_num_fingerprints(descriptor,elements):
 
     if descriptor['name'] == 'acsf':
         ntypes_combinations = ntypes*(ntypes+1)/2;
-        n_etaG2 = len(descriptor['etaG2'])
-        n_etaG4 = len(descriptor['etaG4'])
-        n_zeta = len(descriptor['zeta'])
-        n_lambda = len(descriptor['lambda'])
+        n_etaG2 = 0
+        n_etaG4 = 0
+        n_zeta = 0
+        n_lambda = 0
+
+        if 'etaG2' in descriptor:
+            n_etaG2 = len(descriptor['etaG2'])
+        if 'etaG4' in descriptor:
+            n_etaG4 = len(descriptor['etaG4'])
+        if 'zeta' in descriptor:
+            n_zeta = len(descriptor['zeta'])
+        if 'lambda' in descriptor:
+            n_lambda = len(descriptor['lambda'])
         num_fingerprints = int(n_etaG2*ntypes + n_lambda*n_zeta*n_etaG4*ntypes_combinations + ntypes);
 
     return num_fingerprints

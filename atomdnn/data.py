@@ -34,7 +34,7 @@ class Data(object):
 
     
     def __init__(self, descriptors_path=None, fp_filename=None, der_filename=None, \
-                 xyzfile_path=None, xyzfile_name=None, format='extxyz',image_num=None, skip=0, \
+                 xyzfiles=None, format='extxyz',image_num=None, skip=0, \
                  verbose=False, silent=False, read_der=atomdnn.compute_force,**kwargs):
 
         self.data_type = atomdnn.data_type
@@ -55,8 +55,8 @@ class Data(object):
         if descriptors_path is not None and fp_filename is not None:
             self.read_inputdata(descriptors_path,fp_filename,der_filename,verbose=verbose,silent=silent,read_der=read_der)
             
-        if xyzfile_path is not None and xyzfile_name is not None:
-            self.read_outputdata(xyzfile_path,xyzfile_name,format,image_num,skip,verbose=verbose,silent=silent,**kwargs)
+        if xyzfiles is not None:
+            self.read_outputdata(xyzfiles,format,image_num,skip,verbose=verbose,silent=silent,**kwargs)
 
 
         
@@ -322,14 +322,13 @@ class Data(object):
 
         
         
-    def read_outputdata(self, xyzfile_path, xyzfile_name, format='extxyz',image_num=None, skip=0, append=False, verbose=False, silent=False,\
+    def read_outputdata(self, xyzfiles, format='extxyz',image_num=None, skip=0, append=False, verbose=False, silent=False,\
                         read_force=atomdnn.compute_force, read_stress=atomdnn.compute_force, **kwargs): 
         """
         Read outputs(energy, force and stress) from extxyz files
 
         Args:
-            xyzfile_path: directory contains a serials of input atomic structures
-            xyzfile_name: atomic structure filename, wildcard * is used for files numerically ordered
+            xyzfiles: the name and path to atomic structures, wildcard * is used for files numerically ordered
             format: 'lammp-data','extxyz','vasp' etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read. 'extxyz' is recommanded.
             read_force(bool): make sure extxyz files have force data if it's True 
             read_stress(bool): make sure extxyz files have stress data if it's True
@@ -338,6 +337,11 @@ class Data(object):
             verbose(bool): set to True if want to print out the extxyz file names
             kwargs: used to pass optional file styles 
         """
+
+        xyzfile_path = os.path.dirname(os.path.abspath(xyzfiles))
+        xyzfile_name = os.path.basename(os.path.abspath(xyzfiles))
+
+        
         if append and len(self.output_dict)==0:
             print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
             append = False
@@ -382,27 +386,27 @@ class Data(object):
             patom = read(files[i],format=format,**kwargs)
             pad_size = maxnum_atoms - patom.get_global_number_of_atoms()
             try:
-                pe[i] = patom.get_potential_energy()
+                pe[i] = patom.info['energy']
             except:
                 if silent is False:
-                    print('  There is no potential energy in \'%s\'.'%files[i], flush=True)
+                    print('  There is no potential energy in \'%s\', check the file and use read_output() funciton to re-read potential energy.'%files[i], flush=True)
                 return 
             if read_force:
                 try:
-                    f = patom.get_forces()
+                    f = patom.arrays['forces']
                     if pad_size>0:
                         f = np.pad(f, ((0,pad_size),(0,0)),'constant',constant_values=(0))
                     force[i] = f
                 except:
                     if silent is False:
-                        print('  There is no atomic forces in \'%s\'.'%files[i], flush=True)
+                        print('  There is no atomic forces in \'%s\', check the file and use read_output() funciton to re-read forces.'%files[i], flush=True)
                     return
             if read_stress:
                 try:
                     stress[i] = patom.get_stress()
                 except:
                     if silent is False:
-                        print('  There is no stress in \'%s\'.'%files[i], flush=True)
+                        print('  There is no stress in \'%s\', check the file and use read_output() funciton to re-read stress.'%files[i], flush=True)
                     return
             
             if verbose and silent is False:
