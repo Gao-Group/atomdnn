@@ -374,7 +374,7 @@ class Data(object):
             else:
                 padding = True
 
-        pe = np.zeros(nfiles,dtype=self.data_type)
+        pe_per_atom = np.zeros(nfiles,dtype=self.data_type)
         if read_force:
             force = np.zeros([nfiles,maxnum_atoms,3],dtype=self.data_type)
         if read_stress:
@@ -384,9 +384,11 @@ class Data(object):
             print('\nReading outputs from \'%s\' ...' % xyzfile_name, flush=True)    
         for i in range(nfiles):
             patom = read(files[i],format=format,**kwargs)
-            pad_size = maxnum_atoms - patom.get_global_number_of_atoms()
+            natoms = patoms.get_global_number_of_atoms()
+            pad_size = maxnum_atoms - natoms
             try:
-                pe[i] = patom.info['energy']
+                pe = patom.info['energy']
+                pe_per_atom[i] = pe/natoms
             except:
                 if silent is False:
                     print('  There is no potential energy in \'%s\', check the file and use read_output() funciton to re-read potential energy.'%files[i], flush=True)
@@ -426,7 +428,7 @@ class Data(object):
                 print ('  so far read %d images ...' % (i+1),flush=True)
 
         if not append:
-            self.output_dict['pe'] = pe
+            self.output_dict['pe_per_atom'] = pe_per_atom
             if read_force:
                 self.output_dict['force'] = force
             if read_stress:
@@ -440,7 +442,7 @@ class Data(object):
                 self.output_dict['force'] = \
                     np.pad(self.output_dict['force'], ((0,0),(0,pad_size),(0,0)),'constant',constant_values=(0))
                 
-            self.output_dict['pe'] = np.concatenate((self.output_dict['pe'],pe),axis=0)
+            self.output_dict['pe_per_atom'] = np.concatenate((self.output_dict['pe_per_atom'],pe_per_atom),axis=0)
             if read_force:
                 self.output_dict['force'] = np.concatenate((self.output_dict['force'],force),axis=0)
             if read_stress:
@@ -537,8 +539,8 @@ class Data(object):
                     raise ValueError("The image numbers of fingerprints files and derivative files are not consistant.")
                 if self.num_fingerprints != len(self.input_dict['dGdr'][0][0]):
                     raise ValueError("The fingerprints numbers of fingerprints files and derivative files are not consistant.")
-            if 'pe' in list(self.output_dict.keys()):
-                if self.num_images != len(self.output_dict['pe']):
+            if 'pe_per_atom' in list(self.output_dict.keys()):
+                if self.num_images != len(self.output_dict['pe_per_atom']):
                     raise ValueError("The image numbers of fingerprints files and pe files are not consistant.")
             else:
                 raise ValueError("No potential energy in output data.")    
@@ -584,7 +586,7 @@ class Data(object):
         self.input_dict['fingerprints'] = np.concatenate((self.input_dict['fingerprints'],apdata.input_dict['fingerprints']),axis=0)
         self.input_dict['atom_type'] = np.concatenate((self.input_dict['atom_type'],apdata.input_dict['atom_type']),axis=0)
         self.input_dict['volume'] = np.concatenate((self.input_dict['volume'],apdata.input_dict['volume']),axis=0)
-        self.output_dict['pe'] = np.concatenate((self.output_dict['pe'],apdata.output_dict['pe']),axis=0)
+        self.output_dict['pe_per_atom'] = np.concatenate((self.output_dict['pe_per_atom'],apdata.output_dict['pe_per_atom']),axis=0)
         if read_force:
             self.output_dict['force'] = np.concatenate((self.output_dict['force'],apdata.output_dict['force']),axis=0)
         if read_stress:

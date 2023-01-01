@@ -91,14 +91,14 @@ class Network(tf.Module):
             self.tf_optimizer=None
             self.lr=None
                 
-            self.saved_descriptor = {}
-            for key, value in descriptor.items():
-                self.saved_descriptor[key] = tf.Variable(value)
-            self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
-            self.saved_arch = tf.Variable(self.arch)
-            self.saved_activation_function = tf.Variable(self.activation_function)
-            self.saved_data_type = tf.Variable(self.data_type)
-            self.saved_elements = tf.Variable(self.elements)
+            # self.saved_descriptor = {}
+            # for key, value in self.descriptor.items():
+            #     self.saved_descriptor[key] = tf.Variable(value)
+            # self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
+            # self.saved_arch = tf.Variable(self.arch)
+            # self.saved_activation_function = tf.Variable(self.activation_function)
+            # self.saved_data_type = tf.Variable(self.data_type)
+            # self.saved_elements = tf.Variable(self.elements)
     
         
         
@@ -143,6 +143,7 @@ class Network(tf.Module):
             self.lr = self.lr_history[-1]        
         else:
             self.lr = imported.saved_lr.numpy()
+            self.decay = None
 
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
 
@@ -208,9 +209,9 @@ class Network(tf.Module):
             total potential energy and per-atom potential energy
         '''
         nimages = tf.shape(atom_type)[0]
-        natoms = tf.shape(atom_type)[1]
+        max_natoms = tf.shape(atom_type)[1]
         
-        atom_pe = tf.zeros([nimages,natoms,1],dtype=self.data_type)
+        atom_pe = tf.zeros([nimages,max_natoms,1],dtype=self.data_type)
 
         nlayer = len(self.arch)+1 # include one linear layer at the end
 
@@ -218,7 +219,7 @@ class Network(tf.Module):
         
         for i in range(nelements):
             type_id = i + 1
-            type_array = tf.ones([nimages,natoms],dtype='int32')*type_id
+            type_array = tf.ones([nimages,max_natoms],dtype='int32')*type_id
             type_mask = tf.cast(tf.math.equal(atom_type,type_array),dtype=self.data_type)
             type_onehot = tf.linalg.diag(type_mask)
             fingerprints_i = tf.matmul(type_onehot,fingerprints)
@@ -237,7 +238,7 @@ class Network(tf.Module):
 
 
             # apply the mask
-            mask = tf.reshape(type_mask,[nimages,natoms,1])
+            mask = tf.reshape(type_mask,[nimages,max_natoms,1])
             atom_pe += Z * mask
         
         total_pe = tf.reshape(tf.math.reduce_sum(atom_pe, axis=1),[nimages])
@@ -300,7 +301,6 @@ class Network(tf.Module):
         return force, stress
 
 
-
   
     def _compute_force_stress (self, dEdG, input_dict):
         """
@@ -339,14 +339,14 @@ class Network(tf.Module):
 
         
     
-    def predict(self, input_dict,compute_force=atomdnn.compute_force,pe_peratom=False, training=False,save_to_file=None):
+    def predict(self, input_dict,compute_force=atomdnn.compute_force,output_atom_pe=False, training=False,evaluation=False,save_to_file=None):
         """
         Predict energy, force and stress.
 
         Args:
             input_dict: input dictionary data
             compute_force(bool): True to compute force and stress
-            pe_peratom(bool): True to output per atom potential energy
+            output_atom_pe(bool): True to output potential energies for atoms
             training(bool): True when used during training
 
         Returns:
@@ -357,7 +357,7 @@ class Network(tf.Module):
             self.built = True
 
         fingerprints = input_dict['fingerprints']
-
+        
         if self.num_fingerprints!=len(fingerprints[0][0]):
             raise ValueError('Network and inputdata have different number of fingerprints, check descriptor parameters.')
         
@@ -369,11 +369,15 @@ class Network(tf.Module):
                 fingerprints = (fingerprints - self.scaling_factor[0])/self.scaling_factor[1]
             elif self.scaling == 'norm': # normalize with the minimum and maximum
                 fingerprints = (fingerprints - self.scaling_factor[0])/(self.scaling_factor[1] - self.scaling_factor[0])
-                
+        
         if not compute_force:
             total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
             if training:
-                return {'pe':total_pe} 
+                nimages = tf.shape(input_dict['atom_type'])[0]
+                natoms_tensor = tf.math.count_nonzero(input_dict['atom_type'],1, keepdims=True)
+                natoms_tensor = tf.cast(tf.reshape(natoms_tensor,[nimages]),dtype=self.data_type)
+                pe_per_atom = tf.divide(total_pe,natoms_tensor)
+                return {'pe_per_atom':pe_per_atom} 
             else:
                 return {'pe':total_pe.numpy()}
 
@@ -383,13 +387,17 @@ class Network(tf.Module):
                 total_pe, atom_pe = self.compute_pe(fingerprints,input_dict['atom_type'])
             dEdG = dEdG_tape.gradient(atom_pe, fingerprints)
             force, stress = self.compute_force_stress(dEdG, input_dict)
-            if training:
-                return {'pe':total_pe, 'force':force, 'stress':stress}
+            if training or evaluation:
+                nimages = tf.shape(input_dict['atom_type'])[0]
+                natoms_tensor = tf.math.count_nonzero(input_dict['atom_type'],1, keepdims=True)
+                natoms_tensor = tf.cast(tf.reshape(natoms_tensor,[nimages]),dtype=self.data_type)
+                pe_per_atom = tf.divide(total_pe,natoms_tensor)
+                return {'pe_per_atom': pe_per_atom, 'force':force, 'stress':stress}
             else:
-                if not pe_peratom:
-                    return  {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
+                if not output_atom_pe:
+                    return  {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy(), 'ngighbor_coord':neighbor_coord.numpy()}
                 else:
-                    return  {'pe':total_pe.numpy(), 'pe_peratom':atom_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
+                    return  {'pe':total_pe.numpy(), 'atom_pe':atom_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
 
                 
                 
@@ -436,14 +444,13 @@ class Network(tf.Module):
 
         
 
-    def evaluate(self,dataset,batch_size=None,return_prediction=True,compute_force=atomdnn.compute_force):
+    def evaluate(self,dataset,batch_size=None,compute_force=atomdnn.compute_force):
         """
         Do evaluation on trained model.
         
         Args:
             dataset: tensorflow dataset used for evaluation
             batch_size: default is total data size
-            return_prediction(bool): True for returning prediction resutls
             compute_force(bool): True for computing force and stress
         """
 
@@ -451,7 +458,7 @@ class Network(tf.Module):
             batch_size = dataset.cardinality().numpy()
             
         for step, (input_dict, output_dict) in enumerate(dataset.batch(batch_size)):
-            y_predict = self.predict(input_dict, compute_force=compute_force)
+            y_predict = self.predict(input_dict, compute_force=compute_force, evaluation=True)
             batch_loss = self.loss(output_dict,y_predict)
             if step==0:
                 eval_loss = batch_loss
@@ -466,10 +473,6 @@ class Network(tf.Module):
             print('%15s:  %15.4e' % (key, eval_loss[key]))
         if 'total_loss' in eval_loss:
             print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value.numpy()) for key, value in self.loss_weights.items()])
-
-        if return_prediction:
-            print('\nThe prediction is returned.')
-            return y_predict
                                                 
 
     def loss_function (self,true, pred):
@@ -506,7 +509,7 @@ class Network(tf.Module):
 
         loss_dict={}
         
-        loss_dict['pe_loss'] = self.loss_function(true_dict['pe'], pred_dict['pe'])
+        loss_dict['pe_loss'] = self.loss_function(true_dict['pe_per_atom'], pred_dict['pe_per_atom'])
 
         if 'force' in pred_dict and 'force' in true_dict: # compute force loss
             # when evaluation OR train/validation using force OR all losses are requested
@@ -622,7 +625,7 @@ class Network(tf.Module):
     
     
     def train(self, train_dataset, validation_dataset=None, early_stop=None, nepochs_checkpoint=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=False, output_freq=1):
+              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=True, output_freq=1):
         """
         Train the neural network.
 
@@ -753,18 +756,7 @@ class Network(tf.Module):
                 self.train_loss['total_loss']=[]
             if validation_dataset and ('total_loss' not in self.val_loss or not append_loss):
                 self.val_loss['total_loss']=[]
-
-        # convert to tf.variable so that they can be saved to network
-        self.saved_optimizer = tf.Variable(self.optimizer)
-        self.saved_loss_fun = tf.Variable(self.loss_fun)
-        if decay:
-            self.saved_decay = {}
-            for key, value in decay.items():
-                self.saved_decay[key] = tf.Variable(value)
-            self.saved_lr_history = tf.Variable(self.lr_history)
-        else:
-            self.saved_lr = tf.Variable(self.lr)
-
+        
         # normalize or starndardize input data    
         if self.scaling:
             self.compute_scaling_factors(train_dataset)
@@ -865,7 +857,70 @@ class Network(tf.Module):
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
 
+
+
+
+    def save(self, model_dir):
+        """
+        Save a trained model.
         
+        Args:
+            model_dir: directory for the saved neural network model
+        """
+        self.saved_descriptor = {}
+        for key, value in self.descriptor.items():
+                self.saved_descriptor[key] = tf.Variable(value)
+        self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
+        self.saved_arch = tf.Variable(self.arch)
+        self.saved_activation_function = tf.Variable(self.activation_function)
+        self.saved_data_type = tf.Variable(self.data_type)
+        self.saved_elements = tf.Variable(self.elements)
+        self.saved_optimizer = tf.Variable(self.optimizer)
+        self.saved_loss_fun = tf.Variable(self.loss_fun)
+
+        if self.decay:
+            self.saved_decay = {}
+            for key, value in self.decay.items():
+                self.saved_decay[key] = tf.Variable(value)
+            self.saved_lr_history = tf.Variable(self.lr_history)
+        else:
+            self.saved_lr = tf.Variable(self.lr)
+
+        
+
+        tf.saved_model.save(self, model_dir)
+
+        input_tag, input_name, output_tag, output_name = get_signature(model_dir)
+        file = open(model_dir+'/parameters','w')
+
+        file.write('%-20s ' % 'element')
+        file.write('  '.join(j for j in self.elements))
+        file.write('\n\n')
+
+        file.write('%-20s %d\n' % ('input',len(input_tag)))
+        for i in range(len(input_tag)):
+            file.write('%-20s %-20s\n' % (input_tag[i],input_name[i]))
+        file.write('\n')
+
+        file.write('%-20s %d\n' % ('output',len(output_tag)))
+        for i in range(len(output_tag)):
+            file.write('%-20s %-20s\n' % (output_tag[i],output_name[i]))
+        file.write('\n')
+
+        file.write('%-20s %f\n' % ('cutoff',self.descriptor['cutoff']))
+        file.write('\n')
+
+        file.write('%-20s %s  %d\n' % ('descriptor',self.descriptor['name'], len(self.descriptor)-2))    
+        for i in range(2,len(self.descriptor)):
+            key  = list(self.descriptor.keys())[i]
+            file.write('%-20s '% key)
+            file.write('  '.join(str(j) for j in self.descriptor[key]))
+            file.write('\n')
+
+        file.close()
+    #    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
+ 
+
         
 
     def plot_loss(self,start_epoch=1,saveplot=False,**kwargs):
@@ -970,6 +1025,10 @@ class Network(tf.Module):
             fig.savefig(os.path.join(figfolder,figname),bbox_inches = 'tight',format=format, dpi=500)
         plt.show()
 
+
+
+
+        
 
             
                                     
@@ -1088,8 +1147,8 @@ def print_output(output_dict):
         msg_value ='%-12.4e %-12.4e %-12.4e %-12.4e %-12.4e %-12.4e' % stress_value
         print(msg_str)
         print(msg_value)
-        if 'pe_peratom' in output_dict.keys():
-            force_str = ('atom_id', 'fx','fy','fz', 'pe/atom')
+        if 'atom_pe' in output_dict.keys():
+            force_str = ('atom_id', 'fx','fy','fz', 'atom_pe')
             msg_str = '%-12s %-12s %-12s %-12s %-12s' % force_str
         else:
             force_str = ('atom_id', 'fx','fy','fz')
@@ -1097,8 +1156,8 @@ def print_output(output_dict):
         print(msg_str)
         num_atoms = output_dict['force'].shape[1]
         for j in range(num_atoms):
-            if 'pe_peratom' in output_dict.keys():
-                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2], output_dict['pe_peratom'][i][j])
+            if 'atom_pe' in output_dict.keys():
+                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2], output_dict['atom_pe'][i][j])
                 msg_value = '%-12d %-12.4e %-12.4e %-12.4e %-12.4e' % force_value
             else:
                 force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2])
@@ -1120,8 +1179,8 @@ def save_output(output_dict,filename):
         msg_value ='%-12.4e %-12.4e %-12.4e %-12.4e %-12.4e %-12.4e\n' % stress_value
         f.write(msg_str)
         f.write(msg_value)
-        if 'pe_peratom' in output_dict.keys():
-            force_str = ('atom_id', 'fx','fy','fz', 'pe/atom')
+        if 'atom_pe' in output_dict.keys():
+            force_str = ('atom_id', 'fx','fy','fz', 'atom_pe')
             msg_str = '%-12s %-12s %-12s %-12s %-12s\n' % force_str
         else:
             force_str = ('atom_id', 'fx','fy','fz')
@@ -1129,8 +1188,8 @@ def save_output(output_dict,filename):
         f.write(msg_str)
         num_atoms = output_dict['force'].shape[1]
         for j in range(num_atoms):
-            if 'pe_peratom' in output_dict.keys():
-                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2], output_dict['pe_peratom'][i][j])
+            if 'atom_pe' in output_dict.keys():
+                force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2], output_dict['atom_pe'][i][j])
                 msg_value = '%-12d %-12.4e %-12.4e %-12.4e %-12.4e\n' % force_value
             else:
                 force_value = (j+1, output_dict['force'][i][j][0], output_dict['force'][i][j][1], output_dict['force'][i][j][2])
