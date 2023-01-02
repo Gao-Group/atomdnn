@@ -384,7 +384,7 @@ class Data(object):
             print('\nReading outputs from \'%s\' ...' % xyzfile_name, flush=True)    
         for i in range(nfiles):
             patom = read(files[i],format=format,**kwargs)
-            natoms = patoms.get_global_number_of_atoms()
+            natoms = patom.get_global_number_of_atoms()
             pad_size = maxnum_atoms - natoms
             try:
                 pe = patom.info['energy']

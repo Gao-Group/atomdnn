@@ -311,3 +311,64 @@ def get_num_fingerprints(descriptor,elements):
         num_fingerprints = int(n_etaG2*ntypes + n_lambda*n_zeta*n_etaG4*ntypes_combinations + ntypes);
 
     return num_fingerprints
+
+
+
+def plot_symmetry_function(descriptor):
+    rc = descriptor['cutoff']
+    eta_g2 = []
+    eta_g4 = []
+    zeta = []
+    lambda_g4 = []
+    
+    if 'etaG2' in descriptor:
+        eta_g2 = descriptor['etaG2']
+    if 'etaG4' in descriptor:
+        eta_g4 = descriptor['etaG4']
+    if 'zeta' in descriptor:
+        zeta = descriptor['zeta']
+    if 'lambda' in descriptor:
+        lambda_g4 = descriptor['lambda']
+        
+    g2_params=[]
+    g4_params=[]
+    for i in range(len(eta_g2)):
+        g2_params.append(eta_g2[i])
+        
+    for i in range(len(eta_g4)):   
+        for j in range(len(zeta)):
+            for k in range(len(lambda_g4)):
+                g4_params.append([eta_g4[i], zeta[j], lambda_g4[k]])
+                
+    if len(g2_params)!=0:
+        rij=arange(0,rc,0.01)
+        r_ratio=rij/rc;
+        fc=0.5*(1+cos(pi*r_ratio))
+
+        fig1 = plt.figure(figsize=(8,5)) 
+        for i in range(len(g2_params)):
+            G2=exp(-g2_params[i]*rij*rij)*fc
+            plt.plot(rij,G2,label=r'$\eta=$'+str(g2_params[i])+r' $\AA^{-2}$')
+
+        plt.xlabel(r'$R_{ij}(\AA)$')
+        plt.ylabel(r'$G_2$')
+        plt.legend(bbox_to_anchor=(1, 1))
+        plt.show()
+
+    if len(g4_params)!=0:
+        # plot G4 function
+        theta=arange(0,pi,0.0001)
+        rij=1.42 # set this to the equilibrim bond length
+        r_ratio=rij/rc
+        fc=0.5*(1+cos(pi*r_ratio))
+
+        fig2 = plt.figure(figsize=(8,5)) 
+        for i in range(len(g4_params)):
+            G4=power(2,(1-g4_params[i][1]))*power((1+g4_params[i][2]*cos(theta)),g4_params[i][1])*exp(-g4_params[i][0]*rij*rij)*fc
+            plt.plot(theta*180/pi,G4,label=r'$\eta=$'+str(g4_params[i][0])+r' $\AA^{-2}$'+r', $\zeta=$'+str(g4_params[i][1])+ r', $\lambda=$'+str(g4_params[i][2]))
+
+        plt.xlabel(r'$\theta$')
+        plt.ylabel(r'$G_4$')
+        plt.legend(bbox_to_anchor=(1, 1))
+
+        plt.show()  
