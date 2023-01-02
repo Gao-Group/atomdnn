@@ -137,19 +137,22 @@ class Network(tf.Module):
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
 
+        self.loss_weights={}
+        for key in imported.saved_loss_weights:
+             self.loss_weights[key] = imported.saved_loss_weights[key].numpy()
+
 
         if hasattr(imported,'saved_decay'):
-            self.lr_history = self.saved_lr_history.numpy()
+            self.lr_history = imorted.saved_lr_history.numpy()
             self.lr = self.lr_history[-1]        
         else:
             self.lr = imported.saved_lr.numpy()
-            self.decay = None
 
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
 
         self.train_loss = imported.train_loss
         self.val_loss = imported.val_loss
-        self.loss_weights = imported.loss_weights
+        #self.loss_weights = imported.loss_weights
         
         try:
             self.params = []
@@ -395,7 +398,7 @@ class Network(tf.Module):
                 return {'pe_per_atom': pe_per_atom, 'force':force, 'stress':stress}
             else:
                 if not output_atom_pe:
-                    return  {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy(), 'ngighbor_coord':neighbor_coord.numpy()}
+                    return  {'pe':total_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
                 else:
                     return  {'pe':total_pe.numpy(), 'atom_pe':atom_pe.numpy(), 'force':force.numpy(), 'stress':stress.numpy()}
 
@@ -472,7 +475,7 @@ class Network(tf.Module):
         for key in eval_loss:
             print('%15s:  %15.4e' % (key, eval_loss[key]))
         if 'total_loss' in eval_loss:
-            print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value.numpy()) for key, value in self.loss_weights.items()])
+            print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value) for key, value in self.loss_weights.items()])
                                                 
 
     def loss_function (self,true, pred):
@@ -656,8 +659,11 @@ class Network(tf.Module):
                 raise ValueError('Scaling needs to be \'std\' (standardization) or \'norm\'(normalization).')
             else:
                 self.scaling = tf.Variable(scaling)
+        elif hasattr(self,'scaling'):
+            print('Scaling is set to %s from previous model.'%self.scaling.numpy().decode())
         else:
             self.scaling = None
+            print('Scaling is not applied to data.')
 
             
         if decay:
@@ -673,24 +679,31 @@ class Network(tf.Module):
             if lr:
                 self.lr = lr
                 print ("Learning rate is set to %.3f."%self.lr)
-            elif not hasattr(self,'lr'): 
+            elif hasattr(self,'lr'):
+                print("Learning rate is set to %.3f from previous model."%self.lr)
+            else:
                 self.lr = 0.01
                 print ("Learning rate is set to 0.01 by default.")                        
+
         if optimizer:
             self.optimizer = optimizer
             self.tf_optimizer = tf.keras.optimizers.get(optimizer)
             K.set_value(self.tf_optimizer.learning_rate, self.lr)
-        elif not hasattr(self,'optimizer') and not hasattr(self,'tf_optimizer'):
+        elif hasattr(self,'optimizer'):
+            print("Optimizer is set to %s from previous model."%self.optimizer)
+        else:
             self.optimizer = 'Adam'
             self.tf_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
-            print ("optimizer is set to Adam by default.")
+            print ("Optimizer is set to Adam by default.")
     
             
         if loss_fun:
-            self.loss_fun = loss_fun
-        elif self.loss_fun is not None:
+            self.loss_fun = loss_fun 
+        elif hasattr(self,'loss_fun'):
+            print("Loss function is set to %s from previous model."%self.loss_fun)
+        else:
             self.loss_fun = 'rmse'
-            print ("loss_fun is set to rmse by default.")
+            print ("Loss function is set to rmse by default.")
                                    
         if not epochs:
             epochs = 1
@@ -711,12 +724,15 @@ class Network(tf.Module):
             self.val_loss={}
              
         if loss_weights is None:
-            self.loss_weights = {'pe':1,'force':0,'stress':0}
-            print('loss_weights is set to default value:',self.loss_weights)
+            if hasattr(self,'loss_weights'):
+                print('Loss weights are set to the value from previous model:',self.loss_weights)
+            else:
+                self.loss_weights = {'pe':1.0,'force':0,'stress':0}
+                print('Loss weights are set to default value:',self.loss_weights)
         else:
             self.loss_weights = loss_weights
-        for key in self.loss_weights:
-            self.loss_weights[key] = tf.Variable(loss_weights[key],dtype=self.data_type)
+        # for key in self.loss_weights:
+        #     self.loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
 
         if compute_all_loss:
             self.compute_all_loss=True
@@ -869,7 +885,7 @@ class Network(tf.Module):
         """
         self.saved_descriptor = {}
         for key, value in self.descriptor.items():
-                self.saved_descriptor[key] = tf.Variable(value)
+            self.saved_descriptor[key] = tf.Variable(value)
         self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
         self.saved_arch = tf.Variable(self.arch)
         self.saved_activation_function = tf.Variable(self.activation_function)
@@ -878,15 +894,18 @@ class Network(tf.Module):
         self.saved_optimizer = tf.Variable(self.optimizer)
         self.saved_loss_fun = tf.Variable(self.loss_fun)
 
-        if self.decay:
+        self.saved_loss_weights={}
+        for key in self.loss_weights:
+             self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
+
+
+        if hasattr(self,'decay'):
             self.saved_decay = {}
             for key, value in self.decay.items():
                 self.saved_decay[key] = tf.Variable(value)
             self.saved_lr_history = tf.Variable(self.lr_history)
         else:
-            self.saved_lr = tf.Variable(self.lr)
-
-        
+            self.saved_lr = tf.Variable(self.lr)        
 
         tf.saved_model.save(self, model_dir)
 
@@ -1080,45 +1099,45 @@ def print_signature(model_dir):
     
 
     
-def save(obj, model_dir):
-    """
-    Save a trained model.
+# def save(obj, model_dir):
+#     """
+#     Save a trained model.
 
-    Args:
-        model_dir: directory for the saved neural network model
-        descriptor(dictionary): descriptor parameters, used for LAMMPS prediction
-    """
-    tf.saved_model.save(obj, model_dir)
+#     Args:
+#         model_dir: directory for the saved neural network model
+#         descriptor(dictionary): descriptor parameters, used for LAMMPS prediction
+#     """
+#     tf.saved_model.save(obj, model_dir)
 
-    input_tag, input_name, output_tag, output_name = get_signature(model_dir)
-    file = open(model_dir+'/parameters','w')
+#     input_tag, input_name, output_tag, output_name = get_signature(model_dir)
+#     file = open(model_dir+'/parameters','w')
     
-    file.write('%-20s ' % 'element')
-    file.write('  '.join(j for j in obj.elements))
-    file.write('\n\n')
+#     file.write('%-20s ' % 'element')
+#     file.write('  '.join(j for j in obj.elements))
+#     file.write('\n\n')
 
-    file.write('%-20s %d\n' % ('input',len(input_tag)))
-    for i in range(len(input_tag)):
-        file.write('%-20s %-20s\n' % (input_tag[i],input_name[i]))
-    file.write('\n')
+#     file.write('%-20s %d\n' % ('input',len(input_tag)))
+#     for i in range(len(input_tag)):
+#         file.write('%-20s %-20s\n' % (input_tag[i],input_name[i]))
+#     file.write('\n')
         
-    file.write('%-20s %d\n' % ('output',len(output_tag)))
-    for i in range(len(output_tag)):
-        file.write('%-20s %-20s\n' % (output_tag[i],output_name[i]))
-    file.write('\n')
+#     file.write('%-20s %d\n' % ('output',len(output_tag)))
+#     for i in range(len(output_tag)):
+#         file.write('%-20s %-20s\n' % (output_tag[i],output_name[i]))
+#     file.write('\n')
 
-    file.write('%-20s %f\n' % ('cutoff',obj.descriptor['cutoff']))
-    file.write('\n')
+#     file.write('%-20s %f\n' % ('cutoff',obj.descriptor['cutoff']))
+#     file.write('\n')
 
-    file.write('%-20s %s  %d\n' % ('descriptor',obj.descriptor['name'], len(obj.descriptor)-2))    
-    for i in range(2,len(obj.descriptor)):
-        key  = list(obj.descriptor.keys())[i]
-        file.write('%-20s '% key)
-        file.write('  '.join(str(j) for j in obj.descriptor[key]))
-        file.write('\n')
+#     file.write('%-20s %s  %d\n' % ('descriptor',obj.descriptor['name'], len(obj.descriptor)-2))    
+#     for i in range(2,len(obj.descriptor)):
+#         key  = list(obj.descriptor.keys())[i]
+#         file.write('%-20s '% key)
+#         file.write('  '.join(str(j) for j in obj.descriptor[key]))
+#         file.write('\n')
         
-    file.close()
-#    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
+#     file.close()
+# #    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
     
 
         

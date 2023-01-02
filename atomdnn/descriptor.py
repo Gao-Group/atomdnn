@@ -315,6 +315,15 @@ def get_num_fingerprints(descriptor,elements):
 
 
 def plot_symmetry_function(descriptor):
+
+    from numpy import arange,cos, exp, power, pi
+    import matplotlib.pyplot as plt
+    import matplotlib
+    matplotlib.rc('legend', fontsize=18) 
+    matplotlib.rc('xtick', labelsize=18) 
+    matplotlib.rc('ytick', labelsize=18) 
+    matplotlib.rc('axes', labelsize=18) 
+    matplotlib.rc('figure', titlesize=18)
     rc = descriptor['cutoff']
     eta_g2 = []
     eta_g4 = []
