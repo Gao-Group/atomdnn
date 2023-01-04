@@ -6,6 +6,11 @@ import re
 import glob
 import shutil
 import random
+import numpy as np
+from numpy import arange,cos, exp, power, pi
+import matplotlib.pyplot as plt
+import matplotlib
+
 
 def sorted_alphanumeric(filenames):
     """
@@ -315,10 +320,6 @@ def get_num_fingerprints(descriptor,elements):
 
 
 def plot_symmetry_function(descriptor):
-
-    from numpy import arange,cos, exp, power, pi
-    import matplotlib.pyplot as plt
-    import matplotlib
     matplotlib.rc('legend', fontsize=18) 
     matplotlib.rc('xtick', labelsize=18) 
     matplotlib.rc('ytick', labelsize=18) 
@@ -331,13 +332,13 @@ def plot_symmetry_function(descriptor):
     lambda_g4 = []
     
     if 'etaG2' in descriptor:
-        eta_g2 = descriptor['etaG2']
+        eta_g2 = np.array(descriptor['etaG2'],dtype=atomdnn.data_type)
     if 'etaG4' in descriptor:
-        eta_g4 = descriptor['etaG4']
+        eta_g4 = np.array(descriptor['etaG4'],dtype=atomdnn.data_type)
     if 'zeta' in descriptor:
-        zeta = descriptor['zeta']
+        zeta = np.array(descriptor['zeta'],dtype=atomdnn.data_type)
     if 'lambda' in descriptor:
-        lambda_g4 = descriptor['lambda']
+        lambda_g4 = np.array(descriptor['lambda'],dtype=atomdnn.data_type)
         
     g2_params=[]
     g4_params=[]
@@ -363,7 +364,8 @@ def plot_symmetry_function(descriptor):
         plt.ylabel(r'$G_2$')
         plt.legend(bbox_to_anchor=(1, 1))
         plt.show()
-
+        print('number of G2 parameters = ',len(g2_params))
+        
     if len(g4_params)!=0:
         # plot G4 function
         theta=arange(0,pi,0.0001)
@@ -379,5 +381,5 @@ def plot_symmetry_function(descriptor):
         plt.xlabel(r'$\theta$')
         plt.ylabel(r'$G_4$')
         plt.legend(bbox_to_anchor=(1, 1))
-
-        plt.show()  
+        plt.show()
+        print('number of G4 parameters = ',len(g4_params))
