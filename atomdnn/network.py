@@ -671,7 +671,7 @@ class Network(tf.Module):
                 if decay.get(key)==None:
                     raise ValueError(key + ' is not in decay.')
             self.decay = decay
-            if not hasattr(self,'lr_histroy'):
+            if not hasattr(self,'lr_history'):
                 self.lr_history = []
             self.lr = decay['initial_lr']
             print("Initial learning rate is set to %.3f."%self.lr)
