@@ -124,6 +124,54 @@ def create_lmp_input(descriptor,descriptors_path):
                          'fix NVE all nve\n'+
                          'run 0')
 
+
+    
+def read_symmetry_function_params(descriptors_path):
+    """
+    Return elements and symmetry function parameters
+    """
+    file = open(descriptors_path+'/symmetry_function_params','r')
+    lines = file.readlines()
+    file.close()
+    descriptor = {}
+    for line in lines:
+        if line.split()[0] == 'elements':
+            elements = [line.split()[i] for i in range(1,len(line.split()))]
+        elif line.split()[0] == 'name':
+            descriptor['name'] = line.split()[1]
+        elif line.split()[0] == 'cutoff':
+            descriptor['cutoff'] = float(line.split()[1])
+        else:
+            key = line.split()[0]
+            value = [float(line.split()[i]) for i in range(1,len(line.split()))]
+            descriptor[key] = value
+    return elements, descriptor
+
+
+
+def save_symmetry_function_params(elements,descriptor,descriptors_path):
+    """
+    Save elements and symmetry function parameters to file symmetry_function_params
+    """
+    file = open(descriptors_path+'/symmetry_function_params','w')   
+
+    file.write('%-20s '%('elements'))
+    file.write('  '.join(str(j) for j in elements))
+    file.write('\n')
+    
+    for i in range(len(descriptor)):
+        key  = list(descriptor.keys())[i]
+        if key=='name':
+            file.write('%-20s %-20s'%(key,descriptor[key]))
+        elif key=='cutoff':
+            file.write('%-20s %f'%(key,descriptor[key]))
+        else:
+            file.write('%-20s '% key)
+            file.write('  '.join(str(j) for j in descriptor[key]))
+        file.write('\n')
+
+    file.close()
+
     
 
 def create_descriptors(elements, xyzfiles, descriptor, \
@@ -155,7 +203,6 @@ def create_descriptors(elements, xyzfiles, descriptor, \
         descriptors_path = str(hash(random.random()))
 
     os.makedirs(descriptors_path, exist_ok=True)
-    
 
     if not isinstance(descriptor, dict):
         raise TypeError("descriptor shoud be given as a dictionary")
@@ -271,10 +318,14 @@ def create_descriptors(elements, xyzfiles, descriptor, \
             print('The fingerprints files \'%s\' and derivatives files \'%s\' are saved in folder \'%s\'.'%(descriptor_filename,der_filename,descriptors_path))
         else:
             print('The fingerprints files \'%s\' are saved in folder \'%s\'.'%(descriptor_filename,descriptors_path))
+
+    # save the symmetry function parameters to file symmetry_function_params
+    save_symmetry_function_params (elements,descriptor,descriptors_path)
+
+            
     if create_data is True:
         if silent is False:
             print('\nUsing the generated descriptors to create and return an AtomDNN Data object.')
-
         from atomdnn.data import Data
         # create a Data object using the generated descriptors        
         atomdnn_data = Data(descriptors_path,descriptor_filename, der_filename, xyzfiles,format,image_num,skip,verbose,silent,**kwargs)

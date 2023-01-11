@@ -11,6 +11,7 @@ from matplotlib.ticker import MaxNLocator
 from atomdnn.descriptor import create_descriptors, get_num_fingerprints
 import shutil
 import math
+import pickle
 
 if atomdnn.compute_force:
     input_signature_dict = [{"fingerprints": tf.TensorSpec(shape=[None,None,None], dtype=atomdnn.data_type, name="fingerprints"),
@@ -49,20 +50,19 @@ class Network(tf.Module):
         super(Network,self).__init__()
         
         if import_dir:
-            imported = tf.saved_model.load(import_dir)
-            self.inflate_from_file(imported)
+            self.inflate_from_file(import_dir)
         else:
             if arch:
                 self.arch = arch
             else:
                 self.arch = [10]
-                print ('network arch is set to [10] by default.')
+                print ('network arch is set to [10] by default.',flush=True)
                 
             if activation_function:
                 self.activation_function = activation_function
             else:
                 self.activation_function = 'tanh'
-                print ('activation function is set to tanh by default.')
+                print ('activation function is set to tanh by default.',flush=True)
             self.tf_activation_function = tf.keras.activations.get(self.activation_function)
 
             if descriptor is not None:
@@ -90,70 +90,76 @@ class Network(tf.Module):
             self.optimizer=None # string
             self.tf_optimizer=None
             self.lr=None
-                
-            # self.saved_descriptor = {}
-            # for key, value in self.descriptor.items():
-            #     self.saved_descriptor[key] = tf.Variable(value)
-            # self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
-            # self.saved_arch = tf.Variable(self.arch)
-            # self.saved_activation_function = tf.Variable(self.activation_function)
-            # self.saved_data_type = tf.Variable(self.data_type)
-            # self.saved_elements = tf.Variable(self.elements)
-    
+
+            
         
         
-    def inflate_from_file(self, imported):
+    def inflate_from_file(self, import_dir):
         '''
         Inflate network object from a SavedModel.
 
         Args:
-            imported: a saved tensorflow neural network model
+            import_dir: directory of a saved tensorflow neural network model
         '''
+        imported = tf.saved_model.load(import_dir)
+        
+        print('Loading network information ...',flush=True)
         self.built = True
         self.arch = imported.saved_arch.numpy()
+        print('  network arch: ',self.arch,flush=True)
         self.num_fingerprints = imported.saved_num_fingerprints.numpy()
-
+        print('  number of fingerprints: ', self.num_fingerprints,flush=True)
+        self.data_type = imported.saved_data_type.numpy().decode()
+        print('  data type: ',self.data_type,flush=True)
+        self.elements = [imported.saved_elements.numpy()[i].decode() for i in range(imported.saved_elements.shape[0])]
+        print('  elements: ',list(self.elements),flush=True)
+        
         self.descriptor = {}
         for key, value in imported.saved_descriptor.items():
             value = value.numpy()
             if isinstance(value, bytes):
                 value = value.decode()
-            self.descriptor[key] = value            
+            self.descriptor[key] = value
+        print('  symmetry function parameters: saved as <imported_model>.descriptor',flush=True)
+
+        self.activation_function = imported.saved_activation_function.numpy().decode()
+        self.tf_activation_function = tf.keras.activations.get(self.activation_function)
+        print('  activation function: ',self.activation_function,flush=True)
 
         if hasattr(imported,'scaling'):
             self.scaling = imported.scaling
             self.scaling_factor = imported.scaling_factor
+            print('  scaling: ',self.scaling.numpy().decode(),flush=True)
         else:
             self.scaling = None
-            
-        self.activation_function = imported.saved_activation_function.numpy().decode()
-        self.tf_activation_function = tf.keras.activations.get(self.activation_function)
-        self.data_type = imported.saved_data_type.numpy().decode()
-        self.elements = [imported.saved_elements.numpy()[i].decode() for i in range(imported.saved_elements.shape[0])]
-           
-        
+
         self.loss_fun = imported.saved_loss_fun.numpy().decode()
-        
+        print('  loss function: ',self.loss_fun, flush=True )
+
         self.optimizer = imported.saved_optimizer.numpy().decode()
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
+        print('  optimizer: ',self.optimizer,flush=True)
 
         self.loss_weights={}
         for key in imported.saved_loss_weights:
              self.loss_weights[key] = imported.saved_loss_weights[key].numpy()
+        print('  loss weights:',self.loss_weights,flush=True)                    
 
-
-        if hasattr(imported,'saved_decay'):
-            self.lr_history = imorted.saved_lr_history.numpy()
-            self.lr = self.lr_history[-1]        
-        else:
-            self.lr = imported.saved_lr.numpy()
-
+        self.lr = imported.saved_lr.numpy()
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
+        print("  learning rate: %5.3E"%self.lr,flush=True)
 
-        self.train_loss = imported.train_loss
-        self.val_loss = imported.val_loss
-        #self.loss_weights = imported.loss_weights
-        
+        if imported.save_training_history == True:
+            with open(import_dir+'/training_history_data', 'rb') as in_: 
+                history = pickle.load(in_)
+            if hasattr(imported,'decay'):
+                self.lr_history, self.train_loss, self.val_loss = history
+                msg = "  lr_history, train_loss and val_loss are loaded"
+            else:
+                self.train_loss, self.val_loss = history
+                msg = "  train_loss and val_loss are loaded"
+            print(msg,flush=True)
+                                      
         try:
             self.params = []
             for param in imported.params:
@@ -161,7 +167,7 @@ class Network(tf.Module):
         except AttributeError:
             raise AttributeError('imported_object does not have params attribute.')
  
-        print('Network has been inflated! self.built:',self.built)
+        print('Network has been inflated! self.built:',self.built,flush=True)
         
         
         
@@ -489,10 +495,14 @@ class Network(tf.Module):
         """
         if self.loss_fun == 'rmse':
             tf_loss_fun = tf.keras.losses.get('mse')
-            return tf.sqrt(tf.maximum(tf_loss_fun(true,pred), 1e-9))
         else:
             tf_loss_fun = tf.keras.losses.get(self.loss_fun)
-            return tf_loss_fun(true, pred)
+        return tf_loss_fun(true, pred)
+            
+        #     return tf.sqrt(tf.maximum(tf_loss_fun(true,pred), 1e-9))
+        # else:
+        #     tf_loss_fun = tf.keras.losses.get(self.loss_fun)
+        #     return tf_loss_fun(true, pred)
             
         
         
@@ -522,10 +532,19 @@ class Network(tf.Module):
         if 'stress' in pred_dict and 'stress' in true_dict: # compute stress loss
             # when evaluation OR train/validation using stress OR all losses are requested
             if ((not training and not validation) or ((training or validation) and (self.loss_weights['stress']!=0))) or self.compute_all_loss: 
-                indices = [[[0],[4],[8],[1],[2],[5]]] * len(pred_dict['stress']) # select upper triangle elements (pxx,pyy,pzz,pxy,pxz,pyz) of the stress tensor
+
+                # select upper triangle elements (xx,yy,zz,yz,xz,xy) of the stress tensor
+                indices = [[[0],[4],[8],[5],[2],[1]]] * len(pred_dict['stress'])
                 stress = tf.gather_nd(pred_dict['stress'], indices=indices, batch_dims=1)
                 loss_dict['stress_loss'] = tf.reduce_mean(self.loss_function(true_dict['stress'],stress))
 
+                #loss_dict['stress_loss'] = tf.reduce_mean(self.loss_function(true_dict['stress'],pred_dict['stress']))
+
+        if self.loss_fun=='rmse':
+            for key in loss_dict.keys():
+                loss_dict[key] = tf.sqrt(loss_dict[key])
+
+                
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
             total_loss = loss_dict['pe_loss']
         elif self.loss_weights['force']!=0 and self.loss_weights['stress']!=0: # pe, force and stress used for training
@@ -660,10 +679,10 @@ class Network(tf.Module):
             else:
                 self.scaling = tf.Variable(scaling)
         elif hasattr(self,'scaling'):
-            print('Scaling is set to %s from previous model.'%self.scaling.numpy().decode())
+            print('Scaling is set to %s from imported model.'%self.scaling.numpy().decode(),flush=True)
         else:
             self.scaling = None
-            print('Scaling is not applied to data.')
+            print('Scaling is not applied to data.',flush=True)
 
             
         if decay:
@@ -673,45 +692,47 @@ class Network(tf.Module):
             self.decay = decay
             if not hasattr(self,'lr_history'):
                 self.lr_history = []
+            else:
+                self.lr_history.append(decay['initial_lr'])
             self.lr = decay['initial_lr']
-            print("Initial learning rate is set to %.3f."%self.lr)
+            print("Initial learning rate is set to %.3e."%self.lr,flush=True)
         else:
             if lr:
                 self.lr = lr
-                print ("Learning rate is set to %.3f."%self.lr)
+                print ("Learning rate is set to %.3e."%self.lr,flush=True)
             elif hasattr(self,'lr'):
-                print("Learning rate is set to %.3f from previous model."%self.lr)
+                print("Learning rate is set to %.3e from imported model."%self.lr,flush=True)
             else:
                 self.lr = 0.01
-                print ("Learning rate is set to 0.01 by default.")                        
+                print ("Learning rate is set to 0.01 by default.",flush=True)                        
 
         if optimizer:
             self.optimizer = optimizer
             self.tf_optimizer = tf.keras.optimizers.get(optimizer)
             K.set_value(self.tf_optimizer.learning_rate, self.lr)
         elif hasattr(self,'optimizer'):
-            print("Optimizer is set to %s from previous model."%self.optimizer)
+            print("Optimizer is set to %s from imported model."%self.optimizer,flush=True)
         else:
             self.optimizer = 'Adam'
             self.tf_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr)
-            print ("Optimizer is set to Adam by default.")
+            print ("Optimizer is set to Adam by default.",flush=True)
     
             
         if loss_fun:
             self.loss_fun = loss_fun 
         elif hasattr(self,'loss_fun'):
-            print("Loss function is set to %s from previous model."%self.loss_fun)
+            print("Loss function is set to %s from imported model."%self.loss_fun,flush=True)
         else:
             self.loss_fun = 'rmse'
-            print ("Loss function is set to rmse by default.")
+            print ("Loss function is set to rmse by default.",flush=True)
                                    
         if not epochs:
             epochs = 1
-            print ("epochs is set to 1 by default.")
+            print ("epochs is set to 1 by default.",flush=True)
 
         if batch_size is None:
             batch_size = 30
-            print ("batch_size is set to 30 by default.")    
+            print ("batch_size is set to 30 by default.",flush=True)    
 
         if early_stop:
             if 'val_loss' in early_stop and not validation_dataset:
@@ -725,10 +746,10 @@ class Network(tf.Module):
              
         if loss_weights is None:
             if hasattr(self,'loss_weights'):
-                print('Loss weights are set to the value from previous model:',self.loss_weights)
+                print('Loss weights are set to the value from imported model:',self.loss_weights,flush=True)
             else:
                 self.loss_weights = {'pe':1.0,'force':0,'stress':0}
-                print('Loss weights are set to default value:',self.loss_weights)
+                print('Loss weights are set to default value:',self.loss_weights,flush=True)
         else:
             self.loss_weights = loss_weights
         # for key in self.loss_weights:
@@ -752,9 +773,9 @@ class Network(tf.Module):
                 self.val_loss['force_loss']=[]
                 
         if self.loss_weights['force']!=0:
-            print ("Forces are used for training.")
+            print ("Forces are used for training.",flush=True)
         else:
-            print ("Forces are not used for training.")
+            print ("Forces are not used for training.",flush=True)
             
         if self.loss_weights['stress']!=0 or self.compute_all_loss: # when stress is used for traning/validation OR compute stress_loss is requested
             if 'stress_loss' not in self.train_loss or not append_loss:
@@ -763,9 +784,9 @@ class Network(tf.Module):
                 self.val_loss['stress_loss']=[]
                 
         if self.loss_weights['stress']!=0:
-            print ("Stresses are used for training.")
+            print ("Stresses are used for training.",flush=True)
         else:
-            print ("Stresses are not used for training.")
+            print ("Stresses are not used for training.",flush=True)
 
         if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0 or self.compute_all_loss: 
             if 'total_loss' not in self.train_loss or not append_loss:
@@ -776,17 +797,17 @@ class Network(tf.Module):
         # normalize or starndardize input data    
         if self.scaling:
             self.compute_scaling_factors(train_dataset)
-            print('Scaling factors are computed using training dataset.')
+            print('Scaling factors are computed using training dataset.',flush=True)
             train_dataset = self.scaling_dataset(train_dataset)
-            print('Training dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'))
+            print('Training dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'),flush=True)
             if validation_dataset:
                 validation_dataset = self.scaling_dataset(validation_dataset)
-                print('Validation dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'))
+                print('Validation dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'),flush=True)
 
                 
         if shuffle:
             train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
-            print('Training dataset will be shuffled during training.')
+            print('Training dataset will be shuffled during training.',flush=True)
    
         train_start_time = time.time()
         early_stop_repeats = 0
@@ -805,7 +826,8 @@ class Network(tf.Module):
 
             for key in batch_loss:
                 train_epoch_loss[key] = train_epoch_loss[key]/(step+1)
-                self.train_loss[key].append(tf.Variable(train_epoch_loss[key]))
+                #self.train_loss[key].append(tf.Variable(train_epoch_loss[key]))
+                self.train_loss[key].append(train_epoch_loss[key])
 
             # Iterate over the batches of the validation dataset
             if validation_dataset is not None:  
@@ -818,17 +840,18 @@ class Network(tf.Module):
                             val_epoch_loss[key] = batch_loss[key] + val_epoch_loss[key]
                 for key in batch_loss:
                     val_epoch_loss[key] = val_epoch_loss[key]/(step+1)
-                    self.val_loss[key].append(tf.Variable(val_epoch_loss[key]))
+                    #self.val_loss[key].append(tf.Variable(val_epoch_loss[key]))
+                    self.val_loss[key].append(val_epoch_loss[key])
                     
             epoch_end_time = time.time()
             time_per_epoch = (epoch_end_time - epoch_start_time)
             
             if (epoch+1)%output_freq == 0:
-                print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch))
-                print('     training_loss   ',*["- %s: %5.3f" % (key,value) for key,value in train_epoch_loss.items()])
+                print('\n===> Epoch %i/%i - %.3fs/epoch' % (epoch+1, epochs, time_per_epoch),flush=True)
+                print('     training_loss   ',*["- %s: %5.3e" % (key,value) for key,value in train_epoch_loss.items()],flush=True)
             if validation_dataset:
                 if (epoch+1)%output_freq == 0:
-                    print('     validation_loss ',*["- %s: %5.3f" % (key,value) for key,value in val_epoch_loss.items()])
+                    print('     validation_loss ',*["- %s: %5.3e" % (key,value) for key,value in val_epoch_loss.items()],flush=True)
 
             if early_stop:
                 if 'train_loss' in early_stop:
@@ -843,7 +866,7 @@ class Network(tf.Module):
                         else:
                             early_stop_repeats = 0
                     if early_stop_repeats == early_stop['train_loss'][1]:
-                        print('\nTraining is stopped when train_loss <= %.3f for %i time.'%(early_stop['train_loss'][0],early_stop['train_loss'][1]))
+                        print('\nTraining is stopped when train_loss <= %.3e for %i time.'%(early_stop['train_loss'][0],early_stop['train_loss'][1]),flush=True)
                         break
                 elif 'val_loss' in early_stop:
                     if 'total_loss' in val_epoch_loss:
@@ -857,57 +880,87 @@ class Network(tf.Module):
                         else:
                             early_stop_repeats = 0
                     if early_stop_repeats == early_stop['val_loss'][1]:
-                        print('\nTraining is stopped when val_loss <= %.3f for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]))
+                        print('\nTraining is stopped when val_loss <= %.3e for %i time.'%(early_stop['val_loss'][0],early_stop['val_loss'][1]),flush=True)
                         break
 
             if nepochs_checkpoint:
                 if (epoch+1) % nepochs_checkpoint ==0:
-                    save(self, 'saved_model_at_epoch'+str(epoch+1))
+                    self.save('saved_model_at_epoch'+str(epoch+1))
                     self.plot_loss(saveplot=True)
 
             if decay:
                 if (epoch+1) % decay['decay_steps']==0 and (epoch+1)<epochs:
                     self.decay_lr(epoch)
-                    print('\nLearning rate is decreased to %.3f'% self.lr)
+                    print('\nLearning rate is decreased to %.3e'% self.lr,flush=True)
 
         elapsed_time = (epoch_end_time - train_start_time)
-        print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)))
+        print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)),flush=True)
 
 
 
 
-    def save(self, model_dir):
+    def save(self,model_dir,save_training_history=False):
         """
         Save a trained model.
         
         Args:
             model_dir: directory for the saved neural network model
         """
+        print('Saving network variables ...',flush=True)
+                
         self.saved_descriptor = {}
         for key, value in self.descriptor.items():
             self.saved_descriptor[key] = tf.Variable(value)
+        print('  symmetry function parameters',flush=True)
+
         self.saved_num_fingerprints = tf.Variable(self.num_fingerprints)
-        self.saved_arch = tf.Variable(self.arch)
-        self.saved_activation_function = tf.Variable(self.activation_function)
-        self.saved_data_type = tf.Variable(self.data_type)
+        print('  number of fingerprints')
+
         self.saved_elements = tf.Variable(self.elements)
+        print('  elements',flush=True)
+        
+        self.saved_arch = tf.Variable(self.arch)
+        print('  network architecture',flush=True)
+        self.saved_activation_function = tf.Variable(self.activation_function)
+        print('  activation function',flush=True)
+
+        self.saved_data_type = tf.Variable(self.data_type)
+        print('  data type',flush=True)
+
         self.saved_optimizer = tf.Variable(self.optimizer)
+        print('  optimizer',flush=True)
         self.saved_loss_fun = tf.Variable(self.loss_fun)
 
         self.saved_loss_weights={}
         for key in self.loss_weights:
              self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
+        print('  loss function',flush=True)
 
 
         if hasattr(self,'decay'):
             self.saved_decay = {}
             for key, value in self.decay.items():
                 self.saved_decay[key] = tf.Variable(value)
-            self.saved_lr_history = tf.Variable(self.lr_history)
-        else:
-            self.saved_lr = tf.Variable(self.lr)        
+            print('  decay learning parameters',flush=True)
+                
+        self.saved_lr = tf.Variable(self.lr)
+        print('  learning rate at the last epoch',flush=True)
+      
+        self.save_training_history = tf.Variable(save_training_history)
 
         tf.saved_model.save(self, model_dir)
+        
+        if save_training_history == True:
+            if hasattr(self,'decay'):
+                history = [self.lr_history,self.train_loss,self.val_loss]
+                msg = 'Decayed learning rates, training and validation loss are saved as binary data in %s'%(model_dir+'/training_history_data')
+            else:
+                history = [self.train_loss,self.val_loss]
+                msg = 'Training and validation loss are saved as binary data in %s'%(model_dir+'/training_history_data')
+            with open(model_dir+'/training_history_data', 'wb') as out_: 
+                pickle.dump(history, out_)
+                print(msg,flush=True)
+           
 
         input_tag, input_name, output_tag, output_name = get_signature(model_dir)
         file = open(model_dir+'/parameters','w')
@@ -930,14 +983,14 @@ class Network(tf.Module):
         file.write('\n')
 
         file.write('%-20s %s  %d\n' % ('descriptor',self.descriptor['name'], len(self.descriptor)-2))    
-        for i in range(2,len(self.descriptor)):
+        for i in range(len(self.descriptor)):
             key  = list(self.descriptor.keys())[i]
-            file.write('%-20s '% key)
-            file.write('  '.join(str(j) for j in self.descriptor[key]))
-            file.write('\n')
-
+            if key=='etaG2' or key=='etaG4' or key=='zeta' or key=='lambda':
+                file.write('%-20s '% key)
+                file.write('  '.join(str(j) for j in self.descriptor[key]))
+                file.write('\n')
         file.close()
-    #    print('Network signatures and descriptor are written to %s for LAMMPS simulation.'% (model_dir+'/parameters'))
+        print('Network signatures and descriptor are written to %s for LAMMPS simulation'% (model_dir+'/parameters'),flush=True)
  
 
         
@@ -998,7 +1051,7 @@ class Network(tf.Module):
         if 'ylabel' in kwargs.keys():
             ylabel = kwargs['ylabel']
         else:
-            ylabel = {'pe_loss':'pe loss (eV)', 'force_loss':'force loss (eV/'+r'$\AA$'+')','stress_loss':'stress loss (GPa)','total_loss':'total loss'}
+            ylabel = {'pe_loss':'pe_per_atom loss', 'force_loss':'force loss','stress_loss':'stress loss','total_loss':'total loss'}
         if 'format' in kwargs.keys():
             format = kwargs['format']
         else:
@@ -1158,10 +1211,10 @@ def print_output(output_dict):
     num_images = output_dict['pe'].shape[0]
     for i in range(num_images):
         print ('-----------------------------------------------------------------------------')
-        print ('image %i: potential energy = %.3f'%(i+1,output_dict['pe'][i]))
-        stress_str = ('stress_xx','stress_yy','stress_zz','stress_xy','stress_yz','stress_xz')
+        print ('image %i: potential energy = %.3e'%(i+1,output_dict['pe'][i]))
+        stress_str = ('stress_xx','stress_yy','stress_zz','stress_yz','stress_xz','stress_xy')
         stress_value = (output_dict['stress'][i][0],output_dict['stress'][i][4],output_dict['stress'][i][8],\
-                        output_dict['stress'][i][1],output_dict['stress'][i][3],output_dict['stress'][i][2])
+                        output_dict['stress'][i][5],output_dict['stress'][i][2],output_dict['stress'][i][1])
         msg_str = '%-12s %-12s %-12s %-12s %-12s %-12s' % stress_str
         msg_value ='%-12.4e %-12.4e %-12.4e %-12.4e %-12.4e %-12.4e' % stress_value
         print(msg_str)
@@ -1190,7 +1243,7 @@ def save_output(output_dict,filename):
     num_images = output_dict['pe'].shape[0]
     for i in range(num_images):
         f.write('-----------------------------------------------------------------------------\n')
-        f.write('image %i: potential energy = %.3f\n'%(i+1,output_dict['pe'][i]))
+        f.write('image %i: potential energy = %.3e\n'%(i+1,output_dict['pe'][i]))
         stress_str = ('stress_xx','stress_yy','stress_zz','stress_xy','stress_yz','stress_xz')
         stress_value = (output_dict['stress'][i][0],output_dict['stress'][i][4],output_dict['stress'][i][8],\
                         output_dict['stress'][i][1],output_dict['stress'][i][3],output_dict['stress'][i][2])

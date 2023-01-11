@@ -7,9 +7,11 @@ import atomdnn
 import random
 import shutil
 from ase.io import read,write
-from atomdnn.descriptor import get_filenames
+from atomdnn.descriptor import get_filenames, save_symmetry_function_params, read_symmetry_function_params
 import glob
 from atomdnn import color
+import pickle
+
 
 # slice dictionary
 def slice_dict (data_dict, start, end):
@@ -75,6 +77,10 @@ class Data(object):
             read_der(bool): True if read derivatives
 
         """
+
+        self.elements, self.descriptor = read_symmetry_function_params(descriptors_path)
+        
+        
         if append and len(self.input_dict)==0:
             print(color.RED + 'Warning: data is not appendable, append has been set to False.' + color.END)
             append = False
@@ -378,7 +384,7 @@ class Data(object):
         if read_force:
             force = np.zeros([nfiles,maxnum_atoms,3],dtype=self.data_type)
         if read_stress:
-            stress = np.zeros([nfiles,6],dtype=self.data_type)
+            stress = np.zeros([nfiles,6],dtype=self.data_type) # voigt stress components: (xx yy zz yz xz xy)
 
         if silent is False:    
             print('\nReading outputs from \'%s\' ...' % xyzfile_name, flush=True)    
@@ -405,7 +411,8 @@ class Data(object):
                     return
             if read_stress:
                 try:
-                    stress[i] = patom.get_stress()
+                    stress[i] = patom.get_stress() # voigt stress components: (xx yy zz yz xz xy), same as ASE default 
+                    #stress[i] = patom.get_stress(voigt=False).flatten()
                 except:
                     if silent is False:
                         print('  There is no stress in \'%s\', check the file and use read_output() funciton to re-read stress.'%files[i], flush=True)
@@ -509,12 +516,42 @@ class Data(object):
             return slice_dict(self.output_dict, start-1, end)
         
 
+    def save_as_tfdataset(self,tfdataset_path):
+        """
+        Convert the atomdnn dataset to Tensorflow tensor
+        Save Tensorflow dataset (tfdataset) in tfdataset_path
+        Save symmetry function parameters (descriptor) and elemtns
+        Return tfdataset  
+        """
+        # convert data to tensors
+        self.convert_data_to_tensor() 
+        
+        # create tensorflow dataset
+        tfdataset = tf.data.Dataset.from_tensor_slices((self.input_dict,self.output_dict))
+
+        # save the dataset
+        tf.data.experimental.save(tfdataset, tfdataset_path)
+        
+        # save the element_spec to disk for future loading, this is only needed for tensorflow lower than 2.6
+        with open(tfdataset_path + '/element_spec', 'wb') as out_: 
+            pickle.dump(tfdataset.element_spec, out_)
+
+        with open(tfdataset_path + '/descriptor', 'wb') as out_: 
+            pickle.dump(tfdataset.element_spec, out_)
+
+        save_symmetry_function_params(self.elements,self.descriptor,tfdataset_path)
+    
+        return tfdataset
+
+
+    
+    
     def convert_data_to_tensor(self):
         """
         Convert the input and ouput data to Tensorflow tensors. This can speed up the data manipulation using Tensorflow functions.
         """
         self.check_data()
-        print('Conversion may take a while for large datasets...',flush=True)
+        print('Converting data to Tensorflow tensor, which may take a while for large datasets...',flush=True)
         start_time = time.time()
         for key in self.output_dict:
             self.output_dict[key] = tf.convert_to_tensor(self.output_dict[key],dtype=self.data_type)
@@ -624,7 +661,20 @@ class Data(object):
 #=================================================================================================================
 # some functions to operate tensorflow dataset
 
+def load_tfdataset(tfdataset_path):
+    """
+    Args:
+        tfdataset_path: path to Tensorflow dataset
+    Returns:
+        Tensorflow dataset
+    """    
+    with open(tfdataset_path + '/element_spec', 'rb') as in_:
+        element_spec = pickle.load(in_)
+    tfdataset = tf.data.experimental.load(tfdataset_path,element_spec=element_spec)
+    return tfdataset
 
+
+        
 def get_input_dict(dataset):
     """
     Args:
