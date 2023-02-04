@@ -159,16 +159,40 @@ class Data(object):
             f = open(files[i],'r')
             lines = f.readlines()
             f.close()
-
-            lx = self.str2float(lines[5].split()[1]) - self.str2float(lines[5].split()[0])
-            ly = self.str2float(lines[6].split()[1]) - self.str2float(lines[6].split()[0])
-            lz = self.str2float(lines[7].split()[1]) - self.str2float(lines[7].split()[0])            
+            if len(lines[4].split())==9:
+                box = 'triclinic'
+            else:
+                box = 'orthogonal'
+            
+            xlo_bound = self.str2float(lines[5].split()[0])
+            xhi_bound = self.str2float(lines[5].split()[1])
+            ylo_bound = self.str2float(lines[6].split()[0])
+            yhi_bound = self.str2float(lines[6].split()[1])
+            zlo = self.str2float(lines[7].split()[0])
+            zhi = self.str2float(lines[7].split()[1])
+            if box=='triclinic':
+                xy = self.str2float(lines[5].split()[2])
+                xz = self.str2float(lines[6].split()[2])
+                yz = self.str2float(lines[7].split()[2])
+            else:
+                xy = 0
+                xz = 0
+                yz = 0
+            xlo = xlo_bound - np.min([0.0,xy,xz,xy+xz])
+            xhi = xhi_bound - np.max([0.0,xy,xz,xy+xz])
+            ylo = ylo_bound - np.min([0.0,yz])
+            yhi = yhi_bound - np.max([0.0,yz])
+            lx = xhi - xlo
+            ly = yhi - ylo
+            lz = zhi - zlo
+            
             volume[i] = [lx*ly*lz]
             
             for j,line in enumerate(lines[9:]): # loop inside each file
                 line = line.split()
                 atom_type[i][j] = int(line[1])
                 fingerprints[i][j] = [self.str2float(x) for x in line[2:]]
+                
             self.ntypes_list.append(max(atom_type[i]))
             
             if verbose and silent is False:
@@ -717,7 +741,7 @@ def get_nfp_from_dataset (dataset):
 
 
 
-def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False,data_size=None):
+def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False,buffer_size=None,data_size=None):
     """
     Split the tensorflow dataset into training, validation and test.
     
@@ -735,6 +759,8 @@ def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False
     """
     if not data_size:
         data_size = dataset.cardinality().numpy()
+    if buffer_size is None:
+        buffer_size = data_size
     if val_pct is None:
         val_pct = 0
     if val_pct == 0:
@@ -754,7 +780,7 @@ def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False
     if not shuffle:
         print ('Data are not shuffled by default, set shuffle=True if needed.')
     if shuffle: # note that: reshuffle_each_iteration has to be False
-        dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(),reshuffle_each_iteration=False)
+        dataset = dataset.shuffle(buffer_size=buffer_size,reshuffle_each_iteration=False)
     train_dataset = dataset.take(train_size)
     val_dataset = dataset.skip(train_size).take(val_size)
     test_dataset = dataset.skip(train_size+val_size).take(test_size)

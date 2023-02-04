@@ -176,7 +176,7 @@ def save_symmetry_function_params(elements,descriptor,descriptors_path):
 
 def create_descriptors(elements, xyzfiles, descriptor, \
                        format='extxyz', descriptors_path=None, descriptor_filename='dump_fp.*', der_filename='dump_der.*', \
-                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, create_data = True, verbose=False, silent=False, remove_descriptors_folder=False,**kwargs):
+                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, create_data = False, verbose=False, silent=False, remove_descriptors_folder=False,**kwargs):
     
     """
     Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.

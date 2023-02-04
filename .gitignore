@@ -1,3 +1,5 @@
 .DS_Store
 atomdnn/__pycache__
 atomdnn/diff.patch
+atomdnn/utils.py
+*~
