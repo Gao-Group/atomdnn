@@ -741,7 +741,7 @@ def get_nfp_from_dataset (dataset):
 
 
 
-def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False,buffer_size=None,data_size=None):
+def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=True,buffer_size=None,data_size=None):
     """
     Split the tensorflow dataset into training, validation and test.
     
@@ -774,18 +774,20 @@ def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False
     train_size = int(train_pct * data_size)
     val_size = int(val_pct * data_size)
     test_size = int(test_pct * data_size)
-    print('Traning data: %d images'% train_size)
-    print('Validation data: %d images'% val_size )
-    print('Test data: %d images'% test_size)
-    if not shuffle:
-        print ('Data are not shuffled by default, set shuffle=True if needed.')
-    if shuffle: # note that: reshuffle_each_iteration has to be False
+
+    if shuffle: # note that: reshuffle_each_iteration has to be False, so that shuffle is done only once
         dataset = dataset.shuffle(buffer_size=buffer_size,reshuffle_each_iteration=False)
+        print('dataset is shuffled before spliting')
     train_dataset = dataset.take(train_size)
     val_dataset = dataset.skip(train_size).take(val_size)
     test_dataset = dataset.skip(train_size+val_size).take(test_size)
 
+    print('Traning data: %d images'% train_size)
+    print('Validation data: %d images'% val_size )
+    print('Test data: %d images'% test_size)
+
     return train_dataset,val_dataset,test_dataset
+
 
 
 
@@ -793,7 +795,7 @@ def slice_dataset(dataset, start, end):
     """
     Get a slice of the dataset.
     Args:
-        dataset: input dataset
+        dataset: tensorflow dataset
         start: starting index
         end: ending index
     Returns:
@@ -804,5 +806,129 @@ def slice_dataset(dataset, start, end):
 
 
 
+def compute_max_lengths(datasets):
+    """
+    Compute the maximum length of each elements from a list of datasets.
+    Args:
+        datasets: a list of tensorflow datasets
+    Returns:
+        A dictionary containing the maximum length of each elements
+    """
+    max_lengths = {}
+
+    for dataset in datasets:
+        feature_spec, label_spec = dataset.element_spec
+        for key, spec in feature_spec.items():
+            length = spec.shape[0]
+            if key not in max_lengths:
+                max_lengths[key] = length
+            else:
+                max_lengths[key] = max(max_lengths[key], length)
+        for key, spec in label_spec.items():
+            length = spec.shape[0] if len(spec.shape) >= 1 else 1
+            if key not in max_lengths:
+                max_lengths[key] = length
+            else:
+                max_lengths[key] = max(max_lengths[key], length)
+
+    return max_lengths
+
+
+
+
+def pad_tensor(tensor, max_length):
+    length = tensor.shape[0] if len(tensor.shape) >= 1 else 1
+    if len(tensor.shape) >= 1:
+        paddings = [[0, max_length - length], *([0, 0] for _ in range(1, len(tensor.shape)))]
+        padded_tensor = tf.pad(tensor, paddings, constant_values=0)
+        return padded_tensor
+    else:
+        return tensor
+
+
+    
+def pad_tensors_in_dict(dict_tensors, max_lengths):
+    return {key: pad_tensor(tensor, max_lengths[key]) for key, tensor in dict_tensors.items()}
+
+
+
+def concatenate_datasets(datasets):
+    """
+    Concatenate a list of datasets, which can have different dimentions due to different image and atom numbers. Datasets are padded first. 
+    Args:
+        datasets: a list of datasets
+    Returns:
+        cancatenated dataset
+    """
+    max_lengths = compute_max_lengths(datasets)
+    
+    padded_datasets = [
+        dataset.map(
+            lambda inputs, outputs: (
+                pad_tensors_in_dict(inputs, max_lengths),
+                pad_tensors_in_dict(outputs, max_lengths)
+            )
+        ) for dataset in datasets
+    ]
+
+    concatenated_dataset = padded_datasets[0]
+    for padded_dataset in padded_datasets[1:]:
+        concatenated_dataset = concatenated_dataset.concatenate(padded_dataset)
+    
+    return concatenated_dataset
+
+
+def get_element_memory_usage(element_spec):
+    memory_usage = 0
+
+    if isinstance(element_spec, tf.TensorSpec):
+        specs = [element_spec]
+    elif isinstance(element_spec, dict):
+        specs = element_spec.values()
+    else:
+        specs = element_spec
+
+    for spec in specs:
+        num_elements = np.prod(spec.shape)
+        element_size = spec.dtype.size
+        memory_usage += num_elements * element_size
+
+    return memory_usage
+
+
+
+def get_dataset_memory_usage(dataset):
+    """
+    Compute the memory usage of a tensorflow dataset.
+    """
+    element_spec = dataset.element_spec
+    num_elements = len(dataset)
+    
+    memory_usage_per_element = 0
+    for part in element_spec:
+        for key in part:
+            memory_usage_per_element += get_element_memory_usage(part[key])
+    total_memory_usage = num_elements * memory_usage_per_element
+    print(f"Memory usage: {total_memory_usage / 1024**2} MiB")
+
+
+
+def estimate_buffer_size(dataset, available_memory):
+    """
+    Estimate buffer_size needed for dataset shuffel, based on available memory.
+    Args:
+        dataset: tensorflow dataset to be used for training
+        available_memory: in terms of MiB 
+    Returns:
+        buffer_size
+    """
+    # Calculate memory usage per element
+    element_spec = dataset.element_spec
+    memory_usage_per_element = 0
+    for part in element_spec:
+        for key in part:
+            memory_usage_per_element += get_element_memory_usage(part[key])
+    buffer_size = int(available_memory * 1024**2 // memory_usage_per_element)
+    print(f"Estimated buffer_size: {buffer_size}")
 
 
