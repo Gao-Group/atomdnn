@@ -232,6 +232,7 @@ class Network(tf.Module):
             type_mask = tf.cast(tf.math.equal(atom_type,type_array),dtype=self.data_type)
             type_onehot = tf.linalg.diag(type_mask)
             fingerprints_i = tf.matmul(type_onehot,fingerprints)
+            
 
             # first dense layer
             Z = tf.matmul(fingerprints_i,self.params[nlayer*2*i]) + self.params[nlayer*2*i+1]
@@ -244,7 +245,6 @@ class Network(tf.Module):
 
             # linear layer
             Z = tf.matmul(Z, self.params[nlayer*2*(i+1)-2]) + self.params[nlayer*2*(i+1)-1]
-
 
             # apply the mask
             mask = tf.reshape(type_mask,[nimages,max_natoms,1])
@@ -297,11 +297,11 @@ class Network(tf.Module):
         dEdG_block = tf.gather_nd(dEdG,center_atom_id_reshape,batch_dims=1)     
         dEdG_block = tf.reshape(dEdG_block, [num_image,max_block,1,self.num_fingerprints])
         
-        # compute force       
-        force_block = tf.matmul(dEdG_block, dGdr)     
+        # compute force
+        force_block = tf.matmul(dEdG_block, dGdr)
         force_block_reshape = tf.reshape(force_block,[num_image,max_block,3])
         neighbor_onehot = tf.one_hot(neighbor_atom_id, depth=num_atoms,axis=1, dtype=self.data_type)     
-        force = -tf.matmul(neighbor_onehot,force_block_reshape) 
+        force = -tf.matmul(neighbor_onehot,force_block_reshape)        
         
         # compute stress    
         stress_block = tf.reshape(tf.matmul(neighbor_atom_coord,force_block),[num_image,max_block,9])     
@@ -646,14 +646,15 @@ class Network(tf.Module):
 
     
     
-    def train(self, train_dataset, validation_dataset=None, early_stop=None, nepochs_checkpoint=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, append_loss=True, output_freq=1):
+    def train(self, train_dataset, validation_dataset=None, cache=True, early_stop=None, nepochs_checkpoint=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
+              optimizer=None, lr=None, decay=None, loss_weights=None, compute_all_loss=False, shuffle=True, buffer_size=None, append_loss=True, output_freq=1):
         """
         Train the neural network.
 
         Args:
             train_dataset(tfdataset): dataset used for training
             validation_dataset(tfdataset): dataset used for validation
+            cache:  if dataset can fit into RAM, cache the dataset after the initial loading and preprocessing steps can reduce training time
             early_stop(dictionary): condition for stop training, \
                                     e.g. {'train_loss':[0.01,3]} means stop when train loss is less than 0.01 for 3 times
             scaling(string): = None, 'std' or 'norm'
@@ -666,9 +667,12 @@ class Network(tf.Module):
             loss_weight(dictionary): weights assigned to loss function, e.g. {'pe':1,'force':1,'stress':0.1}  
             compute_all_loss(bool): compute loss for force and stress even when they are not used for training
             shuffle(bool): shuffle training dataset during training
+            buffer_size: dataset fills a buffer with buffer_size elements, then randomly samples elements from this buffer, \
+                         defautl is train_dataset.cardinality().numpy()
             append_loss(bool): append loss history 
         """
 
+            
         if not self.built:            
             self._build()
             self.built = True
@@ -703,12 +707,13 @@ class Network(tf.Module):
             elif hasattr(self,'lr'):
                 print("Learning rate is set to %.3e from imported model."%self.lr,flush=True)
             else:
-                self.lr = 0.01
-                print ("Learning rate is set to 0.01 by default.",flush=True)                        
+                self.lr = 0.001
+                print ("Learning rate is set to 0.001 by default.",flush=True)                        
 
         if optimizer:
             self.optimizer = optimizer
             self.tf_optimizer = tf.keras.optimizers.get(optimizer)
+            #self.tf_optimizer = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
             K.set_value(self.tf_optimizer.learning_rate, self.lr)
         elif hasattr(self,'optimizer'):
             print("Optimizer is set to %s from imported model."%self.optimizer,flush=True)
@@ -804,11 +809,24 @@ class Network(tf.Module):
                 validation_dataset = self.scaling_dataset(validation_dataset)
                 print('Validation dataset are %s.' % ('standardized' if self.scaling =='std' else 'normalized'),flush=True)
 
+
+        if cache is True:
+            train_dataset = train_dataset.cache()
+            validation_dataset = validation_dataset.cache()
+                
                 
         if shuffle:
-            train_dataset = train_dataset.shuffle(buffer_size=train_dataset.cardinality().numpy())
+            if buffer_size is None:
+                buffer_size = train_dataset.cardinality().numpy()
+
+            # reshuffle train_dataset each epoch during traning    
+            train_dataset = train_dataset.shuffle(buffer_size=buffer_size,reshuffle_each_iteration=True)
             print('Training dataset will be shuffled during training.',flush=True)
-   
+
+
+        train_dataset = train_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+        validation_dataset = validation_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
         train_start_time = time.time()
         early_stop_repeats = 0
         
@@ -816,7 +834,7 @@ class Network(tf.Module):
         for epoch in range(epochs):
             epoch_start_time = time.time()
             # iterate over the batches of the training dataset, step traces batch
-            for step, (input_dict, output_dict) in enumerate(train_dataset.batch(batch_size)):                    
+            for step, (input_dict, output_dict) in enumerate(train_dataset):
                 batch_loss = self.train_step(input_dict, output_dict)
                 if step==0:
                     train_epoch_loss = batch_loss
@@ -831,7 +849,7 @@ class Network(tf.Module):
 
             # Iterate over the batches of the validation dataset
             if validation_dataset is not None:  
-                for step, (input_dict, output_dict) in enumerate(validation_dataset.batch(batch_size)):
+                for step, (input_dict, output_dict) in enumerate(validation_dataset):
                     batch_loss = self.validation_step(input_dict, output_dict)
                     if step==0:
                         val_epoch_loss = batch_loss
