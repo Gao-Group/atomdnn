@@ -4,6 +4,13 @@ from ase.io import read,write
 import atomdnn
 import re
 import glob
+import shutil
+import random
+import numpy as np
+from numpy import arange,cos, exp, power, pi
+import matplotlib.pyplot as plt
+import matplotlib
+
 
 def sorted_alphanumeric(filenames):
     """
@@ -15,17 +22,13 @@ def sorted_alphanumeric(filenames):
 
 
 
-def get_filenames(file_path, file_name):
+def get_filenames(file_path,file_name):
     """
     Get the names of a set of files that match the patten given by file_name. 
     Return the filenames having the format of 'string1*string2',
-    in which string1 and string2 can be any strings and * must be an integer.
-    args:
-        - file_path: path of folder in which files are stored. Must be a Relative path.
-        - file_name: wildcard - pattern to be searched for inside folder.
+    in which string1 and string2 can be any strings amd * must be an integer.
     """
-    true_path = os.path.join(file_path, file_name)
-    print('true_path:', true_path)
+    true_path = os.path.abspath(os.path.join(file_path,file_name))
     if '*' in file_name:
         name_mask = file_name.split('*')
         if len(name_mask)!=2:
@@ -41,7 +44,7 @@ def get_filenames(file_path, file_name):
         return filenames
     else:
         return [true_path]
-    
+
 
     
 def create_lmp_input(descriptor,descriptors_path):
@@ -53,33 +56,51 @@ def create_lmp_input(descriptor,descriptors_path):
 
     """
     infile = os.path.join(descriptors_path,'in.gen_descriptors')
-    lmpinfile = open(infile,'w')    
-    G2_parameters = ''
-    for i in range(len(descriptor['etaG2'])):
-        G2_parameters += str(descriptor['etaG2'][i])+' '
-        
-    G4_parameters = ''
-    for i in range(len(descriptor['etaG4'])):
-        G4_parameters += str(descriptor['etaG4'][i])+' '
-        
-    zeta_parameters = ''
-    for i in range(len(descriptor['zeta'])):
-        zeta_parameters += str(descriptor['zeta'][i])+' '
-        
-    lambda_parameters = ''
-    for i in range(len(descriptor['lambda'])):
-        lambda_parameters += str(descriptor['lambda'][i])+' '
-        
-    compute_fp_line = 'compute 1 all fingerprints ${cutoff} etaG2 ' + G2_parameters \
-                       + 'etaG4 ' + G4_parameters \
-                       + 'zeta ' + zeta_parameters \
-                       + 'lambda ' + lambda_parameters + 'end\n'
-    
-    compute_der_line = 'compute 2 all derivatives ${cutoff} etaG2 '+ G2_parameters \
-                       + 'etaG4 ' + G4_parameters \
-                       + 'zeta ' + zeta_parameters \
-                       + 'lambda ' + lambda_parameters + 'end\n'
+    lmpinfile = open(infile,'w')
 
+
+    if 'etaG2' in descriptor:
+        etaG2_parameters = ''
+        for i in range(len(descriptor['etaG2'])):
+            etaG2_parameters += str(descriptor['etaG2'][i])+' '
+        etaG2_line = 'etaG2 ' + etaG2_parameters + ' '
+    else:
+        etaG2_line = ''
+
+    if 'rs' in descriptor:
+        rs_parameters = ''
+        for i in range(len(descriptor['rs'])):
+            rs_parameters += str(descriptor['rs'][i])+' '
+        rs_line = 'rs ' + rs_parameters + ' '
+    else:
+        rs_line = ''
+    
+    if 'etaG4' in descriptor:
+        etaG4_parameters = ''
+        for i in range(len(descriptor['etaG4'])):
+            etaG4_parameters += str(descriptor['etaG4'][i])+' '
+        etaG4_line = 'etaG4 ' + etaG4_parameters + ' '
+    else:
+        etaG4_line = '' 
+    if 'zeta' in descriptor:    
+        zeta_parameters = ''
+        for i in range(len(descriptor['zeta'])):
+            zeta_parameters += str(descriptor['zeta'][i])+' '
+        zeta_line = 'zeta ' + zeta_parameters + ' '
+    else:
+        zeta_line = ''
+    if 'lambda' in descriptor:
+        lambda_parameters = ''
+        for i in range(len(descriptor['lambda'])):
+            lambda_parameters += str(descriptor['lambda'][i])+' '
+        lambda_line = 'lambda ' + lambda_parameters + ' '
+    else:
+        lambda_line = ''
+            
+    compute_fp_line = 'compute 1 all fingerprints ${cutoff} ' + rs_line + etaG2_line + etaG4_line + zeta_line + lambda_line + 'end\n'
+    
+    compute_der_line = 'compute 2 all derivatives ${cutoff} ' + rs_line + etaG2_line + etaG4_line + zeta_line + lambda_line + 'end\n'
+    
     dump_fp_line =  'dump dump_fingerprints all custom 1 ${fp_filename} id type c_1[*]\n'+ \
                     'dump_modify dump_fingerprints sort id format float %20.10g\n'
 
@@ -111,33 +132,90 @@ def create_lmp_input(descriptor,descriptors_path):
                          'fix NVE all nve\n'+
                          'run 0')
 
+
+    
+def read_symmetry_function_params(descriptors_path):
+    """
+    Return elements and symmetry function parameters
+    """
+    file = open(descriptors_path+'/symmetry_function_params','r')
+    lines = file.readlines()
+    file.close()
+    descriptor = {}
+    for line in lines:
+        if line.split()[0] == 'elements':
+            elements = [line.split()[i] for i in range(1,len(line.split()))]
+        elif line.split()[0] == 'name':
+            descriptor['name'] = line.split()[1]
+        elif line.split()[0] == 'cutoff':
+            descriptor['cutoff'] = float(line.split()[1])
+        else:
+            key = line.split()[0]
+            value = [float(line.split()[i]) for i in range(1,len(line.split()))]
+            descriptor[key] = value
+    return elements, descriptor
+
+
+
+def save_symmetry_function_params(elements,descriptor,descriptors_path):
+    """
+    Save elements and symmetry function parameters to file symmetry_function_params
+    """
+    file = open(descriptors_path+'/symmetry_function_params','w')   
+
+    file.write('%-20s '%('elements'))
+    file.write('  '.join(str(j) for j in elements))
+    file.write('\n')
+    
+    for i in range(len(descriptor)):
+        key  = list(descriptor.keys())[i]
+        if key=='name':
+            file.write('%-20s %-20s'%(key,descriptor[key]))
+        elif key=='cutoff':
+            file.write('%-20s %f'%(key,descriptor[key]))
+        else:
+            file.write('%-20s '% key)
+            file.write('  '.join(str(j) for j in descriptor[key]))
+        file.write('\n')
+
+    file.close()
+
     
 
-def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors_path, \
-                       descriptor, descriptor_filename='dump_fp.*', der_filename='dump_der.*', \
-                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, verbose=False):
+def create_descriptors(elements, xyzfiles, descriptor, \
+                       format='extxyz', descriptors_path=None, descriptor_filename='dump_fp.*', der_filename='dump_der.*', \
+                       start_file_id=1,image_num=None, skip=0, keep_lmpfiles=False, create_data = True, verbose=False, silent=False, 
+                       remove_descriptors_folder=False, read_stress=True, **kwargs):
     
     """
     Read extxyz files as inputs and create descriptors and their derivatives w.r.t. atom coordinates.
 
     Args:
-       lmpexe: lammps executable 
-       xyzfile_path: directory contains a serials of extxyz files of input atomic structures
-       xyzfile_name: extxyz filename, wildcard * is used for files numerically ordered
-       descriptors_path: a new directory where descirptors will be generated
+       elements: a list of elements, e.g. ['C','O','H'], make sure the sequence is consistant 
+       xyzfiles: a serials of extxyz files of input atomic structures, wildcard * is used for files numerically ordered
        descritpor (dictionary): the parameter dictionary of the descriptor
+       format: 'lammp-data','extxyz','vasp' etc. See complete list on https://wiki.fysik.dtu.dk/ase/ase/io/io.html#ase.io.read. 'extxyz' is recommanded.
+       descriptors_path: a new directory where descirptors will be generated, default is './descriptors'
        descriptor_filename: default is 'dump_fp.*', numerically ordered
        der_filename: default is 'dump_der.*', numerically ordered
        start_file_id(int): starting id for descriptor and derivative files
        image_num: number of images that will be used, if it's None then read all files specified by xyzfile_name
        skip(int): skip some images
-       keep_lmpfiles(bool): set to True if want to keep the lammps input and datafiles used for creating descriptors 
+       keep_lmpfiles(bool): set to True if want to keep the lammps input and datafiles used for creating descriptors
+       create_data(bool): set to True if want to create Data object using the generated descriptors
+       remove_descriptors_folder(bool): True to remove the folder used to store fingerprints and derivatives 
        verbose(bool): set to True if want to print out the extxyz file names used for creating descriptors
-
+       kwargs: used to pass optional file styles
     """
-    
+
+    if descriptors_path is None:
+        descriptors_path = str(hash(random.random()))
+
     os.makedirs(descriptors_path, exist_ok=True)
 
+    if not isinstance(descriptor, dict):
+        raise TypeError("descriptor shoud be given as a dictionary")
+    
     if '*' in descriptor_filename:
         fp_name_mask = descriptor_filename.split('*')
         if len(fp_name_mask)!=2:
@@ -147,12 +225,15 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
         if len(der_name_mask)!=2:
             raise ValueError('The der_filename can only has one *.')
 
-    xyzfiles = get_filenames(xyzfile_path,xyzfile_name)[skip:]
+    xyzfile_path = os.path.dirname(os.path.abspath(xyzfiles))
+    xyzfile_name = os.path.basename(os.path.abspath(xyzfiles))
+        
+    xyzfile_names = get_filenames(xyzfile_path,xyzfile_name)[skip:]
 
-    if image_num is not None and image_num<len(xyzfiles):
+    if image_num is not None and image_num<len(xyzfile_names):
         nfiles = image_num
     else:
-        nfiles = len(xyzfiles)
+        nfiles = len(xyzfile_names)
 
     if nfiles >1 and '*' not in descriptor_filename:
         raise ValueError('Multiple extxyz files found, use * in descriptor_filename.')
@@ -170,15 +251,17 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
             elif del_files=='n':
                 break
     
-    if atomdnn.compute_force:
-        print('Start creating fingerprints and derivatives for %i files ...'% nfiles)
-    else:
-        print('Start creating fingerprints for %i files (no derivatives, set atomdnn.compute_force to True for derivatives) ...'% nfiles)
+    if atomdnn.compute_force and silent==False:
+        print('Start creating fingerprints and derivatives for %i files named \'%s\' ...'% (nfiles,descriptor_filename))
+    elif silent==False:
+        print('Start creating fingerprints for %i files named \'%s\' (no derivatives, set atomdnn.compute_force to True for derivatives) ...'% (nfiles,descriptor_filename))
 
     #os.chdir(descriptors_path) # switch to descriptor directory
     start_time = time.time()
     for i in range(nfiles):
-        patom = read(xyzfiles[i],format='extxyz')
+
+        if format!='lammps-data':
+            patom = read(xyzfile_names[i],format=format,**kwargs)
         
         create_lmp_input(descriptor,descriptors_path) # create lammps input file named 'in.gen_descriptors'
 
@@ -196,20 +279,26 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
         logfile = 'log.'+str(i+start_file_id)
         logfile = os.path.join(descriptors_path,logfile)
 
-        print('flacita!!!')
 
-        # use specorder to make sure the type of atoms are consistant
-        write(lmpdatafile, patom, specorder=elements, format='lammps-data',atom_style='atomic') # create lammps datafile
+        if format=='lammps-data':
+            shutil.copyfile(xyzfile_names[i],lmpdatafile)
+        else:
+            # use specorder to make sure the type of atoms are consistent
+            write(lmpdatafile, patom, specorder=elements, format='lammps-data',atom_style='atomic') # create lammps datafile
         
         # lammps run command
-        fp_pfname = os.path.join(descriptors_path, fp_fname)
-        der_pfname = os.path.join(descriptors_path, der_fname)
-        infile = os.path.join(descriptors_path, 'in.gen_descriptors')
-        lmp_cmd = lmpexe + ' -in ' + infile \
-                         + ' -var fp_filename ' + fp_pfname  \
-                         + ' -var der_filename ' + der_pfname \
-                         + ' -var lmpdatafile ' + lmpdatafile \
-                         + ' -var logfile ' + logfile
+        fp_pfname = os.path.join(descriptors_path,fp_fname)
+        der_pfname = os.path.join(descriptors_path,der_fname)
+        infile = os.path.join(descriptors_path,'in.gen_descriptors')
+        
+        print(f'os.environ[\'lmpexe\']:', os.environ['lmpexe'])
+
+        lmp_cmd = os.environ['lmpexe']  + ' -in ' + infile \
+                          + ' -var fp_filename ' + fp_pfname  \
+                          + ' -var der_filename ' + der_pfname \
+                          + ' -var lmpdatafile ' + lmpdatafile \
+                          + ' -screen none' \
+                          + ' -var logfile ' + logfile
       
         status = os.system(lmp_cmd) # run lammps
         if status!=0:
@@ -221,23 +310,41 @@ def create_descriptors(lmpexe, elements, xyzfile_path, xyzfile_name, descriptors
             os.remove(lmpdatafile)
             os.remove(logfile)
 
-        if verbose:
+        if verbose and silent==False:
             if atomdnn.compute_force:
                 print('  file-%i: read atoms from \'%s\' and created descriptors in \'%s\' and derivatives in \'%s\'' \
-                      % (i+1,os.path.basename(xyzfiles[i]),fp_fname,der_fname))
+                      % (i+1,os.path.basename(xyzfile_names[i]),fp_fname,der_fname))
             else:
                 print('  file-%i: read atoms from \'%s\' and created descriptors in \'%s\'' \
-                      % (i+1,os.path.basename(xyzfiles[i]),fp_fname))
-        if i > 0 and int((i+1)%10)==0:
+                      % (i+1,os.path.basename(xyzfile_names[i]),fp_fname))
+        if i > 0 and int((i+1)%10)==0 and silent==False:
             print ('  so far finished for %d images ...' % (i+1),flush=True)
 
     if not keep_lmpfiles:
         os.remove(infile)
         os.remove('log.lammps')
-        
-    print('Finish creating descriptors and derivatives for total %i images.' % nfiles,flush=True)
-    print('It took %.2f seconds.'%(time.time()-start_time),flush=True)
 
+    if silent==False:
+        print('It took %.2f seconds.'%(time.time()-start_time),flush=True)
+        if atomdnn.compute_force:
+            print('The fingerprints files \'%s\' and derivatives files \'%s\' are saved in folder \'%s\'.'%(descriptor_filename,der_filename,descriptors_path))
+        else:
+            print('The fingerprints files \'%s\' are saved in folder \'%s\'.'%(descriptor_filename,descriptors_path))
+
+    # save the symmetry function parameters to file symmetry_function_params
+    save_symmetry_function_params (elements,descriptor,descriptors_path)
+
+            
+    if create_data is True:
+        if silent is False:
+            print('\nUsing the generated descriptors to create and return an AtomDNN Data object.')
+        from atomdnn.data import Data
+        # create a Data object using the generated descriptors        
+        atomdnn_data = Data(descriptors_path,descriptor_filename, der_filename, xyzfiles,format,image_num,skip,verbose,silent,read_stress=read_stress,**kwargs)
+        if remove_descriptors_folder:
+            shutil.rmtree(descriptors_path)
+        return atomdnn_data
+    
 
 
 def get_num_fingerprints(descriptor,elements):
@@ -256,10 +363,93 @@ def get_num_fingerprints(descriptor,elements):
 
     if descriptor['name'] == 'acsf':
         ntypes_combinations = ntypes*(ntypes+1)/2;
-        n_etaG2 = len(descriptor['etaG2'])
-        n_etaG4 = len(descriptor['etaG4'])
-        n_zeta = len(descriptor['zeta'])
-        n_lambda = len(descriptor['lambda'])
-        num_fingerprints = int(n_etaG2*ntypes + n_lambda*n_zeta*n_etaG4*ntypes_combinations + ntypes);
+        n_etaG2 = 0
+        n_rs = 0
+        n_etaG4 = 0
+        n_zeta = 0
+        n_lambda = 0
+
+        if 'etaG2' in descriptor:
+            n_etaG2 = len(descriptor['etaG2'])
+        if 'rs' in descriptor:
+            n_rs = len(descriptor['rs'])
+        if 'etaG4' in descriptor:
+            n_etaG4 = len(descriptor['etaG4'])
+        if 'zeta' in descriptor:
+            n_zeta = len(descriptor['zeta'])
+        if 'lambda' in descriptor:
+            n_lambda = len(descriptor['lambda'])
+
+        #                        G1     (     G2          )   (                   G4                     )
+        num_fingerprints = int(ntypes + n_etaG2*n_rs*ntypes + n_lambda*n_zeta*n_etaG4*ntypes_combinations);
 
     return num_fingerprints
+
+
+
+def plot_symmetry_function(descriptor):
+    matplotlib.rc('legend', fontsize=18) 
+    matplotlib.rc('xtick', labelsize=18) 
+    matplotlib.rc('ytick', labelsize=18) 
+    matplotlib.rc('axes', labelsize=18) 
+    matplotlib.rc('figure', titlesize=18)
+    rc = descriptor['cutoff']
+    eta_g2 = []
+    eta_g4 = []
+    zeta = []
+    lambda_g4 = []
+    
+    if 'etaG2' in descriptor:
+        eta_g2 = np.array(descriptor['etaG2'],dtype=atomdnn.data_type)
+    if 'rs' in descriptor:
+        raise ValueError('Some work must be done before being able to plot symmetry functions with `Rs` parameter.')
+    if 'etaG4' in descriptor:
+        eta_g4 = np.array(descriptor['etaG4'],dtype=atomdnn.data_type)
+    if 'zeta' in descriptor:
+        zeta = np.array(descriptor['zeta'],dtype=atomdnn.data_type)
+    if 'lambda' in descriptor:
+        lambda_g4 = np.array(descriptor['lambda'],dtype=atomdnn.data_type)
+        
+    g2_params=[]
+    g4_params=[]
+    for i in range(len(eta_g2)):
+        g2_params.append(eta_g2[i])
+        
+    for i in range(len(eta_g4)):   
+        for j in range(len(zeta)):
+            for k in range(len(lambda_g4)):
+                g4_params.append([eta_g4[i], zeta[j], lambda_g4[k]])
+                
+    if len(g2_params)!=0:
+        rij=arange(0,rc,0.01)
+        r_ratio=rij/rc;
+        fc=0.5*(1+cos(pi*r_ratio))
+
+        fig1 = plt.figure(figsize=(8,5)) 
+        for i in range(len(g2_params)):
+            G2=exp(-g2_params[i]*rij*rij)*fc
+            plt.plot(rij,G2,label=r'$\eta=$'+str(g2_params[i])+r' $\AA^{-2}$')
+
+        plt.xlabel(r'$R_{ij}(\AA)$')
+        plt.ylabel(r'$G_2$')
+        plt.legend(bbox_to_anchor=(1, 1))
+        plt.show()
+        print('number of G2 parameters = ',len(g2_params))
+        
+    if len(g4_params)!=0:
+        # plot G4 function
+        theta=arange(0,pi,0.0001)
+        rij=1.42 # set this to the equilibrim bond length
+        r_ratio=rij/rc
+        fc=0.5*(1+cos(pi*r_ratio))
+
+        fig2 = plt.figure(figsize=(8,5)) 
+        for i in range(len(g4_params)):
+            G4=power(2,(1-g4_params[i][1]))*power((1+g4_params[i][2]*cos(theta)),g4_params[i][1])*exp(-g4_params[i][0]*rij*rij)*fc
+            plt.plot(theta*180/pi,G4,label=r'$\eta=$'+str(g4_params[i][0])+r' $\AA^{-2}$'+r', $\zeta=$'+str(g4_params[i][1])+ r', $\lambda=$'+str(g4_params[i][2]))
+
+        plt.xlabel(r'$\theta$')
+        plt.ylabel(r'$G_4$')
+        plt.legend(bbox_to_anchor=(1, 1))
+        plt.show()
+        print('number of G4 parameters = ',len(g4_params))
