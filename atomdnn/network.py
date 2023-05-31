@@ -570,7 +570,6 @@ class Network(tf.Module):
 
             regularizer = self.regularization_tf.get_config()[self.regularization] * regularizer
 
-        print('regularizer:', regularizer)
         
         if self.loss_weights['force']==0 and self.loss_weights['stress']==0: # only pe used for training
             total_loss = loss_dict['pe_loss'] + regularizer
