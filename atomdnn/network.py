@@ -156,6 +156,7 @@ class Network(tf.Module):
         self.loss_weights_history = {}
         for key in imported.saved_loss_weights_history:
              self.loss_weights_history[key] = imported.saved_loss_weights_history[key].numpy()
+
         print('  loss weights history', flush=True)                    
 
         self.lr = imported.saved_lr.numpy()
@@ -1177,7 +1178,7 @@ class Network(tf.Module):
 
            
         tf.saved_model.save(self, model_dir)
-
+           
         input_tag, input_name, output_tag, output_name = get_signature(model_dir)
         file = open(model_dir+'/parameters','w')
 
