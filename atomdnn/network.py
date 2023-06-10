@@ -137,7 +137,7 @@ class Network(tf.Module):
 
         if hasattr(imported, 'dropout'):
             self.dropout = imported.dropout
-            print('Dropout rate has been set to ', self.dropout.numpy())
+            print('  dropout rate has been set to ', self.dropout.numpy())
         else:
             self.dropout = tf.Variable(0., dtype=self.data_type)
 
@@ -148,10 +148,15 @@ class Network(tf.Module):
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         print('  optimizer: ',self.optimizer,flush=True)
 
-        self.loss_weights={}
+        self.loss_weights = {}
         for key in imported.saved_loss_weights:
              self.loss_weights[key] = imported.saved_loss_weights[key].numpy()
-        print('  loss weights:',self.loss_weights,flush=True)                    
+        print('  loss weights:', self.loss_weights, flush=True)
+
+        self.loss_weights_history = {}
+        for key in imported.saved_loss_weights_history:
+             self.loss_weights_history[key] = imported.saved_loss_weights_history[key].numpy()
+        print('  loss weights history', flush=True)                    
 
         self.lr = imported.saved_lr.numpy()
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
@@ -656,11 +661,11 @@ class Network(tf.Module):
             self.loss_weights['force'] = alpha_i2
             self.loss_weights['stress'] = alpha_i3
 
-            tf.print('  s_i1:', loss_dict['pe_loss'], f_iminus1_1)
-            tf.print('  s_i2:', loss_dict['force_loss'], f_iminus1_2)
-            tf.print('  s_i3:', loss_dict['stress_loss'], f_iminus1_3)
-            tf.print('  alpha_normaliz_factor:', tf.exp(b*s_i1), '+', tf.exp(b*s_i2), '+', tf.exp(b*s_i3), '=', alpha_normaliz_factor)
-            tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
+            # tf.print('  s_i1:', loss_dict['pe_loss'], f_iminus1_1)
+            # tf.print('  s_i2:', loss_dict['force_loss'], f_iminus1_2)
+            # tf.print('  s_i3:', loss_dict['stress_loss'], f_iminus1_3)
+            # tf.print('  alpha_normaliz_factor:', tf.exp(b*s_i1), '+', tf.exp(b*s_i2), '+', tf.exp(b*s_i3), '=', alpha_normaliz_factor)
+            # tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
 
         else:
             self.first_epoch_passed = True
@@ -669,8 +674,8 @@ class Network(tf.Module):
         self.f_iminus1_1 = loss_dict['pe_loss']
         self.f_iminus1_2 = loss_dict['force_loss']
         self.f_iminus1_3 = loss_dict['stress_loss']
-        tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
-        print(60*'-')
+        # tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
+        # print(60*'-')
 
 
 
@@ -1138,26 +1143,28 @@ class Network(tf.Module):
         print('  optimizer',flush=True)
         self.saved_loss_fun = tf.Variable(self.loss_fun)
 
-        self.saved_loss_weights={}
+        self.saved_loss_weights = {}
         for key in self.loss_weights:
-             self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
+             self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key], dtype=self.data_type)
         print('  loss function',flush=True)
-
 
         if hasattr(self,'decay'):
             self.saved_decay = {}
             for key, value in self.decay.items():
                 self.saved_decay[key] = tf.Variable(value)
-            print('  decay learning parameters',flush=True)
+            print('  decay learning parameters', flush=True)
                 
         self.saved_lr = tf.Variable(self.lr)
-        print('  learning rate at the last epoch',flush=True)
+        print('  learning rate at the last epoch', flush=True)
       
         self.save_training_history = tf.Variable(save_training_history)
-
-        tf.saved_model.save(self, model_dir)
         
-        if save_training_history == True:
+        if save_training_history:
+            self.saved_loss_weights_history = {}
+            for key in self.loss_weights_history:
+                self.saved_loss_weights_history[key] = tf.Variable(self.loss_weights_history[key], dtype=self.data_type)
+            print('  loss weights history has been saved.')
+
             if hasattr(self,'decay'):
                 history = [self.lr_history,self.train_loss,self.val_loss]
                 msg = 'Decayed learning rates, training and validation loss are saved as binary data in %s'%(model_dir+'/training_history_data')
@@ -1167,7 +1174,9 @@ class Network(tf.Module):
             with open(model_dir+'/training_history_data', 'wb') as out_: 
                 pickle.dump(history, out_)
                 print(msg,flush=True)
+
            
+        tf.saved_model.save(self, model_dir)
 
         input_tag, input_name, output_tag, output_name = get_signature(model_dir)
         file = open(model_dir+'/parameters','w')
