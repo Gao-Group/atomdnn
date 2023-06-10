@@ -148,10 +148,15 @@ class Network(tf.Module):
         self.tf_optimizer = tf.keras.optimizers.get(self.optimizer)
         print('  optimizer: ',self.optimizer,flush=True)
 
-        self.loss_weights={}
+        self.loss_weights = {}
         for key in imported.saved_loss_weights:
              self.loss_weights[key] = imported.saved_loss_weights[key].numpy()
-        print('  loss weights:',self.loss_weights,flush=True)                    
+        print('  loss weights:', self.loss_weights, flush=True)
+
+        self.loss_weights_history = {}
+        for key in imported.saved_loss_weights_history:
+             self.loss_weights_history[key] = imported.saved_loss_weights_history[key].numpy()
+        print('  loss weights history:', self.loss_weights_history, flush=True)                    
 
         self.lr = imported.saved_lr.numpy()
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
@@ -1138,26 +1143,33 @@ class Network(tf.Module):
         print('  optimizer',flush=True)
         self.saved_loss_fun = tf.Variable(self.loss_fun)
 
-        self.saved_loss_weights={}
+        self.saved_loss_weights = {}
         for key in self.loss_weights:
-             self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
+             self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key], dtype=self.data_type)
         print('  loss function',flush=True)
-
 
         if hasattr(self,'decay'):
             self.saved_decay = {}
             for key, value in self.decay.items():
                 self.saved_decay[key] = tf.Variable(value)
-            print('  decay learning parameters',flush=True)
+            print('  decay learning parameters', flush=True)
                 
         self.saved_lr = tf.Variable(self.lr)
-        print('  learning rate at the last epoch',flush=True)
+        print('  learning rate at the last epoch', flush=True)
       
         self.save_training_history = tf.Variable(save_training_history)
 
+
         tf.saved_model.save(self, model_dir)
         
-        if save_training_history == True:
+        print(' save_training_history==', save_training_history)
+        if save_training_history:
+            print('  save_training_history')
+            self.saved_loss_weights_history = {}
+            for key in self.loss_weights_history:
+                self.saved_loss_weights_history[key] = tf.Variable(self.loss_weights_history[key], dtype=self.data_type)
+            print('  loss weights history has been saved.')
+
             if hasattr(self,'decay'):
                 history = [self.lr_history,self.train_loss,self.val_loss]
                 msg = 'Decayed learning rates, training and validation loss are saved as binary data in %s'%(model_dir+'/training_history_data')
@@ -1167,8 +1179,8 @@ class Network(tf.Module):
             with open(model_dir+'/training_history_data', 'wb') as out_: 
                 pickle.dump(history, out_)
                 print(msg,flush=True)
-           
 
+           
         input_tag, input_name, output_tag, output_name = get_signature(model_dir)
         file = open(model_dir+'/parameters','w')
 
