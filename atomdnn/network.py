@@ -1161,6 +1161,10 @@ class Network(tf.Module):
         self.save_training_history = tf.Variable(save_training_history)
         
         if save_training_history:
+            print('model_dir:', model_dir)
+            if not os.path.isdir(model_dir):
+                os.makedirs(model_dir)
+
             self.saved_loss_weights_history = {}
             for key in self.loss_weights_history:
                 self.saved_loss_weights_history[key] = tf.Variable(self.loss_weights_history[key], dtype=self.data_type)
