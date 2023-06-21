@@ -48,7 +48,8 @@ class Network(tf.Module):
         """
         
         super(Network,self).__init__()
-        
+        self.epsilon = atomdnn.epsilon
+
         if import_dir:
             self.inflate_from_file(import_dir)
         else:
@@ -90,8 +91,6 @@ class Network(tf.Module):
             self.optimizer=None # string
             self.tf_optimizer=None
             self.lr=None
-
-            self.epsilon = 1e-8
 
             
         
@@ -153,11 +152,19 @@ class Network(tf.Module):
              self.loss_weights[key] = imported.saved_loss_weights[key].numpy()
         print('  loss weights:', self.loss_weights, flush=True)
 
-        self.loss_weights_history = {}
-        for key in imported.saved_loss_weights_history:
-             self.loss_weights_history[key] = imported.saved_loss_weights_history[key].numpy()
+        if hasattr(imported, 'saved_loss_weights_history'):
+            self.loss_weights_history = {}
+            for key in imported.saved_loss_weights_history:
+                self.loss_weights_history[key] = imported.saved_loss_weights_history[key].numpy().tolist()
+            print('  loss weights history', flush=True)     
 
-        print('  loss weights history', flush=True)                    
+
+        if hasattr(imported, 'saved_softadapt_params'):
+            self.softadapt_params = {}
+            for key,value in imported.saved_softadapt_params.items():
+                print('saved_softadapt_params.VALUE():', value, ' | type:', type(value))
+                self.softadapt_params[key] = value.numpy()
+               
 
         self.lr = imported.saved_lr.numpy()
         K.set_value(self.tf_optimizer.learning_rate, self.lr)
@@ -492,7 +499,7 @@ class Network(tf.Module):
 
         
 
-    def evaluate(self,dataset,batch_size=None,compute_force=atomdnn.compute_force):
+    def evaluate(self, dataset, batch_size=None, return_eval_loss=False, compute_force=atomdnn.compute_force):
         """
         Do evaluation on trained model.
         
@@ -521,6 +528,9 @@ class Network(tf.Module):
             print('%15s:  %15.4e' % (key, eval_loss[key]))
         if 'total_loss' in eval_loss:
             print('The total loss is computed using the loss weights', *['- %s: %.2f' % (key,value) for key, value in self.loss_weights.items()])
+
+        if return_eval_loss:
+            return eval_loss
                                                 
 
     def loss_function (self,true, pred):
@@ -617,10 +627,6 @@ class Network(tf.Module):
 
         if training:
             self.count_loss_calculations['train'] += 1
-
-        # if hasattr(self, 'softadapt_params'):
-        #     print('end of loss()')
-        if training:
             return total_loss,loss_dict
         else:
             return loss_dict
@@ -652,6 +658,7 @@ class Network(tf.Module):
                 alpha_i2 = loss_dict['force_loss']  * tf.exp(b*s_i2)/alpha_normaliz_factor
                 alpha_i3 = loss_dict['stress_loss'] * tf.exp(b*s_i3)/alpha_normaliz_factor
             else:
+                print('type(b):', type(b), 'type(s_i1):', type(s_i1))
                 alpha_normaliz_factor = tf.exp(b*s_i1) + tf.exp(b*s_i2) + tf.exp(b*s_i3) + self.epsilon
 
                 alpha_i1 = tf.exp(b*s_i1)/alpha_normaliz_factor
@@ -768,7 +775,7 @@ class Network(tf.Module):
     
     
     def train(self, train_dataset, valid_dataset=None, regularization=None, regularization_param=None, cache=True, early_stop=None, dropout=None, nepochs_checkpoint=None, figfolder=None, savefolder=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, decay=None, loss_weights=None, softadapt_params=None, compute_all_loss=False, shuffle=True, buffer_size=None, append_loss=True, output_freq=1):
+              optimizer=None, lr=None, decay=None, loss_weights=None, initial_loss_weights=None, softadapt_params=None, compute_all_loss=False, shuffle=True, buffer_size=None, append_loss=False, output_freq=1):
         """
         Train the neural network.
 
@@ -802,11 +809,15 @@ class Network(tf.Module):
 
         if loss_weights is None:
             if hasattr(self,'loss_weights'):
-                print('Loss weights are set to the value from imported model:',self.loss_weights,flush=True)
+                print('Loss weights are set to the value from imported model:', self.loss_weights, flush=True)
             else:
                 if softadapt_params is None:
                     self.loss_weights = {'pe':1.0,'force':0,'stress':0}
                     print('Loss weights are set to default fixed value:', self.loss_weights, flush=True)
+                elif initial_loss_weights:
+                    self.loss_weights = initial_loss_weights
+                    self.softadapt_params = softadapt_params
+                    print('Softadapt parameters have been set for adaptive weights.', self.softadapt_params, flush=True)
                 else:
                     self.loss_weights = {'pe' : 0.3, 'force' : 0.3, 'stress': 0.3}
                     self.softadapt_params = softadapt_params
@@ -818,10 +829,11 @@ class Network(tf.Module):
 
 
         print('self.loss_weights:', self.loss_weights)
-        self.loss_weights_history = {}
-        for key in self.loss_weights:
-            # self.loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
-            self.loss_weights_history[key] = []
+        if not append_loss:
+            self.loss_weights_history = {}
+            for key in self.loss_weights:
+                # self.loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
+                self.loss_weights_history[key] = []
         
         if regularization:
             if isinstance(regularization, str):
@@ -918,21 +930,6 @@ class Network(tf.Module):
         if valid_dataset and (not hasattr(self,'val_loss') or not append_loss):
             self.val_loss={}
              
-        
-        # if loss_weights is None:
-        #     if hasattr(self,'loss_weights'):
-        #         print('Loss weights are set to the value from imported model:',self.loss_weights,flush=True)
-        #     else:
-        #         self.loss_weights = {'pe':1.0,'force':0,'stress':0}
-        #         print('Loss weights are set to default value:',self.loss_weights,flush=True)
-        # else:
-        #     self.loss_weights = loss_weights
-
-        # for key in self.loss_weights:
-        #     self.loss_weights[key] = tf.Variable(self.loss_weights[key],dtype=self.data_type)
-        #     self.loss_weights_history = {'pe':[], 'force':[],'stress':[]}
-
-        # self.count_loss_calculations = {'train':0, 'valid':0}
 
 
         self.compute_all_loss=compute_all_loss
@@ -1096,9 +1093,9 @@ class Network(tf.Module):
             if nepochs_checkpoint:
                 if (epoch+1) % nepochs_checkpoint ==0:
                     if savefolder:
-                        self.save(os.path.join(savefolder, 'saved_model_at_epoch'+str(epoch+1)), save_training_history=True)
+                        self.save(savefolder, save_training_history=True, checkpoint=True)
                     else:
-                        self.save('saved_model_at_epoch'+str(epoch+1), save_training_history=True)
+                        self.save(save_training_history=True, checkpoint=True)
                     self.plot_loss(saveplot=True, figfolder=figfolder, showplot=False)
 
             if decay:
@@ -1112,7 +1109,7 @@ class Network(tf.Module):
 
 
 
-    def save(self, model_dir, save_training_history=False):
+    def save(self, model_dir, save_training_history=False, checkpoint=False):
         """
         Save a trained model.
         
@@ -1146,8 +1143,14 @@ class Network(tf.Module):
 
         self.saved_loss_weights = {}
         for key in self.loss_weights:
-             self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key], dtype=self.data_type)
+            self.saved_loss_weights[key] = tf.Variable(self.loss_weights[key], dtype=self.data_type)
         print('  loss function',flush=True)
+
+        if hasattr(self,'softadapt_params'):
+            self.saved_softadapt_params = {}
+            for key, value in self.softadapt_params.items():
+                self.saved_softadapt_params[key] = tf.Variable(value)
+            print('  softadapt_params', flush=True)
 
         if hasattr(self,'decay'):
             self.saved_decay = {}
@@ -1161,7 +1164,13 @@ class Network(tf.Module):
         self.save_training_history = tf.Variable(save_training_history)
         
         if save_training_history:
-            print('model_dir:', model_dir)
+            current_epochs = str(len(self.train_loss['pe_loss']))
+            if checkpoint:
+                if model_dir:
+                    model_dir = os.path.join(model_dir, 'saved_model_at_epoch_'+current_epochs+'.dnn')
+                else:
+                    model_dir = 'saved_model_at_epoch_'+current_epochs+'.dnn'
+
             if not os.path.isdir(model_dir):
                 os.makedirs(model_dir)
 
@@ -1180,7 +1189,6 @@ class Network(tf.Module):
                 pickle.dump(history, out_)
                 print(msg,flush=True)
 
-           
         tf.saved_model.save(self, model_dir)
            
         input_tag, input_name, output_tag, output_name = get_signature(model_dir)
@@ -1343,7 +1351,7 @@ class Network(tf.Module):
             os.mkdir(figfolder)
         figname = 'loss_at_epoch_'+str(end_epoch+1)+'.'+format
         if saveplot:
-            fig.savefig(os.path.join(figfolder,figname),bbox_inches = 'tight',format=format, dpi=500)
+            fig.savefig(os.path.join(figfolder,figname), bbox_inches='tight', format=format, dpi=500)
         if showplot:
             plt.show()
 
@@ -1453,7 +1461,7 @@ def load(model_dir):
         model_dir: directory of a saved neural network model
     """
     if model_dir:
-        return Network(import_dir = model_dir)
+        return Network(import_dir=model_dir)
     else:
         raise ValueError('Load function has no model directory.')
 

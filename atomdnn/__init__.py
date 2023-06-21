@@ -1,4 +1,5 @@
 data_type = 'float64'
+epsilon   = 1e-8 #for numerical stability tests
 
 # can be set to False if only need potential energy 
 compute_force = True
