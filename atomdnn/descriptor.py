@@ -373,6 +373,9 @@ def get_num_fingerprints(descriptor,elements):
             n_etaG2 = len(descriptor['etaG2'])
         if 'rs' in descriptor:
             n_rs = len(descriptor['rs'])
+        else:
+            n_rs = 0
+
         if 'etaG4' in descriptor:
             n_etaG4 = len(descriptor['etaG4'])
         if 'zeta' in descriptor:
@@ -381,7 +384,8 @@ def get_num_fingerprints(descriptor,elements):
             n_lambda = len(descriptor['lambda'])
 
         #                        G1     (     G2          )   (                   G4                     )
-        num_fingerprints = int(ntypes + n_etaG2*n_rs*ntypes + n_lambda*n_zeta*n_etaG4*ntypes_combinations);
+        num_fingerprints = int(ntypes + n_etaG2*n_rs*ntypes + n_lambda*n_zeta*n_etaG4*ntypes_combinations)
+        print('# G1:', ntypes,'\n# G2:', n_etaG2*n_rs*ntypes, '\n# G4:', n_lambda*n_zeta*n_etaG4*ntypes_combinations)
 
     return num_fingerprints
 

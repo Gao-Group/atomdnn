@@ -174,12 +174,22 @@ class Network(tf.Module):
             with open(import_dir+'/training_history_data', 'rb') as in_: 
                 history = pickle.load(in_)
             if hasattr(imported,'decay'):
-                self.lr_history, self.train_loss, self.val_loss = history
-                msg = "  lr_history, train_loss and val_loss are loaded"
+                if hasattr(imported, 'val_loss'):
+                    self.lr_history, self.train_loss, self.val_loss = history
+                    msg = "  lr_history, train_loss and val_loss are loaded"
+                else:
+                    attributes = dir(imported)
+                    print('attrobutes:', attributes)
+                    self.lr_history, self.train_loss = history
+                    msg = "  lr_history and train_loss are loaded"
             else:
-                self.train_loss, self.val_loss = history
-                msg = "  train_loss and val_loss are loaded"
-            print(msg,flush=True)
+                if hasattr(imported, 'val_loss'):
+                    self.train_loss, self.val_loss = history
+                    msg = "  train_loss and val_loss are loaded"
+                else:
+                    self.train_loss = history
+                    msg = "  train_loss are loaded"
+            print(msg, flush=True)
                                       
         try:
             self.params = []
@@ -618,7 +628,7 @@ class Network(tf.Module):
 
         elif 'force' in self.loss_weights: # pe and force used for training 
             total_loss = loss_dict['pe_loss'] * self.loss_weights['pe'] + loss_dict['force_loss'] * self.loss_weights['force']
-            loss_dict['total_loss'] = total_loss + regularizer
+            loss_dict['total_loss'] = total_loss
         elif self.loss_weights['stress']!=0: # pe and stress used for training
             total_loss = loss_dict['pe_loss'] * self.loss_weights['pe'] + loss_dict['stress_loss'] * self.loss_weights['stress']
             loss_dict['total_loss'] = total_loss
@@ -634,40 +644,59 @@ class Network(tf.Module):
 
     def update_loss_weights(self, loss_dict):
 
+        use_stress = True
+        if 'stress' not in self.loss_weights or self.loss_weights['stress']==0:
+            use_stress = False
+
         if self.first_epoch_passed:
             b = self.softadapt_params['beta']
             f_iminus1_1 = self.f_iminus1_1
             f_iminus1_2 = self.f_iminus1_2
-            f_iminus1_3 = self.f_iminus1_3
+            if use_stress:
+                f_iminus1_3 = self.f_iminus1_3
 
             s_i1 = loss_dict['pe_loss'] - f_iminus1_1
             s_i2 = loss_dict['force_loss'] - f_iminus1_2
-            s_i3 = loss_dict['stress_loss'] - f_iminus1_3
-            s_i_norm = tf.norm(tf.Variable(np.array([s_i1, s_i2, s_i3]), dtype=self.data_type), axis = None)
+            if use_stress:
+                s_i3 = loss_dict['stress_loss'] - f_iminus1_3
+                s_i_norm = tf.norm(tf.Variable(np.array([s_i1, s_i2, s_i3]), dtype=self.data_type), axis = None)
+            else:
+                s_i_norm = tf.norm(tf.Variable(np.array([s_i1, s_i2]), dtype=self.data_type), axis = None)
             
             s_i1 = (loss_dict['pe_loss'] - f_iminus1_1)/s_i_norm
             s_i2 = (loss_dict['force_loss'] - f_iminus1_2)/s_i_norm
-            s_i3 = (loss_dict['stress_loss'] - f_iminus1_3)/s_i_norm
+            if use_stress:
+                s_i3 = (loss_dict['stress_loss'] - f_iminus1_3)/s_i_norm
 
             if 'loss_weighted' in self.softadapt_params and self.softadapt_params['loss_weighted']==True:
-                alpha_normaliz_factor = loss_dict['pe_loss']*tf.exp(b*s_i1) +\
-                                        loss_dict['force_loss']*tf.exp(b*s_i2) +\
-                                        loss_dict['stress_loss']*tf.exp(b*s_i3) + self.epsilon
+                if use_stress:
+                    alpha_normaliz_factor = loss_dict['pe_loss']*tf.exp(b*s_i1) +\
+                                            loss_dict['force_loss']*tf.exp(b*s_i2) +\
+                                            loss_dict['stress_loss']*tf.exp(b*s_i3) + self.epsilon
+                else:
+                    alpha_normaliz_factor = loss_dict['pe_loss']*tf.exp(b*s_i1) +\
+                                            loss_dict['force_loss']*tf.exp(b*s_i2) + self.epsilon
+
 
                 alpha_i1 = loss_dict['pe_loss']     * tf.exp(b*s_i1)/alpha_normaliz_factor
                 alpha_i2 = loss_dict['force_loss']  * tf.exp(b*s_i2)/alpha_normaliz_factor
-                alpha_i3 = loss_dict['stress_loss'] * tf.exp(b*s_i3)/alpha_normaliz_factor
+                if use_stress:
+                    alpha_i3 = loss_dict['stress_loss'] * tf.exp(b*s_i3)/alpha_normaliz_factor
             else:
-                print('type(b):', type(b), 'type(s_i1):', type(s_i1))
-                alpha_normaliz_factor = tf.exp(b*s_i1) + tf.exp(b*s_i2) + tf.exp(b*s_i3) + self.epsilon
+                if use_stress:
+                    alpha_normaliz_factor = tf.exp(b*s_i1) + tf.exp(b*s_i2) + tf.exp(b*s_i3) + self.epsilon
+                else:
+                    alpha_normaliz_factor = tf.exp(b*s_i1) + tf.exp(b*s_i2) + self.epsilon
 
                 alpha_i1 = tf.exp(b*s_i1)/alpha_normaliz_factor
                 alpha_i2 = tf.exp(b*s_i2)/alpha_normaliz_factor
-                alpha_i3 = tf.exp(b*s_i3)/alpha_normaliz_factor
+                if use_stress:
+                    alpha_i3 = tf.exp(b*s_i3)/alpha_normaliz_factor
 
             self.loss_weights['pe'] = alpha_i1
             self.loss_weights['force'] = alpha_i2
-            self.loss_weights['stress'] = alpha_i3
+            if use_stress:
+                self.loss_weights['stress'] = alpha_i3
 
             # tf.print('  s_i1:', loss_dict['pe_loss'], f_iminus1_1)
             # tf.print('  s_i2:', loss_dict['force_loss'], f_iminus1_2)
@@ -681,7 +710,8 @@ class Network(tf.Module):
 
         self.f_iminus1_1 = loss_dict['pe_loss']
         self.f_iminus1_2 = loss_dict['force_loss']
-        self.f_iminus1_3 = loss_dict['stress_loss']
+        if use_stress:
+            self.f_iminus1_3 = loss_dict['stress_loss']
         # tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
         # print(60*'-')
 
@@ -775,7 +805,7 @@ class Network(tf.Module):
     
     
     def train(self, train_dataset, valid_dataset=None, regularization=None, regularization_param=None, cache=True, early_stop=None, dropout=None, nepochs_checkpoint=None, figfolder=None, savefolder=None, scaling=None, batch_size=None, epochs=None, loss_fun=None, \
-              optimizer=None, lr=None, decay=None, loss_weights=None, initial_loss_weights=None, softadapt_params=None, compute_all_loss=False, shuffle=True, buffer_size=None, append_loss=False, output_freq=1):
+              optimizer=None, lr=None, decay=None, loss_weights=None, initial_loss_weights=None, softadapt_params=None, compute_all_loss=False, use_stress=True, shuffle=True, buffer_size=None, append_loss=False, output_freq=1):
         """
         Train the neural network.
 
@@ -812,14 +842,20 @@ class Network(tf.Module):
                 print('Loss weights are set to the value from imported model:', self.loss_weights, flush=True)
             else:
                 if softadapt_params is None:
-                    self.loss_weights = {'pe':1.0,'force':0,'stress':0}
+                    if use_stress:
+                        self.loss_weights = {'pe':1.0,'force':0,'stress':0}
+                    else:
+                        self.loss_weights = {'pe':1.0,'force':0}
                     print('Loss weights are set to default fixed value:', self.loss_weights, flush=True)
                 elif initial_loss_weights:
                     self.loss_weights = initial_loss_weights
                     self.softadapt_params = softadapt_params
                     print('Softadapt parameters have been set for adaptive weights.', self.softadapt_params, flush=True)
                 else:
-                    self.loss_weights = {'pe' : 0.3, 'force' : 0.3, 'stress': 0.3}
+                    if use_stress:
+                        self.loss_weights = {'pe' : 0.3, 'force' : 0.3, 'stress': 0.3}
+                    else:
+                        self.loss_weights = {'pe' : 0.5, 'force' : 0.5}
                     self.softadapt_params = softadapt_params
                     print('Softadapt parameters have been set for adaptive weights.', self.softadapt_params, flush=True)
         else:
@@ -863,17 +899,16 @@ class Network(tf.Module):
             self.scaling = None
             print('Scaling is not applied to data.',flush=True)
 
+        if not hasattr(self,'lr_history'):
+            self.lr_history = []
             
         if decay:
             for key in {'initial_lr','decay_steps','decay_rate'}:
                 if decay.get(key)==None:
                     raise ValueError(key + ' is not in decay.')
             self.decay = decay
-            if not hasattr(self,'lr_history'):
-                self.lr_history = []
-            else:
-                self.lr_history.append(decay['initial_lr'])
             self.lr = decay['initial_lr']
+            self.lr_history.append(decay['initial_lr'])
             print("Initial learning rate is set to %.3e."%self.lr,flush=True)
         else:
             if lr:
@@ -884,6 +919,8 @@ class Network(tf.Module):
             else:
                 self.lr = 0.001
                 print ("Learning rate is set to 0.001 by default.",flush=True)                        
+
+        self.lr_history.append(self.lr)
 
         if optimizer:
             self.optimizer = optimizer
@@ -951,18 +988,17 @@ class Network(tf.Module):
         else:
             print ("Forces are not used for training.",flush=True)
             
-        if self.loss_weights['stress']!=0 or self.compute_all_loss: # when stress is used for training/validation OR compute stress_loss is requested
+        if 'stress' in self.loss_weights and self.loss_weights['stress']!=0 or self.compute_all_loss: # when stress is used for training/validation OR compute stress_loss is requested
             if 'stress_loss' not in self.train_loss or not append_loss:
                 self.train_loss['stress_loss']=[]
             if valid_dataset and ('stress_loss' not in self.val_loss or not append_loss):
                 self.val_loss['stress_loss']=[]
-                
-        if self.loss_weights['stress']!=0:
             print ("Stresses are used for training.",flush=True)
         else:
             print ("Stresses are not used for training.",flush=True)
 
-        if self.loss_weights['force']!=0 or self.loss_weights['stress']!=0 or self.compute_all_loss: 
+        if ('force' in self.loss_weights and self.loss_weights['force']!=0) or \
+            ('stress' in self.loss_weights and self.loss_weights['stress']!=0) or self.compute_all_loss: 
             if 'total_loss' not in self.train_loss or not append_loss:
                 self.train_loss['total_loss']=[]
             if valid_dataset and ('total_loss' not in self.val_loss or not append_loss):
@@ -981,7 +1017,8 @@ class Network(tf.Module):
 
         if cache is True:
             train_dataset = train_dataset.cache()
-            valid_dataset = valid_dataset.cache()
+            if valid_dataset:
+                valid_dataset = valid_dataset.cache()
                 
                 
         if shuffle:
@@ -994,18 +1031,18 @@ class Network(tf.Module):
 
 
         n_train_examples = len(train_dataset)
-        n_valid_examples = len(valid_dataset)
         train_dataset = train_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-        valid_dataset = valid_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
-
-
         n_structs_per_train_batch = batch_size*np.ones((len(train_dataset)))
-        n_structs_per_valid_batch = batch_size*np.ones((len(valid_dataset)))
-
         if n_train_examples%batch_size!=0:
             n_structs_per_train_batch[-1] = n_train_examples%batch_size
-        if n_valid_examples%batch_size!=0:
-            n_structs_per_valid_batch[-1] = n_valid_examples%batch_size
+
+        # train dataset is mandatory, valid dataset is optional
+        if valid_dataset:
+            n_valid_examples = len(valid_dataset)
+            valid_dataset = valid_dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+            n_structs_per_valid_batch = batch_size*np.ones((len(valid_dataset)))
+            if n_valid_examples%batch_size!=0:
+                n_structs_per_valid_batch[-1] = n_valid_examples%batch_size
 
 
         train_start_time = time.time()
@@ -1109,7 +1146,7 @@ class Network(tf.Module):
 
 
 
-    def save(self, model_dir, save_training_history=False, checkpoint=False):
+    def save(self, model_dir=None, save_training_history=False, checkpoint=False):
         """
         Save a trained model.
         
@@ -1180,10 +1217,16 @@ class Network(tf.Module):
             print('  loss weights history has been saved.')
 
             if hasattr(self,'decay'):
-                history = [self.lr_history,self.train_loss,self.val_loss]
+                if hasattr(self, 'val_loss'):
+                    history = [self.lr_history,self.train_loss,self.val_loss]
+                else:
+                    history = [self.lr_history,self.train_loss]
                 msg = 'Decayed learning rates, training and validation loss are saved as binary data in %s'%(model_dir+'/training_history_data')
             else:
-                history = [self.train_loss,self.val_loss]
+                if hasattr(self, 'val_loss'):
+                    history = [self.train_loss,self.val_loss]
+                else:
+                    history = [self.train_loss]
                 msg = 'Training and validation loss are saved as binary data in %s'%(model_dir+'/training_history_data')
             with open(model_dir+'/training_history_data', 'wb') as out_: 
                 pickle.dump(history, out_)
@@ -1347,6 +1390,7 @@ class Network(tf.Module):
                 i=1
                 j=0
                 
+        end_epoch = len(self.train_loss['pe_loss'])
         if not os.path.isdir(figfolder):
             os.mkdir(figfolder)
         figname = 'loss_at_epoch_'+str(end_epoch+1)+'.'+format
