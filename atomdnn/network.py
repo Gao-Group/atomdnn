@@ -717,11 +717,14 @@ class Network(tf.Module):
 
 
 
-    def decay_lr(self,epoch):
-        self.lr = self.decay['initial_lr'] * math.pow(self.decay['decay_rate'],np.floor((1+epoch)/self.decay['decay_steps']))
-        K.set_value(self.tf_optimizer.learning_rate, self.lr)
-        self.lr_history.append(self.lr)
-        
+    def decay_lr(self, epoch):
+        decayed_value = self.decay['initial_lr'] * math.pow(self.decay['decay_rate'],np.floor((1+epoch)/self.decay['decay_steps']))
+        if decayed_value < self.decay['min_lr']:
+            self.lr = self.decay['min_lr']
+        else:
+            self.lr = decayed_value
+            
+        K.set_value(self.tf_optimizer.learning_rate, self.lr)        
 
      
     def train_step(self, input_dict, output_dict):
@@ -821,7 +824,7 @@ class Network(tf.Module):
             loss_fun(string): loss function, 'mae', 'mse', 'rmse' and others
             opimizer(string): any Tensorflow optimizer such as 'Adam'
             lr(float): learning rate, it is ignored if decay is provided
-            decay(dictionary): parameters for exponentialDecay, keys are: 'initial_lr','decay_steps' and 'decay_rate'
+            decay(dictionary): parameters for exponentialDecay, keys are: 'initial_lr','decay_steps', 'decay_rate' and 'min_lr'
             loss_weights(dictionary): weights assigned to loss function, e.g. {'pe':1,'force':1,'stress':0.1}  
 
             softadapt_params(dictiorary): parameters for adaptive loss weights, e.g. {'beta':0.1,'loss_weighted':True}
@@ -853,7 +856,7 @@ class Network(tf.Module):
                     print('Softadapt parameters have been set for adaptive weights.', self.softadapt_params, flush=True)
                 else:
                     if use_stress:
-                        self.loss_weights = {'pe' : 0.3, 'force' : 0.3, 'stress': 0.3}
+                        self.loss_weights = {'pe' : 0.33, 'force' : 0.33, 'stress': 0.33}
                     else:
                         self.loss_weights = {'pe' : 0.5, 'force' : 0.5}
                     self.softadapt_params = softadapt_params
@@ -906,6 +909,9 @@ class Network(tf.Module):
             for key in {'initial_lr','decay_steps','decay_rate'}:
                 if decay.get(key)==None:
                     raise ValueError(key + ' is not in decay.')
+            if decay.get('min_lr') == None:
+                decay['min_lr'] = 1e-5
+                print('Minimum lr is set to 1e-5 by default for decaying lr.')
             self.decay = decay
             self.lr = decay['initial_lr']
             self.lr_history.append(decay['initial_lr'])
@@ -1137,8 +1143,11 @@ class Network(tf.Module):
 
             if decay:
                 if (epoch+1) % decay['decay_steps']==0 and (epoch+1)<epochs:
-                    self.decay_lr(epoch)
-                    print('\nLearning rate is decreased to %.3e'% self.lr,flush=True)
+                    if self.lr > decay['min_lr']:
+                        self.decay_lr(epoch)
+                        print('\nLearning rate is decreased to %.3e'% self.lr,flush=True)
+
+                    self.lr_history.append(self.lr)
 
         elapsed_time = (epoch_end_time - train_start_time)
         print('\nEnd of training, elapsed time: ',time.strftime("%H:%M:%S", time.gmtime(elapsed_time)),flush=True)

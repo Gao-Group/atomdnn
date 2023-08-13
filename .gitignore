@@ -1,1 +1,3 @@
+atomdnn/.*
 atomdnn/__pycache__/
+lammps/.*
