@@ -726,7 +726,8 @@ def get_nfp_from_dataset (dataset):
 
 
 
-def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False, data_size=None, seed=None):
+def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False, data_size=None, seed=None,
+                          return_indices=False):
     """
     Split the tensorflow dataset into training, validation and test.
     
@@ -754,6 +755,11 @@ def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False
         print ("No data are used for test by default.")
     if train_pct + val_pct + test_pct > 1:
         raise ValueError('Percentages are not correct.')
+        
+    indices = tf.data.Dataset.range(len(dataset))
+    zipped_data = tf.data.Dataset.zip((dataset, indices))
+    print('len(dataset):', len(dataset))
+        
     train_size = int(train_pct * data_size)
     val_size = int(val_pct * data_size)
     test_size = int(test_pct * data_size)
@@ -765,13 +771,24 @@ def split_dataset(dataset, train_pct, val_pct=None, test_pct=None, shuffle=False
     if shuffle:
         if seed: # note that: reshuffle_each_iteration has to be False
             dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(), reshuffle_each_iteration=False, seed=seed)
+            dataset_idxs = zipped_data.shuffle(buffer_size=dataset.cardinality().numpy(), reshuffle_each_iteration=False, seed=seed)
         else:
             dataset = dataset.shuffle(buffer_size=dataset.cardinality().numpy(), reshuffle_each_iteration=False)
+            dataset_idxs = zipped_data.shuffle(buffer_size=dataset.cardinality().numpy(), reshuffle_each_iteration=False)
+            
     train_dataset = dataset.take(train_size)
     val_dataset = dataset.skip(train_size).take(val_size)
     test_dataset = dataset.skip(train_size+val_size).take(test_size)
 
-    return train_dataset,val_dataset,test_dataset
+    dataset_idxs = dataset_idxs.map(lambda x, idx: idx)
+    train_idxs = dataset_idxs.take(train_size)
+    val_idxs = dataset_idxs.skip(train_size).take(val_size)
+    test_idxs = dataset_idxs.skip(train_size+val_size).take(test_size)
+
+    if return_indices:
+        return train_dataset,val_dataset,test_dataset, train_idxs, val_idxs, test_idxs
+    else:
+        return train_dataset,val_dataset,test_dataset
 
 
 

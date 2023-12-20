@@ -291,7 +291,7 @@ def create_descriptors(elements, xyzfiles, descriptor, \
         der_pfname = os.path.join(descriptors_path,der_fname)
         infile = os.path.join(descriptors_path,'in.gen_descriptors')
         
-        print(f'os.environ[\'lmpexe\']:', os.environ['lmpexe'])
+        # print(f'os.environ[\'lmpexe\']:', os.environ['lmpexe'])
 
         lmp_cmd = os.environ['lmpexe']  + ' -in ' + infile \
                           + ' -var fp_filename ' + fp_pfname  \

@@ -304,6 +304,9 @@ class Network(tf.Module):
             # regularizer = tf.Variable(np.array([self.regularization_tf.get_config()[self.regularization] * regularizer]), dtype=self.data_type, name='regularizer')
             # self.params[-1] = regularizer.numpy()
             regularizer = self.regularization_tf.get_config()[self.regularization] * regularizer
+            # print('Debug!-> regularizer:', regularizer)
+        # else:
+        #     print('Debug!-> no regularizer')
 
         total_pe = tf.reshape(tf.math.reduce_sum(atom_pe, axis=1),[nimages]) + regularizer
 
@@ -880,6 +883,7 @@ class Network(tf.Module):
                 self.regularization_tf = tf.keras.regularizers.get(regularization)
                 if regularization_param:
                     self.regularization_tf = self.regularization_tf.from_config({self.regularization:regularization_param})
+                print('Regularization has been set to:', self.regularization_tf.get_config())
             else:
                 raise ValueError('Regularizer name not recognized.')
 
@@ -887,7 +891,7 @@ class Network(tf.Module):
         self.count_loss_calculations = {'train':0, 'valid':0}
 
             
-        if not self.built:            
+        if not self.built:
             self._build()
             self.built = True
                         
@@ -1405,6 +1409,7 @@ class Network(tf.Module):
         figname = 'loss_at_epoch_'+str(end_epoch+1)+'.'+format
         if saveplot:
             fig.savefig(os.path.join(figfolder,figname), bbox_inches='tight', format=format, dpi=500)
+            plt.close(fig)
         if showplot:
             plt.show()
 
