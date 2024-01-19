@@ -889,8 +889,8 @@ class Network(tf.Module):
                     print('Softadapt parameters have been set for adaptive weights.', self.softadapt_params, flush=True)
                 else:
                     if use_stress:
-                        # self.loss_weights = {'pe' : 0.33, 'force' : 0.33, 'stress': 0.33}
-                        self.loss_weights = {'pe' : 0.05, 'force' : 0.90, 'stress': 0.05}
+                        self.loss_weights = {'pe' : 0.33, 'force' : 0.33, 'stress': 0.33}
+                        # self.loss_weights = {'pe' : 0.05, 'force' : 0.90, 'stress': 0.05}
                     else:
                         self.loss_weights = {'pe' : 0.5, 'force' : 0.5}
                     self.softadapt_params = softadapt_params
