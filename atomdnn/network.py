@@ -656,6 +656,7 @@ class Network(tf.Module):
             for key in self.loss_weights:
                 self.lw_per_group_of_epochs[key] = []
 
+
         if self.first_epoch_passed:
             b = self.softadapt_params['beta']
             f_iminus1_1 = self.f_iminus1_1
@@ -701,17 +702,12 @@ class Network(tf.Module):
                 if use_stress:
                     alpha_i3 = tf.exp(b*s_i3)/alpha_normaliz_factor
 
-            self.loss_weights['pe'] = alpha_i1
             self.lw_per_group_of_epochs['pe'].append(alpha_i1.numpy())
 
-            self.loss_weights['force'] = alpha_i2
             self.lw_per_group_of_epochs['force'].append(alpha_i2.numpy())
 
             if use_stress:
-                self.loss_weights['stress'] = alpha_i3
                 self.lw_per_group_of_epochs['stress'].append(alpha_i3.numpy())
-
-            # tf.print(f'  epoch:{epoch} - loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
 
         else:
             self.first_epoch_passed = True
@@ -719,26 +715,26 @@ class Network(tf.Module):
             for key in self.loss_weights:
                 self.lw_per_group_of_epochs[key].append(self.loss_weights[key])
                 self.prev_lw_per_group_of_epochs[key] = self.loss_weights[key] 
-            # print('FIRST EPOCH! self.loss_weights:', self.loss_weights, flush=True)
 
         self.f_iminus1_1 = loss_dict['pe_loss']
         self.f_iminus1_2 = loss_dict['force_loss']
         if use_stress:
             self.f_iminus1_3 = loss_dict['stress_loss']
-        # tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
-        # print(60*'-')
+        
+
         if (epoch+1)%self.softadapt_params['n']==0:
-            # print('record_lw -> self.lw_per_group_of_epochs[\'pe_loss\']=', self.lw_per_group_of_epochs['pe_loss'], np.mean(self.lw_per_group_of_epochs['pe_loss']))
-            # self.loss_weights['pe'] = np.mean(self.lw_per_group_of_epochs['pe_loss'])
-            # print('  UPDATe EPOCH!')
-            for key in self.loss_weights:    
+            for key in self.loss_weights:
                 self.loss_weights[key] = np.mean(self.lw_per_group_of_epochs[key])
                 self.prev_lw_per_group_of_epochs[key] = np.mean(self.lw_per_group_of_epochs[key])
                 # print('  self.loss_weights[', key,']:', self.loss_weights[key], 'len=', len(self.lw_per_group_of_epochs[key]), flush=True)
 
-        for key in self.loss_weights:    
+        for key in self.loss_weights:
             self.loss_weights_history[key].append(self.prev_lw_per_group_of_epochs[key])
-            # print('  appending to loss_weights_history[',key,']:', self.prev_lw_per_group_of_epochs[key])
+
+        # tf.print('  loss_weights:', self.loss_weights['pe'], self.loss_weights['force'], self.loss_weights['stress'])
+        # tf.print('  alpha:', alpha_i1, alpha_i2, alpha_i3)
+        # tf.print('  loss_weights_history:', self.loss_weights_history['pe'], self.loss_weights_history['force'], self.loss_weights_history['stress'])
+        # print(60*'-')
 
 
     def decay_lr(self, epoch):
@@ -889,8 +885,8 @@ class Network(tf.Module):
                     print('Softadapt parameters have been set for adaptive weights.', self.softadapt_params, flush=True)
                 else:
                     if use_stress:
-                        # self.loss_weights = {'pe' : 0.33, 'force' : 0.33, 'stress': 0.33}
-                        self.loss_weights = {'pe' : 0.05, 'force' : 0.90, 'stress': 0.05}
+                        self.loss_weights = {'pe' : 0.33, 'force' : 0.33, 'stress': 0.33}
+                        # self.loss_weights = {'pe' : 0.05, 'force' : 0.05, 'stress': 0.90}
                     else:
                         self.loss_weights = {'pe' : 0.5, 'force' : 0.5}
                     self.softadapt_params = softadapt_params
@@ -1114,7 +1110,8 @@ class Network(tf.Module):
                 #     print('epocchhhhhhhh=0, self.first_epoch_passed:', self.first_epoch_passed, flush=True)
                 self.update_loss_weights(epoch, train_epoch_loss)
                 # for key in self.loss_weights:    
-                #     self.loss_weights_history[key].append(self.loss_weights[key])
+                    # self.loss_weights_history[key].append(self.loss_weights[key])
+                # print('lw:', self.loss_weights)
 
 
             # Iterate over the batches of the validation dataset
